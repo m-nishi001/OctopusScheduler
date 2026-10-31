@@ -12,7 +12,7 @@
       @edit="(member) => openModal('edit', member)" @delete="deleteMember" />
   </div>
 
-  <MemberFormDialog v-if="modalMode" :mode="modalMode" :member="modalData" :image-assets="imageAssets"
+  <MemberFormDialog v-if="modalMode" :mode="modalMode" :member="modalData"
     :existing-directory-members="availableDirectoryMembers" @submit="onFormSubmit" @cancel="closeModal" />
 
   <MemberDeleteDialog v-if="showDeleteModal || deleting" :deleting="deleting" :delete-message="deleteMessage"
@@ -24,10 +24,7 @@
 
 <script setup lang="ts">
 import { UiButton, UiToolbar } from '@octopus/ui-kit';
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { AssetDataService } from '@control/asset/asset-data-service';
-import type { Asset } from '@model/asset/asset-data';
-import { container } from 'tsyringe';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 import { useMembers } from './use-members';
 import type { MemberFormInput } from './use-members';
@@ -35,8 +32,6 @@ import MemberList from './components/member-list.vue';
 import MemberFormDialog from './components/member-form-dialog.vue';
 import MemberDeleteDialog from './components/member-delete-dialog.vue';
 import DataUploadDialog from './components/data-upload-dialog.vue';
-
-const assetDataService = container.resolve(AssetDataService);
 
 const {
   members,
@@ -51,19 +46,7 @@ const {
   deleteMember,
   deleteSelectedMembers,
   exportFormatCsv,
-  disposeObjectUrls,
 } = useMembers();
-
-const assets = ref<Asset[]>([]);
-const imageAssets = computed(() => assets.value.filter((asset) => asset.blob.type.startsWith('image')));
-const fetchAssets = async () => {
-  try {
-    assets.value = await assetDataService.getAllAssetData();
-  } catch (error) {
-    console.error('Failed to fetch assets:', error);
-    assets.value = [];
-  }
-};
 
 const modalMode = ref<'add' | 'edit' | null>(null);
 const modalData = ref<any>(null);
@@ -96,17 +79,14 @@ const showDataUploadDialog = ref(false);
 // 初めて開くブラウザでは、表示した後の背景同期でサーバーのデータが取り込まれる。取り込み完了時に一覧を読み直す
 const reloadAfterSync = () => {
   void fetchMembers();
-  void fetchAssets();
 };
 
 onMounted(async () => {
   eventBus.on('syncPulled', reloadAfterSync);
   await fetchMembers();
-  await fetchAssets();
 });
 
 onBeforeUnmount(() => {
   eventBus.off('syncPulled', reloadAfterSync);
-  disposeObjectUrls();
 });
 </script>

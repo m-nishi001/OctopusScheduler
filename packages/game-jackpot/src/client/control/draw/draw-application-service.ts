@@ -364,4 +364,4 @@ export class DrawApplicationService {
   }
 }
 
-const toDtoMember = (m: Member) => ({ id: m.id, name: m.name, photoAssetId: m.photoAssetId, rank: m.rank, weight: m.weight });
+const toDtoMember = (m: Member) => ({ id: m.id, name: m.name, photo: m.photo, rank: m.rank, weight: m.weight });

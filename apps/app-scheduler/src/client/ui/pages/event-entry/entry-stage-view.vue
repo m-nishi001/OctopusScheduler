@@ -23,18 +23,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { container } from 'tsyringe';
 import { HostAgent, readPortalEvent, useConnectionState, useRoundAnswers } from '@octopus/session-hub';
 import { useAutoEntrants } from './use-auto-entrants';
-import { createMemberPhotoCache } from '@octopus/game-jackpot';
+import { AccountsRepository, MemberPhotoCache } from '@octopus/accounts';
+import { useRosterPhotos } from './use-roster-photos';
 import EntryBubbles from './entry-bubbles.vue';
 import type { Entrant } from './entry-bubbles.vue';
 
 /**
  * 会場の大きな画面に出す、エントリー受付のステージ。参加者がエントリーするたびにバブルがポンと現れる。
  * 管理端末が「エントリー受付」を開くと、この画面にエントリー済みの人が顔写真つきで並ぶ。
- * 顔写真はこの端末(ホスト)が持つジャックポットのメンバー写真から引き、参加者のスマホへは渡さない。
+ * 顔写真は共通の名簿(Member.photo)から引く。ハッシュ別の端末内キャッシュを通すので、同じ写真は二度取りに行かない。
  */
 const props = withDefaults(
     defineProps<{
@@ -71,27 +72,22 @@ const label = computed(() => {
 });
 
 // 顔写真。名簿に無い・写真が無い人は頭文字のアバターになる。
-const photos = createMemberPhotoCache();
-const photoTick = ref(0);
+const photos = useRosterPhotos(container.resolve(AccountsRepository), container.resolve(MemberPhotoCache));
 watch(
     () => (autoMode.value ? auto.entrants.value.map((a) => a.memberId) : roster.answers.value.map((a) => a.memberId).filter((id): id is string => !!id)),
-    async (ids) => {
-        await photos.ensure(ids);
-        photoTick.value++;
-    },
+    (ids) => photos.ensure(ids),
     { immediate: true },
 );
-onUnmounted(() => photos.dispose());
 
 const entrants = computed<Entrant[]>(() => {
-    void photoTick.value;
+    void photos.version.value;
     if (autoMode.value) {
-        return auto.entrants.value.map((a) => ({ id: a.memberId, name: a.name, photoUrl: photos.get(a.memberId) }));
+        return auto.entrants.value.map((a) => ({ id: a.memberId, name: a.name, photoUrl: photos.urlOf(a.memberId) }));
     }
     return roster.answers.value.map((a) => ({
         id: a.memberId ?? a.deviceId,
         name: a.label,
-        photoUrl: a.memberId ? photos.get(a.memberId) : undefined,
+        photoUrl: a.memberId ? photos.urlOf(a.memberId) : undefined,
     }));
 });
 // 一覧の取得を待たずに、更新の通知で届く最新の人数を出す

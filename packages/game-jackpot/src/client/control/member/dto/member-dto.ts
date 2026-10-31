@@ -3,7 +3,7 @@ import type { Member } from "../../../model/member/member";
 export interface MemberDto {
   id: string;
   name: string;
-  photoAssetId?: string;
+  photo?: string;
   rank: number;
   weight?: number;
 }
@@ -12,7 +12,7 @@ export interface MemberDto {
 export const toMember = (dto: MemberDto): Member => ({
   id: dto.id,
   name: dto.name,
-  photoAssetId: dto.photoAssetId,
+  photo: dto.photo,
   rank: dto.rank,
   weight: dto.weight,
 });
@@ -21,7 +21,7 @@ export const toMember = (dto: MemberDto): Member => ({
 export const fromMember = (member: Member): MemberDto => ({
   id: member.id,
   name: member.name,
-  photoAssetId: member.photoAssetId,
+  photo: member.photo,
   rank: member.rank,
   weight: member.weight,
 });

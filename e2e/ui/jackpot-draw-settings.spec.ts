@@ -47,16 +47,27 @@ test.describe("ジャックポットの管理画面の設定", () => {
     await page.reload();
     await expect(page.getByTestId("prize-stop-sec")).toHaveValue("7");
 
+    // 画面設定はバックグラウンド同期(2秒のデバウンス)でサーバーへ送られ、別の端末(本抽選画面)はそれを取り込む。
+    // 送信の最中に次の保存をすると、あとの保存が同期で失われてサーバーの値に戻ってしまうことがある。
+    // そのため、1回ごとに送信の完了を待ってから次へ進み、最後に必ず「4秒に戻した」内容をサーバーに届ける
+    // (15秒が残ると、あとのテスト(止まり方など)の停止が15秒かかってしまう)。
+    const pushedWith = (sec: number) =>
+      page.waitForResponse((r) => new RegExp(`prizeStopSec[^0-9]*${sec}\\b`).test(r.request().postData() ?? ""), { timeout: 20_000 });
+
     // 範囲(2〜15秒)に収めて保存される
+    const pushed15 = pushedWith(15);
     await page.getByTestId("prize-stop-sec").fill("99");
     await page.getByRole("button", { name: "保存" }).click();
     await expect(page.getByText("保存しました")).toBeVisible();
     await expect(page.getByTestId("prize-stop-sec")).toHaveValue("15");
+    await pushed15;
 
     // 初期値に戻しておく(ほかのテストに影響させない)
+    const pushed4 = pushedWith(4);
     await page.getByTestId("prize-stop-sec").fill("4");
     await page.getByRole("button", { name: "保存" }).click();
     await expect(page.getByText("保存しました")).toBeVisible();
+    await pushed4;
     await page.reload();
     await expect(page.getByTestId("prize-stop-sec")).toHaveValue("4");
     await dev.context.close();

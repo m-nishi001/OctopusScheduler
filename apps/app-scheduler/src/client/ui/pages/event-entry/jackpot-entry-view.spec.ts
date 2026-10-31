@@ -4,16 +4,12 @@ import { container } from "tsyringe";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent, h } from "vue";
 import { RouterView } from "vue-router";
-import { AccountsRepository } from "@octopus/accounts";
+import { AccountsRepository, MemberPhotoCache } from "@octopus/accounts";
 import { entryRoundKey, readPortalEvent } from "@octopus/session-hub";
 import { registerEventHost } from "../../../control/session/event-host";
 import type { EventStorage } from "../../../control/session/event-host";
 import { makeDevice, registerHostAgent, setupSessionEnv, settle } from "../session/__tests__/session-test-kit";
 import type { SessionEnv } from "../session/__tests__/session-test-kit";
-
-vi.mock("@octopus/game-jackpot", () => ({
-  createMemberPhotoCache: () => ({ ensure: async () => undefined, get: () => undefined, dispose: () => undefined }),
-}));
 
 import JackpotEntryView from "./jackpot-entry-view.vue";
 
@@ -31,7 +27,11 @@ beforeEach(() => {
   vi.setSystemTime(1_700_000_000_000);
   container.clearInstances();
   env = setupSessionEnv();
-  container.registerInstance(AccountsRepository, { listAccounts: async () => members } as unknown as AccountsRepository);
+  container.registerInstance(AccountsRepository, {
+    listAccounts: async () => members,
+    listMembers: async () => members,
+  } as unknown as AccountsRepository);
+  container.registerInstance(MemberPhotoCache, new MemberPhotoCache({ fetchPhotos: async () => ({}) }));
 });
 afterEach(() => vi.useRealTimers());
 

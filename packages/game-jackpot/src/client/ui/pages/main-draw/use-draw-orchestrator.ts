@@ -31,7 +31,7 @@ import { DrawFlowController, type NextCycle } from "./draw-flow-controller";
 import { createHostPublisher } from "./host-publisher";
 import { performNext, performResume, type DrawOutcome, type NextCycleResult } from "./perform-draw";
 import { CycleSource } from "./cycle-source";
-import { releaseSharedMemberImageCache, sharedMemberImageCache } from "./member-draw/member-image-cache";
+import { MemberPhotoCache } from "@octopus/accounts";
 
 /** メンバー抽選の画面が並べて見せる人数(member-draw-animation.vue の visibleCount の既定)。先に写真を読む範囲。 */
 const MEMBER_REEL_VISIBLE = 10;
@@ -149,7 +149,7 @@ export function useDrawOrchestrator() {
     const byId = new Map(members.value.map((m) => [m.id, m]));
     const shown = [memberRes.winnerId, ...memberRes.dummyIds].map((id) => (id ? byId.get(id) : undefined));
     const lead = members.value.slice(0, MEMBER_REEL_VISIBLE);
-    await sharedMemberImageCache().preload([...shown, ...lead].map((m) => m?.photoAssetId));
+    await container.resolve(MemberPhotoCache).ensure([...shown, ...lead].map((m) => m?.photo));
   };
 
   /** 使わずに捨てる材料の後始末(ルーレットの画像の URL)。 */
@@ -313,7 +313,6 @@ export function useDrawOrchestrator() {
     cycleSource.invalidate();
     void RouletteBgmManager.stop();
     revokePreparedPrizes(preparedPrizes.value);
-    releaseSharedMemberImageCache();
   });
 
   return {

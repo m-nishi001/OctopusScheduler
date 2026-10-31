@@ -41,7 +41,6 @@ export class DrawSimulationService {
       id: `member-${i + 1}`,
       name: `メンバー${i + 1}`,
       rank: (i % 3) + 1,
-      photoAssetId: "dummy",
     }));
   }
 
