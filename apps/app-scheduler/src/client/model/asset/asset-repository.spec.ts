@@ -1,5 +1,4 @@
 import "reflect-metadata";
-import { webcrypto } from "node:crypto";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { FixedConcurrencyPolicy, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
@@ -9,8 +8,26 @@ import { AssetRepository } from "./asset-repository";
 import type { Asset } from "./asset";
 import { ASSET_RECORD_FILE, assetRecordHashes } from "../../../server/scheduler-api-contract";
 
-// この環境の jsdom には crypto.subtle が無いので、Node のものを使う
-vi.stubGlobal("crypto", webcrypto);
+// この環境の jsdom には crypto.subtle が無いので、中身から決まる値を返す簡易なものに差し替える(同じ内容 → 同じハッシュ)
+let uuidCount = 0;
+vi.stubGlobal("crypto", {
+  subtle: {
+    digest: async (_algorithm: string, data: ArrayBuffer) => {
+      const out = new Uint8Array(32);
+      let h = 2166136261;
+      new Uint8Array(data).forEach((b, i) => {
+        h = Math.imul(h ^ b, 16777619) >>> 0;
+        out[i % 32] ^= h & 255;
+      });
+      for (let i = 0; i < 32; i++) {
+        h = Math.imul(h ^ out[i] ^ i, 16777619) >>> 0;
+        out[i] = h & 255;
+      }
+      return out.buffer;
+    },
+  },
+  randomUUID: () => `uuid-${++uuidCount}`,
+});
 
 // jsdom + localforage では保存した Blob を読み戻すと本物の Blob ではなくなり FileReader で読めないので、データURL化だけ差し替える
 vi.mock("@octopus/client-common/blob/blob-to-data-url", () => ({
