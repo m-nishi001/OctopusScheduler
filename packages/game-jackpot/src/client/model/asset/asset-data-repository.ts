@@ -1,5 +1,6 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { eventBus } from "@octopus/client-common/events/event-bus";
 import { injectable, inject } from "tsyringe";
 import {
   BLOB_HASH_PATTERN,
@@ -87,6 +88,7 @@ export class AssetDataRepository {
       const replaced = new Set(entries.map((e) => e.id));
       return [...(current ?? []).filter((e) => !replaced.has(e.id)), ...entries];
     });
+    eventBus.emit("syncDirty");
     return saved;
   }
 
@@ -107,6 +109,7 @@ export class AssetDataRepository {
     await this.clearLegacy();
     const gone = new Set(ids);
     await this.list.update((current) => (current ?? []).filter((e) => !gone.has(e.id)));
+    eventBus.emit("syncDirty");
   }
 
   /** 同期の対象。素材の一覧1件と、それが参照するファイル(上げる → 一覧 → 取ってくる)。 */
