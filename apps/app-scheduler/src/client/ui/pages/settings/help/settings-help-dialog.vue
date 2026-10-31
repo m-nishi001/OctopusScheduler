@@ -5,10 +5,6 @@
             <ol><li v-for="t in HELP_FLOW" :key="t">{{ t }}</li></ol>
         </section>
         <section class="help-section">
-            <h3>ショートカットのルール</h3>
-            <ul><li v-for="t in HELP_SHORTCUT_RULES" :key="t">{{ t }}</li></ul>
-        </section>
-        <section class="help-section">
             <h3>クイズ画面の操作</h3>
             <ul><li v-for="t in HELP_QUIZ_NOTES" :key="t">{{ t }}</li></ul>
         </section>
@@ -20,7 +16,7 @@
 
 <script setup lang="ts">
 import { UiButton, UiDialog } from '@octopus/ui-kit';
-import { HELP_FLOW, HELP_QUIZ_NOTES, HELP_SHORTCUT_RULES } from './help-content';
+import { HELP_FLOW, HELP_QUIZ_NOTES } from './help-content';
 
 defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();

@@ -153,10 +153,10 @@ describe("useBackgroundSyncCore: 状態と同期ログ", () => {
 
   it("失敗と、他の端末の変更の反映だけをログに残す(送信の成功と skip は残さない)。新しいものが先頭", async () => {
     const { log } = await runOnce(async () => ({
-      results: [ok("pushed", "prizes"), ok("skipped", "member-extras"), ok("pulled", "screens"), failed("asset", "push", "boom"), failed("quizzes-meta", "pull", "bad"), failed("keyboard-shortcuts", undefined, "net")],
+      results: [ok("pushed", "prizes"), ok("skipped", "member-extras"), ok("pulled", "screens"), failed("asset", "push", "boom"), failed("quizzes-meta", "pull", "bad"), failed("member-extras", undefined, "net")],
     }));
     expect(log.value.map((e) => [e.kind, e.event, e.error])).toEqual([
-      ["keyboard-shortcuts", "syncFailed", "net"],
+      ["member-extras", "syncFailed", "net"],
       ["quizzes-meta", "pullFailed", "bad"],
       ["asset", "pushFailed", "boom"],
       ["screens", "pulledFromOther", undefined],

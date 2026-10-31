@@ -32,7 +32,7 @@
                 <button class="main-btn" type="button" data-testid="home-settings" @click="goToSettings">
                     <span class="btn-icon">⚙️</span>
                     <span class="btn-label">設定</span>
-                    <span class="btn-desc">アカウント・アセット・ショートカット</span>
+                    <span class="btn-desc">アカウント・アセット</span>
                 </button>
             </div>
         </div>

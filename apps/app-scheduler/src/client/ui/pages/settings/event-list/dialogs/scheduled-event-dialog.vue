@@ -32,8 +32,7 @@ import type { EventFormHandle } from '../../app-events/ui-action-entry';
 
 /**
  * 予定イベントの追加・編集ダイアログ(全種類共通)。
- * 開始・終了の時刻だけをここで持ち、種類ごとの項目は `app-events/events/*` のフォームに任せる
- * (ショートカットの編集と同じフォーム)。
+ * 開始・終了の時刻だけをここで持ち、種類ごとの項目は `app-events/events/*` のフォームに任せる。
  */
 const props = defineProps<{
     /** 追加する種類。編集のときは `event.type` が使われる。 */

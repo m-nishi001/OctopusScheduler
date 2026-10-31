@@ -16,7 +16,7 @@
 
 | ページ | 内容 |
 | --- | --- |
-| [usage.md](usage.md) | 設定画面 → 実行画面の流れ、ショートカットの仕様 |
+| [usage.md](usage.md) | 設定画面 → 実行画面の流れ |
 | [manual/index.html](manual/index.html) | 管理者・参加者向けの取扱説明書(章ごとのページ。画面写真つき。ブラウザで開く) |
 | [deploy-gas.md](deploy-gas.md) | GAS へのデプロイ、Drive フォルダ、公開設定 |
 | [deploy-cloudflare.md](deploy-cloudflare.md) | Cloudflare へのデプロイ、作られるリソース、無料枠 |

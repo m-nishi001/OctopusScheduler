@@ -11,7 +11,6 @@ export class ShowContentEventHandler {
         contentId?: string;
         htmlString?: string;
         eventId?: string;
-        manual?: boolean;
       }) => this.handleShowContent(data, router)
     );
     eventBus.on("hideContent", () => this.handleHideContent(router));
@@ -29,7 +28,6 @@ export class ShowContentEventHandler {
       fadeInTime?: number;
       fadeOutTime?: number;
       scrollDirection?: "up" | "down" | "left" | "right";
-      manual?: boolean;
     },
     router: Router
   ) {
@@ -45,7 +43,6 @@ export class ShowContentEventHandler {
             fadeInTime: data.fadeInTime?.toString() || "1",
             fadeOutTime: data.fadeOutTime?.toString() || "1",
             scrollDirection: data.scrollDirection || "up",
-            ...(data.manual ? { manual: "true" } : {}),
           },
         });
       }
@@ -58,7 +55,6 @@ export class ShowContentEventHandler {
             displayMode: data.displayMode || "fade",
             effect: data.effect || "fade",
             fadeInTime: data.fadeInTime?.toString() || "1",
-            ...(data.manual ? { manual: "true" } : {}),
           },
         });
       }
@@ -81,7 +77,6 @@ export class ShowContentEventHandler {
             params: { id: data.eventId },
             query: {
               displayMode: data.displayMode || "fade",
-              ...(data.manual ? { manual: "true" } : {}),
             },
           });
         } catch (e) {
@@ -109,7 +104,6 @@ export class ShowContentEventHandler {
             params: { id: sid },
             query: {
               displayMode: data.displayMode || "fade",
-              ...(data.manual ? { manual: "true" } : {}),
               _temp: "1",
             },
           });
@@ -122,7 +116,6 @@ export class ShowContentEventHandler {
             params: { content: encoded },
             query: {
               displayMode: data.displayMode || "fade",
-              ...(data.manual ? { manual: "true" } : {}),
             },
           });
           return;
