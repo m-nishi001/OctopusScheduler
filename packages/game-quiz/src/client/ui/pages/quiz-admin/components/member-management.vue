@@ -1,6 +1,6 @@
 <template>
     <MemberEditor :members="members" :loading="loading" id-required :on-add="addMember" :on-update="updateMember"
-        :on-delete="deleteMembers" />
+        :on-delete="deleteMembers" :on-export="roster.onExport" :on-preview-import="roster.onPreviewImport" />
 </template>
 
 <script setup lang="ts">
@@ -8,7 +8,7 @@ import { onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { MemberEditor, toast } from '@octopus/ui-kit';
 import { useCachedCollection } from '@octopus/composables';
-import { AccountsRepository } from '@octopus/accounts';
+import { AccountsRepository, MemberPhotoCache, rosterTableIo } from '@octopus/accounts';
 import type { Member } from '@octopus/accounts';
 
 /**
@@ -26,6 +26,14 @@ const { items: members, loading, error, load, add: addMember, update: updateMemb
         update: (member) => repo.updateMember(member),
         remove: (id) => repo.deleteMember(id),
     });
+
+// CSV の書き出し・取込は設定>メンバーと同じ部品。共有の名簿は消さないので、置き換え(allow-replace)は付けない。
+const roster = rosterTableIo({
+    repo,
+    photos: container.resolve(MemberPhotoCache),
+    afterImport: load,
+    warn: (message) => toast.error(message),
+});
 
 onMounted(async () => {
     await load();

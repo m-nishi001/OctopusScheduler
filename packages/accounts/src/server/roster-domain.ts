@@ -115,6 +115,26 @@ export function upsertMembers(roster: Member[], rows: MemberInput[], newId: () =
   return change(roster, Array.from(byId.values()));
 }
 
+/**
+ * CSV 取込の確定: 追加・更新(`upserts`)と削除(`deleteIds`)を、1回の組み直しで行う。
+ * 管理者は削除できない(含まれていれば、名簿を変えずに例外)。upsert と同じ id を削除することもできない。
+ * 管理者権限は付与も剥奪もしない({@link upsertMembers} と同じ)。
+ */
+export function applyRosterChange(
+  roster: Member[],
+  input: { upserts: MemberInput[]; deleteIds: string[] },
+  newId: () => string
+): RosterChange {
+  const drop = new Set(input.deleteIds);
+  const protectedIds = roster.filter((m) => m.isAdmin && drop.has(m.id)).map((m) => m.id);
+  if (protectedIds.length > 0) throw new Error(`管理者は削除できません: ${protectedIds.join(", ")}`);
+  const conflict = input.upserts.find((u) => u.id && drop.has(u.id.trim()));
+  if (conflict) throw new Error(`追加・更新と削除で同じ ID が指定されています: ${conflict.id}`);
+  const kept = roster.filter((m) => !drop.has(m.id));
+  const upserted = upsertMembers(kept, input.upserts, newId).next;
+  return change(roster, upserted);
+}
+
 /** 指定の id を管理者にする。いなければ `fallbackName` で作る(初回管理者の用意)。名簿のほかの項目は変えない。 */
 export function ensureAdminInRoster(roster: Member[], id: string, fallbackName: string): Member[] {
   if (!roster.some((m) => m.id === id)) return [...roster, { id, name: fallbackName, isAdmin: true }];

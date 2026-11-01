@@ -8,7 +8,7 @@ import {
   MAX_PHOTOS_PER_READ,
   putMemberPhoto,
 } from "../member-photos";
-import { addMember, deleteMember, replaceAllMembers, updateMember } from "../accounts-use-cases";
+import { addMember, deleteMember, applyRoster, updateMember } from "../accounts-use-cases";
 import type { AccountsUseCaseDeps } from "../accounts-use-cases";
 
 const A = "aaaaaaaaaaaaaaaa";
@@ -92,7 +92,7 @@ describe("名簿の変更に伴う孤児写真の削除", () => {
   it("一括反映で写真を差し替えると古い写真が消え、反映に含まれないメンバーの写真は残る", async () => {
     const d = await withPhotos();
     await addMember(d, { id: "u2", name: "花子", photo: B });
-    await replaceAllMembers(d, [{ id: "u1", name: "太郎", photo: B }]);
+    await applyRoster(d, { upserts: [{ id: "u1", name: "太郎", photo: B }], deleteIds: [] });
     expect(await existing(d)).toEqual([B]);
   });
 });

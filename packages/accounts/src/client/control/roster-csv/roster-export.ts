@@ -2,10 +2,10 @@
  * 名簿の書き出し。CSV だけなら名簿をそのまま、写真つきなら写真を(キャッシュ越しに、まとめて並列に)集めて ZIP にする。
  * 書き出したものは {@link ./roster-import} でそのまま取り込める。
  */
+import { buildZip, exportTable } from "@octopus/table-io";
 import type { Member } from "../../../server/accounts-api-contract";
 import type { MemberPhotoCache } from "../photo/member-photo-cache";
-import { buildRosterZip, ROSTER_CSV_NAME } from "./roster-archive";
-import { exportRosterCsv, photoFileName } from "./roster-csv";
+import { photoFileName, ROSTER_CSV_NAME, rosterAdapter, toRosterMembers } from "./roster-table";
 
 export interface RosterExport {
   filename: string;
@@ -25,14 +25,15 @@ export function dataUrlToBytes(dataUrl: string): { mime: string; bytes: Uint8Arr
   return { mime: match[1], bytes };
 }
 
-/** 名簿を書き出す。`includePhotos` が偽なら CSV のみ(写真の列は空)。 */
+/** 名簿を書き出す。`includeMedia` が偽なら CSV のみ(写真の列は空)。 */
 export async function exportRoster(
   members: readonly Member[],
-  options: { includePhotos: boolean },
+  options: { includeMedia: boolean },
   photoCache: Pick<MemberPhotoCache, "ensure" | "get">
 ): Promise<RosterExport> {
-  if (!options.includePhotos) {
-    return { filename: ROSTER_CSV_NAME, mime: "text/csv;charset=utf-8", bytes: new TextEncoder().encode(exportRosterCsv(members)), missingPhotos: 0 };
+  const adapter = rosterAdapter();
+  if (!options.includeMedia) {
+    return { filename: ROSTER_CSV_NAME, mime: "text/csv;charset=utf-8", bytes: new TextEncoder().encode(exportTable(toRosterMembers(members), adapter)), missingPhotos: 0 };
   }
   await photoCache.ensure(members.map((m) => m.photo));
   const files = new Map<string, Uint8Array>();
@@ -53,7 +54,7 @@ export async function exportRoster(
   return {
     filename: "members.zip",
     mime: "application/zip",
-    bytes: buildRosterZip(exportRosterCsv(members, names), files),
+    bytes: buildZip(ROSTER_CSV_NAME, exportTable(toRosterMembers(members, names), adapter), files),
     missingPhotos,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeCsvBytes, parseCsv, stringifyCsv } from "./csv-text";
+import { decodeCsvBytes, parseCsv, parseTable, stringifyCsv, stringifyTable } from "./csv";
 
 const cells = (text: string) => parseCsv(text).map((r) => r.cells);
 
@@ -44,5 +44,31 @@ describe("stringifyCsv", () => {
     const text = stringifyCsv(rows);
     expect(text).toBe('"a,b","x""y","1\n2",plain,\r\n');
     expect(cells(text)).toEqual(rows);
+  });
+});
+
+describe("parseTable / stringifyTable", () => {
+  const headers = [
+    { key: "id", label: "ID", aliases: ["メンバーID"] },
+    { key: "name", label: "名前", required: true },
+    { key: "photo", label: "写真" },
+  ];
+  const enc = (s: string) => new TextEncoder().encode(s);
+
+  it("見出しは NFKC・大文字小文字・別名で照合し、順序が違っても読める。無い任意の列は空", () => {
+    const t = parseTable(enc("名前,ｉｄ\nAlice, a1 \n"), headers);
+    expect(t).toEqual({ ok: true, rows: [{ line: 2, cells: { id: "a1", name: "Alice", photo: "" } }] });
+    const alias = parseTable(enc("メンバーID,名前\nx,Y\n"), headers);
+    expect(alias.ok && alias.rows[0].cells.id).toBe("x");
+  });
+
+  it("空のファイルと必須の列の欠落は ok=false", () => {
+    expect(parseTable(enc(""), headers).ok).toBe(false);
+    const t = parseTable(enc("ID,写真\n"), headers);
+    expect(t).toEqual({ ok: false, errors: [expect.stringContaining("名前")] });
+  });
+
+  it("書き出しは BOM つき UTF-8 で CRLF", () => {
+    expect(stringifyTable(headers, [{ id: "1", name: "a,b", photo: "" }])).toBe('﻿ID,名前,写真\r\n1,"a,b",\r\n');
   });
 });
