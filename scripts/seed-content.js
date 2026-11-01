@@ -3,7 +3,7 @@
  *
  * 画像(PNG)と音(WAV)はこのファイルで生成する(ネットワーク不要・著作権の問題なし・決定的)。
  * R2 のキー・保存形式は実アプリの同期処理に合わせてある:
- *   - クイズ一覧         quiz-game/json/quiz-list.json    ({ updatedAt, data: QuizRecordEntry[] }、画像・音声は内容のハッシュで参照)
+ *   - クイズ一覧         quiz-game/json/quiz-list.json    ({ updatedAt, data: { quizzes, media } }、画像・音声は素材の名前で参照し、media が 名前 → ハッシュ・MIME・サイズ)
  *   - クイズのアセット   quiz-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
  *   - 景品一覧           jackpot-game/json/prizes.json    ({ updatedAt, data: Prize[] })
  *   - 画面設定           jackpot-game/json/screens.json   ({ updatedAt, data: ScreenSetting[] }、settingValue は JSON 文字列)
@@ -257,41 +257,60 @@ const QUIZ_DEFS = [
 /** 中身のハッシュ(SHA-256 の先頭32桁・16進)。アプリの `hashBlob` と同じ。 */
 export const blobHash = (body) => createHash("sha256").update(body).digest("hex").slice(0, 32);
 
-/** クイズが参照する画像・音声の中身。`[MIME, 中身]` を種類ごとに作る(同じ中身は同じハッシュになる)。 */
+/** クイズが参照する画像・音声。素材の名前(ファイル名)→ `[MIME, 中身]`。同じ名前は同じ素材として1つ(索引もファイルも1つ)。 */
+const optionImageName = (i) => `option-${i + 1}.png`;
 const optionImage = (i) => [PNG_TYPE, makeBadgePng(...OPTION_IMAGE_COLORS[i % OPTION_IMAGE_COLORS.length], { width: 160, height: 160 })];
 const quizBgm = () => [WAV_TYPE, makeWav(TUNES.quiz)];
 const prizeImage = () => [PNG_TYPE, makeBadgePng("#fbbf24", "#92400e", { width: 160, height: 160 })];
 const prizeBgm = () => [WAV_TYPE, makeWav(TUNES.prize)];
-const refOf = ([, body]) => blobHash(body);
 
-/** クイズ一覧(quiz-list.json。アプリの QuizRepository と同じ形)。 */
+/** 名前 → `[MIME, 中身]` の全素材。 */
+function quizMediaFiles() {
+  const files = new Map();
+  for (const q of QUIZ_DEFS) {
+    if (q.images) q.choices.forEach((_, i) => files.set(optionImageName(i), optionImage(i)));
+    if (q.bgm) files.set("quiz-bgm.wav", quizBgm());
+    if (q.prize) {
+      files.set("prize.png", prizeImage());
+      files.set("prize-bgm.wav", prizeBgm());
+    }
+  }
+  return files;
+}
+
+/** クイズ一覧のクイズ(quiz-list.json の `quizzes`。アプリの QuizRepository と同じ形)。素材は名前で参照する。 */
 export function buildQuizzes() {
   return QUIZ_DEFS.map((q) => ({
     id: q.id,
     title: q.title,
     question: q.question,
-    options: q.choices.map((text, i) => ({ no: i + 1, text, color: COLORS[i], image: q.images ? refOf(optionImage(i)) : null })),
+    options: q.choices.map((text, i) => ({ no: i + 1, text, color: COLORS[i], image: q.images ? optionImageName(i) : null })),
     correctNo: q.correctNo,
     timeLimit: q.timeLimit,
-    bgm: q.bgm ? refOf(quizBgm()) : null,
-    settings: q.prize
-      ? { correctBgm: null, prizeImage: refOf(prizeImage()), prizeName: q.prize, prizeBgm: refOf(prizeBgm()) }
-      : undefined,
+    bgm: q.bgm ? "quiz-bgm.wav" : null,
+    settings: q.prize ? { correctBgm: null, prizeImage: "prize.png", prizeName: q.prize, prizeBgm: "prize-bgm.wav" } : undefined,
   }));
+}
+
+/** クイズ一覧のレコード `{ quizzes, media }`。media は、クイズが参照している素材の 名前 → { hash, mime, size }。 */
+export function buildQuizRecord() {
+  const files = quizMediaFiles();
+  const media = {};
+  for (const q of buildQuizzes()) {
+    const names = [q.bgm, ...q.options.map((o) => o.image), q.settings?.correctBgm, q.settings?.prizeImage, q.settings?.prizeBgm];
+    for (const name of names) {
+      if (!name || name in media) continue;
+      const [mime, body] = files.get(name);
+      media[name] = { hash: blobHash(body), mime, size: body.length };
+    }
+  }
+  return { quizzes: buildQuizzes(), media };
 }
 
 /** クイズ側のアセット。`[ハッシュ, MIME, 中身]`(同じ中身は1つにまとめる)。 */
 export function buildQuizAssets() {
   const byHash = new Map();
-  const add = (item) => byHash.set(refOf(item), item);
-  for (const q of QUIZ_DEFS) {
-    if (q.images) q.choices.forEach((_, i) => add(optionImage(i)));
-    if (q.bgm) add(quizBgm());
-    if (q.prize) {
-      add(prizeImage());
-      add(prizeBgm());
-    }
-  }
+  for (const [mime, body] of quizMediaFiles().values()) byHash.set(blobHash(body), [mime, body]);
   return [...byHash].map(([hash, [mime, body]]) => [hash, mime, body]);
 }
 
@@ -316,7 +335,7 @@ const record = (data, updatedAt) => JSON.stringify({ updatedAt, data });
 /** R2 に書く [キー, 値, Content-Type] の一覧(クイズ・景品・画面設定・アセット)。`updatedAt` は一覧の更新日時(ミリ秒。既定は今)。 */
 export function buildContentEntries(updatedAt = Date.now()) {
   const entries = [
-    ["quiz-game/json/quiz-list.json", record(buildQuizzes(), updatedAt), JSON_TYPE],
+    ["quiz-game/json/quiz-list.json", record(buildQuizRecord(), updatedAt), JSON_TYPE],
     ["jackpot-game/json/asset-list.json", record(buildJackpotAssetRecord(new Date(updatedAt).toISOString()), updatedAt), JSON_TYPE],
     ["jackpot-game/json/prizes.json", record(buildPrizes(), updatedAt), JSON_TYPE],
     ["jackpot-game/json/screens.json", record(buildScreenSettings(), updatedAt), JSON_TYPE],

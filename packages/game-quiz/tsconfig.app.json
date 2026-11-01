@@ -30,6 +30,7 @@
     { "path": "../client-common" },
     { "path": "../composables" },
     { "path": "../infrastructures" },
-    { "path": "../sync-engine" }
+    { "path": "../sync-engine" },
+    { "path": "../table-io" }
   ]
 }

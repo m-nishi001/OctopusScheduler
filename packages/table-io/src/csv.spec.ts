@@ -57,9 +57,19 @@ describe("parseTable / stringifyTable", () => {
 
   it("見出しは NFKC・大文字小文字・別名で照合し、順序が違っても読める。無い任意の列は空", () => {
     const t = parseTable(enc("名前,ｉｄ\nAlice, a1 \n"), headers);
-    expect(t).toEqual({ ok: true, rows: [{ line: 2, cells: { id: "a1", name: "Alice", photo: "" } }] });
+    expect(t).toEqual({ ok: true, headers, rows: [{ line: 2, cells: { id: "a1", name: "Alice", photo: "" } }] });
     const alias = parseTable(enc("メンバーID,名前\nx,Y\n"), headers);
     expect(alias.ok && alias.rows[0].cells.id).toBe("x");
+  });
+
+  it("列の定義を見出しから決める関数も渡せる(読んだ列の定義が返る)", () => {
+    const dynamic = (names: readonly string[]) => [
+      { key: "id", label: "ID" },
+      ...names.filter((n) => /^x\d+$/.test(n)).map((n) => ({ key: n, label: n })),
+    ];
+    const t = parseTable(enc("ID,X1,x2\na,b,c\n"), dynamic);
+    expect(t.ok && t.headers.map((h) => h.key)).toEqual(["id", "x1", "x2"]);
+    expect(t.ok && t.rows[0].cells).toEqual({ id: "a", x1: "b", x2: "c" });
   });
 
   it("空のファイルと必須の列の欠落は ok=false", () => {

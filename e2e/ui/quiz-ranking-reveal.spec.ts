@@ -1,5 +1,5 @@
 import type { APIRequestContext, Browser, Page } from "@playwright/test";
-import { acceptConfirm, adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, seedRecord, test } from "./fixtures";
+import { acceptConfirm, adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, test, seedQuizzes } from "./fixtures";
 import { expectNoHorizontalOverflow, expectOverlayCenteredWithoutScroll, VIEWPORTS } from "./helpers/responsive";
 
 /**
@@ -34,7 +34,7 @@ test.afterAll(async ({ request }) => {
   for (const id of ids) await adminRpc(request, "accounts_deleteMember", { id });
 });
 
-const seedQuiz = (page: Page, id: string, timeLimit = 60) => seedRecord(page, "quiz-game", "QuizData", [sampleQuiz(id, timeLimit)]);
+const seedQuiz = (page: Page, id: string, timeLimit = 60) => seedQuizzes(page, [sampleQuiz(id, timeLimit)]);
 
 async function login(browser: import("@playwright/test").Browser, id: string) {
   const d = await newDevice(browser, { mobile: true });

@@ -171,6 +171,11 @@ export async function seedRecord(page: Page, dbName: string, storeName: string, 
   await seedStore(page, dbName, storeName, [{ id: "record", value: { data, updatedAt: Date.now() } }]);
 }
 
+/** クイズ一覧(`{ quizzes, media }` の1件のレコード)に、素材を持たないクイズを入れる。 */
+export async function seedQuizzes(page: Page, quizzes: unknown[]): Promise<void> {
+  await seedStore(page, "quiz-game", "QuizData", [{ id: "record", value: { data: { quizzes, media: {} }, updatedAt: Date.now() } }]);
+}
+
 /** E2E用のクイズ(正解は2番)。 */
 export function sampleQuiz(id: string, timeLimit = 60) {
   return {

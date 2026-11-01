@@ -203,7 +203,14 @@ check("poll RPC(フォールバック)も DO 経由で動く", polled.session.id
 const blobHashA = "a".repeat(32);
 const blobHashB = "b".repeat(32);
 const blobUrl = (text) => `data:image/png;base64,${Buffer.from(text).toString("base64")}`;
-const quizRecord = (...hashes) => JSON.stringify({ updatedAt: Date.now(), data: [{ id: "smoke-q", title: "t", options: hashes.map((image, i) => ({ no: i + 1, image })), bgm: null }] });
+const quizRecord = (...hashes) =>
+  JSON.stringify({
+    updatedAt: Date.now(),
+    data: {
+      quizzes: [{ id: "smoke-q", title: "t", options: hashes.map((_, i) => ({ no: i + 1, image: `p${i}.png` })), bgm: null }],
+      media: Object.fromEntries(hashes.map((hash, i) => [`p${i}.png`, { hash, mime: "image/png", size: 2 }])),
+    },
+  });
 await rpc("quizGame_putBlob", { hash: blobHashA, dataUrl: blobUrl("v1") }, ADMIN_TOKEN);
 await rpc("quizGame_putBlob", { hash: blobHashB, dataUrl: blobUrl("v2") }, ADMIN_TOKEN);
 const blobNow = await rpc("quizGame_getBlob", { hash: blobHashA }, ADMIN_TOKEN);
@@ -218,7 +225,7 @@ try {
 } catch (e) {
   check("参照先のファイルが無い一覧は保存できない", /not stored/.test(e.message), e.message);
 }
-await rpc("quizGame_saveRecord", { json: JSON.stringify({ updatedAt: Date.now(), data: [] }) }, ADMIN_TOKEN);
+await rpc("quizGame_saveRecord", { json: JSON.stringify({ updatedAt: Date.now(), data: { quizzes: [], media: {} } }) }, ADMIN_TOKEN);
 const blobGone = await rpc("quizGame_existsBlobs", { hashes: [blobHashB] }, ADMIN_TOKEN);
 check("一覧を空にすると、ファイルも残らない", blobGone.existing.length === 0, JSON.stringify(blobGone));
 

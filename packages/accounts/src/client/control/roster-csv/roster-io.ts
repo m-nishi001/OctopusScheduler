@@ -2,6 +2,8 @@
  * 名簿の一括書き出し・取込を、画面の部品(ui-kit の `TableIoToolbar` / `TableImportDialog`)につなぐ。
  * 設定>メンバーとクイズ>メンバー管理が同じものを使う。画面ライブラリには依存せず、部品が求める形を返すだけ。
  */
+import { saveFile } from "@octopus/client-common/blob/save-file";
+import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import type { ImportMode } from "@octopus/table-io";
 import type { Member } from "../../../server/accounts-api-contract";
 import type { MemberPhotoCache } from "../photo/member-photo-cache";
@@ -20,16 +22,7 @@ export interface RosterTableIoDeps {
   /** 書き出しの注意(写真を含められなかったなど)。 */
   warn?: (message: string) => void;
   /** 書き出したファイルを渡す。既定はブラウザのダウンロード。 */
-  save?: (file: { filename: string; mime: string; bytes: Uint8Array }) => void;
-}
-
-function browserDownload({ filename, mime, bytes }: { filename: string; mime: string; bytes: Uint8Array }): void {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  save?: (file: FileToSave) => void;
 }
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}秒`;
@@ -47,7 +40,7 @@ export function rosterTableIo(deps: RosterTableIoDeps) {
   /** いまの名簿を CSV(素材も含めるときは ZIP)にして保存する。取込と同じ書式。 */
   async function onExport(options: { includeMedia: boolean }): Promise<void> {
     const out = await exportRoster(await repo.listAccounts(), options, photos);
-    (deps.save ?? browserDownload)(out);
+    (deps.save ?? saveFile)(out);
     if (out.missingPhotos > 0) deps.warn?.(`${out.missingPhotos}人の写真を取得できず、含めていません`);
   }
 
