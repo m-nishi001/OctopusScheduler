@@ -28,7 +28,7 @@ export interface DrawContext {
   selectedPrize: Readable<PrizeDto | null>;
   setSelectedPrize(prize: PrizeDto | null): void;
   preparePrizes(prizes: RoulettePrizeDto[]): Promise<RouletteItem[]>;
-  loadBgmBlob(assetId: string | null): Promise<Blob | null>;
+  loadBgmBlob(name: string | null): Promise<Blob | null>;
   /** メンバー抽選・景品抽選の演出コンポーネント(テンプレート ref)。 */
   memberAnim: Readable<any>;
   prizeAnim: Readable<any>;

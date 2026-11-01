@@ -8,11 +8,9 @@
                 <div class="config-item">
                     <label>メンバー抽選のBGM:</label>
                     <div v-for="(_, index) in localConfig.memberLotteryBgms" :key="index" class="bgm-item">
-                        <select v-model="localConfig.memberLotteryBgms[index]" class="admin-input">
-                            <option value="">選択なし</option>
-                            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
-                            </option>
-                        </select>
+                        <MediaPicker :label="`BGM${index + 1}`" kind="audio" v-model="localConfig.memberLotteryBgms[index]"
+                            :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(localConfig.memberLotteryBgms[index])"
+                            @pick="draft.pick" />
                         <button @click="removeMemberBgm(index)" class="remove-btn">削除</button>
                     </div>
                     <button @click="addMemberBgm" class="add-btn">BGM追加</button>
@@ -84,7 +82,8 @@ import { eventBus } from '@octopus/client-common/events/event-bus';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { useMediaDraft } from '@ui/composables/use-media-draft';
+import MediaPicker from '@ui/components/media-picker.vue';
 import SimulationDialog from './simulation-dialog.vue';
 import UnsavedChangesDialog from '../unsaved-changes-dialog.vue';
 import { parseKakuhenPlan, parseTimingsText } from '@model/draw/kakuhen-plan';
@@ -92,23 +91,11 @@ import type { KakuhenMode } from '@model/draw/kakuhen-plan';
 import { clampPrizeStopSec, parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC } from '@model/draw/prize-stop-sec';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
-const assetService = container.resolve(AssetDataService);
-
-const audioAssets = ref<any[]>([]);
+const draft = useMediaDraft();
 const loading = ref(false);
 const loadingStatus = ref('');
 const saving = ref(false);
 const saveStatus = ref('');
-
-const fetchAssets = async () => {
-    try {
-        const all = await assetService.getAllAssetData();
-
-        audioAssets.value = all.filter((a: any) => !!a?.type && a.type.startsWith('audio/'));
-    } catch (e) {
-        audioAssets.value = [];
-    }
-};
 
 // per-screen sync removed; use global bulk sync dialog instead
 
@@ -135,6 +122,7 @@ const localConfig = ref({
 });
 /** 確変にする回の入力欄の文字（カンマ区切り）。保存時に回の一覧にする。 */
 const kakuhenTimingsText = ref('');
+draft.track(() => localConfig.value.memberLotteryBgms);
 
 const loadConfig = async () => {
     try {
@@ -159,7 +147,7 @@ const reloadAfterSync = async () => {
 
 onMounted(async () => {
     eventBus.on('syncPulled', reloadAfterSync);
-    await Promise.all([loadConfig(), fetchAssets()]);
+    await Promise.all([loadConfig(), draft.reload()]);
     hasUnsavedChanges.value = false;
 });
 
@@ -192,8 +180,9 @@ const handleSaveClick = async () => {
             kakuhenFixedTimings: parseTimingsText(kakuhenTimingsText.value),
             prizeStopSec: clampPrizeStopSec(localConfig.value.prizeStopSec),
         };
-        await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
+        await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor(payload.memberLotteryBgms));
         await loadConfig();
+        await draft.reload();
         saveStatus.value = '保存しました';
         hasUnsavedChanges.value = false;
     } catch (err) {
@@ -207,7 +196,6 @@ const handleSaveClick = async () => {
 const handleDiscardChanges = () => {
     showUnsavedDialog.value = false;
     hasUnsavedChanges.value = false;
-    // Clear temp assets if any (though this screen doesn't seem to have uploads)
     if (pendingRoute.value) {
         pendingRoute.value();
     }

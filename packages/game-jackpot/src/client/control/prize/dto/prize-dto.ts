@@ -1,45 +1,7 @@
 import type { Prize } from "../../../model/prize/prize";
 
-export interface PrizeDto {
-  id: string;
-  name: string;
-  weight?: number;
-  imageAssetId?: string;
-  image2AssetId?: string;
-  bgm1AssetId?: string;
-  bgm2AssetId?: string;
-  animation?: string;
-  order: number;
-  winningImage1AssetId?: string;
-  winningImage2AssetId?: string;
-}
-
-/** 画面用の `PrizeDto` を、モデルの `Prize` にする。 */
-export const toPrize = (dto: PrizeDto): Prize => ({
-  id: dto.id,
-  name: dto.name,
-  weight: dto.weight,
-  imageAssetId: dto.imageAssetId,
-  image2AssetId: dto.image2AssetId,
-  bgm1AssetId: dto.bgm1AssetId,
-  bgm2AssetId: dto.bgm2AssetId,
-  animation: dto.animation,
-  order: dto.order,
-  winningImage1AssetId: dto.winningImage1AssetId,
-  winningImage2AssetId: dto.winningImage2AssetId,
-});
+/** 画面用の景品。モデルの `Prize` と同じ項目で、アニメーションの既定値(ルーレット)を埋めたもの。 */
+export type PrizeDto = Prize;
 
 /** モデルの `Prize` を、画面用の `PrizeDto` にする。 */
-export const fromPrize = (prize: Prize): PrizeDto => ({
-  id: prize.id,
-  name: prize.name,
-  weight: prize.weight,
-  imageAssetId: prize.imageAssetId,
-  image2AssetId: prize.image2AssetId,
-  bgm1AssetId: prize.bgm1AssetId,
-  bgm2AssetId: prize.bgm2AssetId,
-  animation: prize.animation || "roulette",
-  order: prize.order,
-  winningImage1AssetId: prize.winningImage1AssetId,
-  winningImage2AssetId: prize.winningImage2AssetId,
-});
+export const fromPrize = (prize: Prize): PrizeDto => ({ ...prize, animation: prize.animation || "roulette" });

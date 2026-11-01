@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { ADMIN_TOKEN, expect, newDevice, seedRecord, test } from "./fixtures";
+import { ADMIN_TOKEN, expect, newDevice, seedJackpot, test } from "./fixtures";
 
 /**
  * ジャックポットの全画面(演出・結果・管理)を開き、例外・404・横スクロール・文字切れが無いことを確認する。
@@ -24,7 +24,6 @@ const SCREENS = [
   "/execute/jackpot-admin/screens/draw",
   "/execute/jackpot-admin/screens/result",
   "/execute/jackpot-admin/screens/ending",
-  "/execute/jackpot-admin/assets",
   "/execute/jackpot-admin/results",
 ];
 
@@ -61,12 +60,9 @@ test.describe("ジャックポットの全画面", () => {
         deleteIds: [],
       });
       await page.goto("/#/sessions");
-      await seedRecord(
-        page,
-        "jackpot-game",
-        "PrizeData",
-        Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10 }))
-      );
+      await seedJackpot(page, {
+        prizes: Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10 })),
+      });
 
       const dir = SHOTS ? join(SHOTS, vp.name) : null;
       if (dir) mkdirSync(dir, { recursive: true });

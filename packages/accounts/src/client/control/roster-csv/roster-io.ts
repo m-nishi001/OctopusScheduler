@@ -7,11 +7,12 @@ import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import type { ImportMode } from "@octopus/table-io";
 import type { Member } from "../../../server/accounts-api-contract";
 import type { MemberPhotoCache } from "../photo/member-photo-cache";
+import type { RosterMember, RosterTable } from "./roster-table";
 import { exportRoster } from "./roster-export";
 import { previewRosterImport } from "./roster-import";
 import type { RosterImportRepository } from "./roster-import";
 
-export interface RosterTableIoDeps {
+export interface RosterTableIoDeps<E extends RosterMember = RosterMember> {
   /** 名簿の窓口(`AccountsRepository`)。 */
   repo: RosterImportRepository & { listAccounts(): Promise<Member[]> };
   photos: Pick<MemberPhotoCache, "ensure" | "get" | "remember">;
@@ -23,12 +24,14 @@ export interface RosterTableIoDeps {
   warn?: (message: string) => void;
   /** 書き出したファイルを渡す。既定はブラウザのダウンロード。 */
   save?: (file: FileToSave) => void;
+  /** 表の定義。名簿の人に列を足す画面(ジャックポットのメンバー)だけが渡す。既定は名簿そのもの。 */
+  table?: RosterTable<E>;
 }
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}秒`;
 
 /** 設定>メンバーとクイズ>メンバー管理が使う、`onExport`(CSVダウンロード)と `onPreviewImport`(取込のプレビュー)を作る。 */
-export function rosterTableIo(deps: RosterTableIoDeps) {
+export function rosterTableIo<E extends RosterMember = RosterMember>(deps: RosterTableIoDeps<E>) {
   const { repo, photos } = deps;
   const importRepo: RosterImportRepository = {
     listMembers: () => repo.listAccounts(),
@@ -39,14 +42,14 @@ export function rosterTableIo(deps: RosterTableIoDeps) {
 
   /** いまの名簿を CSV(素材も含めるときは ZIP)にして保存する。取込と同じ書式。 */
   async function onExport(options: { includeMedia: boolean }): Promise<void> {
-    const out = await exportRoster(await repo.listAccounts(), options, photos);
+    const out = await exportRoster(await repo.listAccounts(), options, photos, deps.table);
     (deps.save ?? saveFile)(out);
     if (out.missingPhotos > 0) deps.warn?.(`${out.missingPhotos}人の写真を取得できず、含めていません`);
   }
 
   /** 選んだ CSV・画像を読んでプレビューを作る。確定すると、写真を並列に送ってから名簿を1回だけ書く。 */
   async function onPreviewImport(input: { table: File; media: File[]; mode: ImportMode }) {
-    const preview = await previewRosterImport(input, { repo: importRepo, photoCache: photos, currentUserId: deps.currentUserId?.() });
+    const preview = await previewRosterImport(input, { repo: importRepo, photoCache: photos, currentUserId: deps.currentUserId?.() }, deps.table);
     if (!preview.ok) return preview;
     return {
       ok: true as const,

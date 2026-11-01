@@ -11,8 +11,8 @@ describe("applyPrizeEdit", () => {
   });
 
   it("フォームに無い項目は残らない(編集した内容がそのまま保存される)", () => {
-    const existing = { ...prize("a", 1), imageAssetId: "img" };
-    expect(applyPrizeEdit(existing, { name: "x" }).imageAssetId).toBeUndefined();
+    const existing = { ...prize("a", 1), image: "img" };
+    expect(applyPrizeEdit(existing, { name: "x" }).image).toBeUndefined();
   });
 
   it("元の景品は書き換えない", () => {

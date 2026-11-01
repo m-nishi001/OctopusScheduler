@@ -4,7 +4,7 @@
  * - 書式: ヘッダー行 `ID,名前,写真`。写真の列は画像のファイル名(書き出しでは `<id>.<拡張子>`)。空なら写真は変えない。
  * - 削除は置き換えモードのときだけ。管理者とログイン中のメンバーは削除しない。
  */
-import type { Header, Row, TableAdapter } from "@octopus/table-io";
+import type { HeadersSource, Row, TableAdapter, Header } from "@octopus/table-io";
 import type { Member } from "../../../server/accounts-api-contract";
 
 const MAX_ID_LENGTH = 64;
@@ -93,3 +93,23 @@ export function rosterAdapter(options: RosterAdapterOptions = {}): TableAdapter<
 export function toRosterMembers(members: readonly Member[], photoFiles: ReadonlyMap<string, string> = new Map()): RosterMember[] {
   return members.map((m) => ({ id: m.id, name: m.name, photo: m.photo, photoFile: photoFiles.get(m.id), isAdmin: m.isAdmin }));
 }
+
+/**
+ * 名簿の取込・書き出しの「表の定義」。名簿そのもの({@link ROSTER_TABLE})のほか、名簿の人に列を足したい画面
+ * (例: ジャックポットのメンバーの「ランク」「当選しやすさ」)が、写真の縮小・送信・名簿の書き込みを共有するために差し替える。
+ */
+export interface RosterTable<E extends RosterMember = RosterMember> {
+  /** CSV の列の定義(見出しから決めるときは関数)。 */
+  headers: HeadersSource;
+  adapter(options: RosterAdapterOptions): TableAdapter<E>;
+  /** 名簿の人を、取込の計画で扱う項目にする。`photoFiles` は メンバーの ID → CSV に書く(書いてある)写真のファイル名。 */
+  current(members: readonly Member[], photoFiles: ReadonlyMap<string, string>): E[] | Promise<E[]>;
+  /** 名簿に書いたあとに呼ぶ。追加・更新した項目(写真を用意できなかった行は含まない)について、名簿の外にある項目を書く。 */
+  afterApply?(applied: readonly E[]): Promise<void>;
+}
+
+export const ROSTER_TABLE: RosterTable = {
+  headers: ROSTER_HEADERS,
+  adapter: rosterAdapter,
+  current: toRosterMembers,
+};

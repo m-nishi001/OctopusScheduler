@@ -229,6 +229,35 @@ await rpc("quizGame_saveRecord", { json: JSON.stringify({ updatedAt: Date.now(),
 const blobGone = await rpc("quizGame_existsBlobs", { hashes: [blobHashB] }, ADMIN_TOKEN);
 check("一覧を空にすると、ファイルも残らない", blobGone.existing.length === 0, JSON.stringify(blobGone));
 
+// ジャックポットの景品と画面設定のレコード(素材は名前で参照。景品と画面設定が共有する素材は、片方が外れても残る)
+const jackpotRecord = ({ prizeImage, screenBgm }) =>
+  JSON.stringify({
+    updatedAt: Date.now(),
+    data: {
+      prizes: prizeImage ? [{ id: "smoke-p", name: "p", order: 1, image: "prize.png" }] : [],
+      screens: screenBgm ? [{ screenName: "demo", settingName: "demo-screen-settings", settingValue: JSON.stringify({ demoBgm: "bgm.mp3" }) }] : [],
+      media: {
+        ...(prizeImage ? { "prize.png": { hash: blobHashA, mime: "image/png", size: 2 } } : {}),
+        ...(screenBgm ? { "bgm.mp3": { hash: blobHashB, mime: "audio/mpeg", size: 2 } } : {}),
+      },
+    },
+  });
+await rpc("jackpotGame_putBlob", { hash: blobHashA, dataUrl: blobUrl("v1") }, ADMIN_TOKEN);
+await rpc("jackpotGame_putBlob", { hash: blobHashB, dataUrl: blobUrl("v2") }, ADMIN_TOKEN);
+await rpc("jackpotGame_saveRecord", { json: jackpotRecord({ prizeImage: true, screenBgm: true }) }, ADMIN_TOKEN);
+await rpc("jackpotGame_saveRecord", { json: jackpotRecord({ prizeImage: false, screenBgm: true }) }, ADMIN_TOKEN);
+const jackpotBlobs = await rpc("jackpotGame_existsBlobs", { hashes: [blobHashA, blobHashB] }, ADMIN_TOKEN);
+check("ジャックポット: 景品が外れた素材だけが消え、画面設定が使う素材は残る", JSON.stringify(jackpotBlobs.existing) === JSON.stringify([blobHashB]), JSON.stringify(jackpotBlobs));
+try {
+  await rpc("jackpotGame_saveRecord", { json: jackpotRecord({ prizeImage: true, screenBgm: true }) }, ADMIN_TOKEN);
+  check("ジャックポット: 参照先のファイルが無いレコードは保存できない", false);
+} catch (e) {
+  check("ジャックポット: 参照先のファイルが無いレコードは保存できない", /not stored/.test(e.message), e.message);
+}
+await rpc("jackpotGame_saveRecord", { json: jackpotRecord({ prizeImage: false, screenBgm: false }) }, ADMIN_TOKEN);
+const jackpotGone = await rpc("jackpotGame_existsBlobs", { hashes: [blobHashA, blobHashB] }, ADMIN_TOKEN);
+check("ジャックポット: レコードが何も参照しなくなると、ファイルも残らない", jackpotGone.existing.length === 0, JSON.stringify(jackpotGone));
+
 // 名簿の容量の使用状況(Cloudflare は上限なし)
 const rosterUsage = await rpc("accounts_getRosterUsage", {}, ADMIN_TOKEN);
 check("名簿の使用状況が取れる(Cloudflare は上限なし)", rosterUsage.members >= 1 && rosterUsage.usedBytes > 0 && rosterUsage.maxBytes === null, JSON.stringify(rosterUsage));

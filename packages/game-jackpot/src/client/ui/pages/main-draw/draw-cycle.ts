@@ -53,13 +53,13 @@ export function normalPrizeSteps(ctx: DrawContext): Step[] {
   return [
     step(async () => {
       const prize = requireSelectedPrize(ctx);
-      await preloadBgm(prize.bgm1AssetId, ctx);
+      await preloadBgm(prize.bgm1, ctx);
       ctx.prizeAnim.value?.startSpin?.();
     }),
     pause(SETTLE_SEC.prizeSpinning, ctx.wait),
     step(async () => {
       const prize = requireSelectedPrize(ctx);
-      await playBgm(prize.bgm1AssetId, ctx);
+      await playBgm(prize.bgm1, ctx);
       await ctx.prizeAnim.value?.stopSpin?.(ctx.prizeStopSec, prize.id, 1);
     }, "stopPrizeDraw"),
   ];

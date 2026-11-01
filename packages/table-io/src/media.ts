@@ -37,3 +37,26 @@ export function diffMedia(
   }
   return out;
 }
+
+/** 素材のセルに書くと、素材を外す(空のセルは「いまのまま」)。 */
+export const REMOVE_MEDIA = "-";
+
+/** 素材のファイル名の照合用: フォルダ部分を除き、前後の空白を除く。 */
+export const mediaFileName = (cell: string): string => (cell.split(/[\\/]/).pop() ?? "").trim();
+
+/**
+ * 素材のセルを素材の名前にする: 空 = いまのまま(`previous`)、`-` = 外す(null)、それ以外 = ファイル名。
+ * `available` を渡すと、その中に無い名前は `missing` で返す(書き出し用は渡さず、検査しない)。
+ */
+export function resolveMediaCell(
+  cell: string | undefined,
+  previous: string | null | undefined,
+  available?: ReadonlySet<string>
+): { name: string | null } | { missing: string } {
+  const value = (cell ?? "").trim();
+  if (value === "") return { name: previous ?? null };
+  if (value === REMOVE_MEDIA) return { name: null };
+  const name = mediaFileName(value);
+  if (available && !available.has(name)) return { missing: name };
+  return { name };
+}

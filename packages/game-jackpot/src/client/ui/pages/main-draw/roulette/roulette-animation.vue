@@ -12,7 +12,7 @@ import { useRouletteAnimation, type RouletteItem, type RouletteAnimationProps } 
 import { pickStopPattern } from './roulette-angle-utils';
 import { useRouletteAnimationState } from '../prize-animation-state';
 import { container } from 'tsyringe';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { JackpotRepository } from '@model/jackpot-repository';
 import type { PrizeDto } from '@control/prize/dto/prize-dto';
 
 export default defineComponent({
@@ -24,7 +24,7 @@ export default defineComponent({
         showResult: { type: Boolean, default: false },
     },
     setup(props, { emit }) {
-        const assetService = container.resolve(AssetDataService);
+        const source = container.resolve(JackpotRepository);
 
         const {
             selectedPrize: stateSelectedPrize,
@@ -35,7 +35,7 @@ export default defineComponent({
             props.prizes,
             props.selectedPrize,
             props.showResult,
-            assetService
+            source
         );
 
         const rouletteProps: RouletteAnimationProps = {

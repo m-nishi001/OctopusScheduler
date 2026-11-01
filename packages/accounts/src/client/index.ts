@@ -22,14 +22,17 @@ export {
   photoFileName,
   toRosterMembers,
   ROSTER_HEADERS,
+  ROSTER_TABLE,
 } from "./control/roster-csv";
 export type {
+  RosterAdapterOptions,
   RosterExport,
   RosterImportInput,
   RosterImportPreview,
   RosterImportRepository,
   RosterImportStats,
   RosterMember,
+  RosterTable,
   RosterTableIoDeps,
 } from "./control/roster-csv";
 export type { ApplyRosterArgs, ApplyRosterResult } from "../server/accounts-api-contract";

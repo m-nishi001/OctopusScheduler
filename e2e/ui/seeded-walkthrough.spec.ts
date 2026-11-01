@@ -121,7 +121,6 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
       ["/quiz-admin/quizzes", "オクトパス豆知識"],
       ["/execute/jackpot-admin/members", "テスト参加者"],
       ["/execute/jackpot-admin/prizes", "1等 ペア旅行券"],
-      ["/execute/jackpot-admin/assets", "seed-prize-1.png"],
       ["/execute/jackpot-admin/results", ""],
       ["/execute/jackpot-admin/screens/opening", ""],
       ["/execute/jackpot-admin/screens/description", ""],

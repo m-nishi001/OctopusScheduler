@@ -5,11 +5,9 @@
  * R2 のキー・保存形式は実アプリの同期処理に合わせてある:
  *   - クイズ一覧         quiz-game/json/quiz-list.json    ({ updatedAt, data: { quizzes, media } }、画像・音声は素材の名前で参照し、media が 名前 → ハッシュ・MIME・サイズ)
  *   - クイズのアセット   quiz-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
- *   - 景品一覧           jackpot-game/json/prizes.json    ({ updatedAt, data: Prize[] })
- *   - 画面設定           jackpot-game/json/screens.json   ({ updatedAt, data: ScreenSetting[] }、settingValue は JSON 文字列)
+ *   - ジャックポット     jackpot-game/json/jackpot-config.json ({ updatedAt, data: { prizes, screens, media } }。景品と画面設定(settingValue は JSON 文字列)は素材の名前で参照し、media が 名前 → ハッシュ・MIME・サイズ)
+ *   - ジャックポットの素材 jackpot-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
  * 一覧のファイルは、アプリの同期が保存する `{ updatedAt, data }` の形(updatedAt はミリ秒)。端末が持つ同じ種類のデータより新しければ、取り込まれる。
- *   - ジャックポットの素材一覧 jackpot-game/json/asset-list.json ({ updatedAt, data: AssetRecordEntry[] }。素材の id は景品・画面設定が参照する固定の id)
- *   - ジャックポットの素材   jackpot-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
  */
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
@@ -160,27 +158,27 @@ const PRIZE_DEFS = [
   { id: "seed-prize-6", name: "参加賞 オリジナルタンブラー", weight: 50, animation: "slot", colors: ["#8b5cf6", "#4c1d95"] },
 ];
 
-/** 景品の画像のアセット ID。1 が通常の画像、2 が確変の 2 回目に出す画像。 */
-const prizeImageId = (p, n) => p.id.replace("prize", n === 1 ? "img" : "img2");
+/** 景品の画像の素材の名前。1 が通常の画像、2 が確変の 2 回目に出す画像。 */
+const prizeImageName = (p, n) => (n === 1 ? `${p.id}.png` : `${p.id}-2.png`);
 
-/** ジャックポット側のアセット。`[id, ファイル名, MIME, 中身]`(id は景品・画面設定が参照する固定の id)。 */
-export function buildJackpotAssets() {
-  const assets = [];
+/** ジャックポットが参照する画像・音声。素材の名前(ファイル名)→ `[MIME, 中身]`。同じ名前は同じ素材として1つ(索引もファイルも1つ)。 */
+function jackpotMediaFiles() {
+  const files = new Map();
   for (const p of PRIZE_DEFS) {
-    assets.push([prizeImageId(p, 1), `${p.id}.png`, PNG_TYPE, makeBadgePng(...p.colors)]);
+    files.set(prizeImageName(p, 1), [PNG_TYPE, makeBadgePng(...p.colors)]);
     // 確変の「画像2」。画像1と見て区別できるよう、色を反転させる。
-    assets.push([prizeImageId(p, 2), `${p.id}-2.png`, PNG_TYPE, makeBadgePng(p.colors[1], p.colors[0])]);
+    files.set(prizeImageName(p, 2), [PNG_TYPE, makeBadgePng(p.colors[1], p.colors[0])]);
   }
-  assets.push(["seed-img-opening", "opening.png", PNG_TYPE, makeBadgePng("#7c3aed", "#1e1b4b", { width: 320, height: 180 })]);
-  assets.push(["seed-img-ending", "ending.png", PNG_TYPE, makeBadgePng("#0ea5e9", "#0c4a6e", { width: 320, height: 180 })]);
-  assets.push(["seed-bgm-opening", "opening.wav", WAV_TYPE, makeWav(TUNES.opening)]);
-  assets.push(["seed-bgm-draw", "draw.wav", WAV_TYPE, makeWav(TUNES.draw)]);
-  assets.push(["seed-bgm-ending", "ending.wav", WAV_TYPE, makeWav(TUNES.ending)]);
-  assets.push(["seed-se-fanfare", "fanfare.wav", WAV_TYPE, makeWav(TUNES.fanfare)]);
-  return assets;
+  files.set("opening.png", [PNG_TYPE, makeBadgePng("#7c3aed", "#1e1b4b", { width: 320, height: 180 })]);
+  files.set("ending.png", [PNG_TYPE, makeBadgePng("#0ea5e9", "#0c4a6e", { width: 320, height: 180 })]);
+  files.set("opening.wav", [WAV_TYPE, makeWav(TUNES.opening)]);
+  files.set("draw.wav", [WAV_TYPE, makeWav(TUNES.draw)]);
+  files.set("ending.wav", [WAV_TYPE, makeWav(TUNES.ending)]);
+  files.set("fanfare.wav", [WAV_TYPE, makeWav(TUNES.fanfare)]);
+  return files;
 }
 
-/** 景品(prizes.json)。 */
+/** 景品(レコードの `prizes`)。素材は名前で参照する。 */
 export function buildPrizes() {
   return PRIZE_DEFS.map((p, i) => ({
     id: p.id,
@@ -188,48 +186,48 @@ export function buildPrizes() {
     weight: p.weight,
     animation: p.animation,
     order: i + 1,
-    imageAssetId: prizeImageId(p, 1),
-    image2AssetId: prizeImageId(p, 2),
-    bgm1AssetId: "seed-bgm-draw",
-    bgm2AssetId: "seed-bgm-ending",
-    winningImage1AssetId: prizeImageId(p, 1),
-    winningImage2AssetId: prizeImageId(p, 2),
+    image: prizeImageName(p, 1),
+    image2: prizeImageName(p, 2),
+    bgm1: "draw.wav",
+    bgm2: "ending.wav",
+    winningImage1: prizeImageName(p, 1),
+    winningImage2: prizeImageName(p, 2),
   }));
 }
 
 const screen = (screenName, settingName, payload) => ({ screenName, settingName, settingValue: JSON.stringify(payload) });
 
-/** 画面設定(screens.json)。オープニング・説明・抽選・デモ・結果・エンディング。 */
+/** 画面設定(レコードの `screens`)。オープニング・説明・抽選・デモ・結果・エンディング。素材は名前で参照する。 */
 export function buildScreenSettings() {
   return [
     screen("opening", "opening-screen-settings", {
-      bgmAssetId: "seed-bgm-opening",
+      bgm: "opening.wav",
       contents: [
         { type: "text", text: "オクトパス商事 年末ジャックポット抽選会", effect: "fade", duration: 4000 },
-        { type: "text", text: "本日の景品は全6種類!豪華賞品をお楽しみに!", effect: "scroll", duration: 5000, seMode: "select", seAssetId: "seed-se-fanfare" },
-        { type: "image", imageMode: "select", assetId: "seed-img-opening", effect: "static", duration: 3000 },
+        { type: "text", text: "本日の景品は全6種類!豪華賞品をお楽しみに!", effect: "scroll", duration: 5000, se: "fanfare.wav" },
+        { type: "image", media: "opening.png", effect: "static", duration: 3000 },
       ],
     }),
     screen("description", "description-screen-settings", {
-      descriptionBgm: "seed-bgm-opening",
-      screenElements: [
-        { id: "seed-desc-1", type: "text", content: "ルール説明", animation: { type: "fade", duration: 1200 } },
-        { id: "seed-desc-2", type: "text", content: "1人ずつルーレットで景品を決めます。当選者はスクリーンに大きく表示されます。", animation: { type: "slide", duration: 1500 } },
-        { id: "seed-desc-3", type: "text", content: "運が良ければ「確変」で連続当選のチャンス!", animation: { type: "zoom", duration: 1500 } },
+      bgm: "opening.wav",
+      contents: [
+        { type: "text", content: "ルール説明", effect: "fade", duration: 1200 },
+        { type: "text", content: "1人ずつルーレットで景品を決めます。当選者はスクリーンに大きく表示されます。", effect: "scroll", duration: 1500 },
+        { type: "text", content: "運が良ければ「確変」で連続当選のチャンス!", effect: "fade", duration: 1500 },
       ],
     }),
     screen("main", "main-screen-settings", {
-      memberLotteryBgms: ["seed-bgm-draw"],
+      memberLotteryBgms: ["draw.wav"],
       kakuhenMode: "auto",
       kakuhenFixedTimings: [],
     }),
-    screen("demo", "demo-screen-settings", { demoBgm: "seed-bgm-draw", demoSe1: "seed-se-fanfare", demoSe2: "" }),
-    screen("result", "result-screen-settings", { resultBgm: "seed-bgm-ending", resultSe1: "seed-se-fanfare", resultSe2: "" }),
+    screen("demo", "demo-screen-settings", { demoBgm: "draw.wav", demoSe1: "fanfare.wav", demoSe2: "" }),
+    screen("result", "result-screen-settings", { resultBgm: "ending.wav", resultSe1: "fanfare.wav", resultSe2: "" }),
     screen("ending", "ending-screen-settings", {
-      bgmAssetId: "seed-bgm-ending",
+      bgm: "ending.wav",
       contents: [
         { type: "text", text: "ご参加ありがとうございました!", effect: "fade", duration: 5000 },
-        { type: "image", imageMode: "select", assetId: "seed-img-ending", effect: "static", duration: 3000 },
+        { type: "image", media: "ending.png", effect: "static", duration: 3000 },
         { type: "text", text: "また来年お会いしましょう", effect: "static", duration: 4000 },
       ],
     }),
@@ -314,17 +312,46 @@ export function buildQuizAssets() {
   return [...byHash].map(([hash, [mime, body]]) => [hash, mime, body]);
 }
 
-/** ジャックポットの素材一覧(asset-list.json。アプリの AssetDataRepository と同じ形)。 */
-export function buildJackpotAssetRecord(now = new Date().toISOString()) {
-  return buildJackpotAssets().map(([id, fileName, mime, body]) => ({
-    id,
-    type: mime,
-    name: fileName,
-    hash: blobHash(body),
-    size: body.length,
-    uploadedAt: now,
-    lastUpdated: now,
-  }));
+/** ジャックポットの素材の名前(景品と画面設定が参照している名前)。 */
+const SCREEN_MEDIA_KEYS = new Set(["bgm", "media", "se", "demoBgm", "demoSe1", "demoSe2", "resultBgm", "resultSe1", "resultSe2"]);
+function screenMediaNames(settingValue) {
+  const names = [];
+  const walk = (v) => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    for (const [k, c] of Object.entries(v)) {
+      if (SCREEN_MEDIA_KEYS.has(k) && typeof c === "string") names.push(c);
+      else if (k === "memberLotteryBgms" && Array.isArray(c)) names.push(...c);
+      else walk(c);
+    }
+  };
+  walk(JSON.parse(settingValue));
+  return names;
+}
+
+/** ジャックポットのレコード `{ prizes, screens, media }`。media は、景品と画面設定が参照している素材の 名前 → { hash, mime, size }。 */
+export function buildJackpotRecord() {
+  const files = jackpotMediaFiles();
+  const prizes = buildPrizes();
+  const screens = buildScreenSettings();
+  const media = {};
+  const names = [
+    ...prizes.flatMap((p) => [p.image, p.image2, p.winningImage1, p.winningImage2, p.bgm1, p.bgm2]),
+    ...screens.flatMap((s) => screenMediaNames(s.settingValue)),
+  ];
+  for (const name of names) {
+    if (!name || name in media) continue;
+    const [mime, body] = files.get(name);
+    media[name] = { hash: blobHash(body), mime, size: body.length };
+  }
+  return { prizes, screens, media };
+}
+
+/** ジャックポット側のアセット。`[ハッシュ, MIME, 中身]`(同じ中身は1つにまとめる)。 */
+export function buildJackpotAssets() {
+  const byHash = new Map();
+  for (const [mime, body] of jackpotMediaFiles().values()) byHash.set(blobHash(body), [mime, body]);
+  return [...byHash].map(([hash, [mime, body]]) => [hash, mime, body]);
 }
 
 // ---------- R2 への書き込み一覧 ----------
@@ -336,11 +363,9 @@ const record = (data, updatedAt) => JSON.stringify({ updatedAt, data });
 export function buildContentEntries(updatedAt = Date.now()) {
   const entries = [
     ["quiz-game/json/quiz-list.json", record(buildQuizRecord(), updatedAt), JSON_TYPE],
-    ["jackpot-game/json/asset-list.json", record(buildJackpotAssetRecord(new Date(updatedAt).toISOString()), updatedAt), JSON_TYPE],
-    ["jackpot-game/json/prizes.json", record(buildPrizes(), updatedAt), JSON_TYPE],
-    ["jackpot-game/json/screens.json", record(buildScreenSettings(), updatedAt), JSON_TYPE],
+    ["jackpot-game/json/jackpot-config.json", record(buildJackpotRecord(), updatedAt), JSON_TYPE],
   ];
-  for (const [, , mime, body] of buildJackpotAssets()) entries.push([`jackpot-game/assets/${blobHash(body)}_blob`, body, mime]);
+  for (const [hash, mime, body] of buildJackpotAssets()) entries.push([`jackpot-game/assets/${hash}_blob`, body, mime]);
   for (const [hash, mime, body] of buildQuizAssets()) entries.push([`quiz-game/assets/${hash}_blob`, body, mime]);
   return entries;
 }

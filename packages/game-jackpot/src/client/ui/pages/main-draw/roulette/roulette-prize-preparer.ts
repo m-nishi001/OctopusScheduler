@@ -1,17 +1,19 @@
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
 import type { RouletteItem } from "./roulette-image-loader";
-import type { AssetDataService } from "@control/asset/asset-data-service";
 
 export interface RoulettePrizeDto extends PrizeDto {
   originalPrizeId?: string;
 }
 
-export type AssetService = Pick<AssetDataService, "getAssetDataById">;
+/** 素材の名前から中身を引く窓口(`JackpotRepository` がそのまま満たす)。 */
+export interface BlobSource {
+  blobOf(name: string): Promise<Blob | null>;
+}
 
 /** 景品を、ルーレットに描く形(画像の URL つき)にする。 */
 export async function prepareRenderPrizes(
   prizes: RoulettePrizeDto[],
-  assetService: AssetService
+  source: BlobSource
 ): Promise<RouletteItem[]> {
   try {
     console.log(
@@ -52,14 +54,14 @@ export async function prepareRenderPrizes(
           name: p.name,
           imageUrl: undefined,
         };
-        if (p.imageAssetId) {
+        if (p.image) {
           try {
-            const asset = await assetService.getAssetDataById(p.imageAssetId);
-            if (asset && asset.blob) {
-              copy.imageUrl = URL.createObjectURL(asset.blob);
+            const blob = await source.blobOf(p.image);
+            if (blob) {
+              copy.imageUrl = URL.createObjectURL(blob);
             }
           } catch (e) {
-            console.warn("Failed to prepare asset for prize", copy.id, e);
+            console.warn("Failed to prepare image for prize", copy.id, e);
           }
         }
         return copy;

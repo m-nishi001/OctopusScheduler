@@ -4,24 +4,24 @@ import type { RouletteItem } from "./roulette/roulette-image-loader";
 import {
   prepareRenderPrizes,
   revokePreparedPrizes,
-  type AssetService,
+  type BlobSource,
 } from "./roulette/roulette-prize-preparer";
 
 /** 景品一覧・選ばれた景品・ルーレット用に用意した景品を持つ(本抽選画面用)。 */
-export function usePrizeDrawState(assetService: AssetService) {
+export function usePrizeDrawState(source: BlobSource) {
   const prizes = ref<PrizeDto[]>([]);
   const selectedPrize = ref<PrizeDto | null>(null);
   const preparedPrizes = ref<RouletteItem[]>([]);
 
   const preparePrizes = async (newPrizes: PrizeDto[]) => {
-    const newPrepared = await prepareRenderPrizes(newPrizes, assetService);
+    const newPrepared = await prepareRenderPrizes(newPrizes, source);
     revokePreparedPrizes(preparedPrizes.value);
     preparedPrizes.value = newPrepared;
     return newPrepared;
   };
 
   /** ルーレットに描く形にするだけ(画面には反映しない)。次のサイクルの分を裏で先に用意するときに使う。 */
-  const buildPrizeItems = (newPrizes: PrizeDto[]) => prepareRenderPrizes(newPrizes, assetService);
+  const buildPrizeItems = (newPrizes: PrizeDto[]) => prepareRenderPrizes(newPrizes, source);
 
   /** 先に用意しておいた景品を画面に反映する。見えていた分の画像の URL は破棄する。 */
   const installPreparedPrizes = (items: RouletteItem[]) => {
@@ -63,7 +63,7 @@ export function useRouletteAnimationState(
   initialPrizes: PrizeDto[],
   initialSelectedPrize: PrizeDto,
   initialShowResult: boolean,
-  assetService: AssetService
+  source: BlobSource
 ) {
   const prizes = ref<PrizeDto[]>(initialPrizes);
   const selectedPrize = ref<PrizeDto>(initialSelectedPrize);
@@ -72,14 +72,14 @@ export function useRouletteAnimationState(
 
   const updatePrizes = async (newPrizes: PrizeDto[]) => {
     prizes.value = newPrizes;
-    const newPrepared = await prepareRenderPrizes(prizes.value, assetService);
+    const newPrepared = await prepareRenderPrizes(prizes.value, source);
     revokePreparedPrizes(preparedPrizes.value);
     preparedPrizes.value = newPrepared;
     return newPrepared;
   };
 
   const preparePrizes = async (newPrizes: PrizeDto[]) => {
-    const newPrepared = await prepareRenderPrizes(newPrizes, assetService);
+    const newPrepared = await prepareRenderPrizes(newPrizes, source);
     revokePreparedPrizes(preparedPrizes.value);
     preparedPrizes.value = newPrepared;
     return newPrepared;

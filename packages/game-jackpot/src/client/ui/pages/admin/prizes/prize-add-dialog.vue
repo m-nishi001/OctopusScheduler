@@ -1,7 +1,6 @@
 <template>
     <UiDialog :model-value="show" title="新しい景品を追加" size="xl" :close-on-overlay="false" @close="closeModal">
-        <PrizeForm ref="formRef" mode="add" :image-assets="imageAssets" :audio-assets="audioAssets"
-                            :other-prizes="otherPrizes" @submit="onSubmit" @cancel="closeModal" />
+        <PrizeForm ref="formRef" mode="add" :other-prizes="otherPrizes" @submit="onSubmit" @cancel="closeModal" />
         <template #footer>
             <UiButton @click="closeModal">キャンセル</UiButton>
             <UiButton variant="primary" @click="onFormSubmit">保存</UiButton>
@@ -12,15 +11,12 @@
 <script setup lang="ts">
 import { UiButton, UiDialog } from '@octopus/ui-kit';
 import PrizeForm from '../../../components/prizes/prize-form.vue';
-import type { Asset } from '@model/asset/asset-data';
 import type { Prize, PrizeFields } from '@model/prize/prize';
 import { PrizeService } from '@control/prize/prize-service';
 import { container } from 'tsyringe';
 
 const props = defineProps({
     show: { type: Boolean, required: false },
-    imageAssets: { type: Array as () => Asset[], required: true },
-    audioAssets: { type: Array as () => Asset[], required: true },
     otherPrizes: { type: Array as () => Prize[], default: () => [] },
 });
 
@@ -39,10 +35,10 @@ const onFormSubmit = async () => {
     }
 };
 
-const onSubmit = async (formData: PrizeFields) => {
+const onSubmit = async ({ fields, files }: { fields: PrizeFields; files: Map<string, File> }) => {
     try {
         const prizeService = container.resolve(PrizeService);
-        await prizeService.addPrize(formData);
+        await prizeService.addPrize(fields, files);
         emit('refresh');
         closeModal();
     } catch (error) {

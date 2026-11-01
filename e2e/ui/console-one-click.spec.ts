@@ -1,4 +1,4 @@
-import { createSession, expect, isGas, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedRecord, test, adminRpc, seedQuizzes } from "./fixtures";
+import { createSession, expect, isGas, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedJackpot, test, adminRpc, seedQuizzes } from "./fixtures";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
 
 /**
@@ -120,9 +120,9 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     const setting = {
       screenName: "description",
       settingName: "description-screen-settings",
-      settingValue: JSON.stringify({ descriptionBgm: "", screenElements: slides }),
+      settingValue: JSON.stringify({ bgm: "", contents: slides }),
     };
-    await seedRecord(host.page, "jackpot-game", "ScreenConfigData", [setting]);
+    await seedJackpot(host.page, { screens: [setting] });
     await admin.page.getByTestId("start-jackpot").click();
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
@@ -213,11 +213,10 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     const alerts: string[] = [];
     host.page.on("dialog", (d) => alerts.push(d.message()));
     const slides = ["一枚目の説明", "二枚目の説明"].map((content, i) => ({ id: `s${i}`, type: "text", content }));
-    await seedRecord(host.page, "jackpot-game", "ScreenConfigData", [
-      { screenName: "description", settingName: "description-screen-settings", settingValue: JSON.stringify({ descriptionBgm: "", screenElements: slides }) },
-    ]);
-    await seedRecord(host.page, "jackpot-game", "PrizeData", [{ id: "stale-p1", name: "特賞", order: 1, weight: 10, animation: "roulette" }]);
-
+    await seedJackpot(host.page, {
+      screens: [{ screenName: "description", settingName: "description-screen-settings", settingValue: JSON.stringify({ bgm: "", contents: slides }) }],
+      prizes: [{ id: "stale-p1", name: "特賞", order: 1, weight: 10, animation: "roulette" }],
+    });
     // 管理端末1の受信を止められるようにして開き直す(止めている間は、ホストの表示が変わっても古い画面のまま)
     let frozen = false;
     await admin.page.routeWebSocket(/.*/, (ws) => {

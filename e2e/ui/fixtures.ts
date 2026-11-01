@@ -164,7 +164,7 @@ async function seedStoreOnce(
 }
 
 /**
- * 一覧全体を1件のレコード `{ data, updatedAt }` で持つストア(PrizeData / ScreenConfigData / MemberExtraData)に、一覧を入れる。
+ * 一覧全体を1件のレコード `{ data, updatedAt }` で持つストア(MemberExtraData など)に、一覧を入れる。
  * 更新日時は「いま」なので、サーバーより新しいものとして同期で送られる。
  */
 export async function seedRecord(page: Page, dbName: string, storeName: string, data: unknown[]): Promise<void> {
@@ -174,6 +174,12 @@ export async function seedRecord(page: Page, dbName: string, storeName: string, 
 /** クイズ一覧(`{ quizzes, media }` の1件のレコード)に、素材を持たないクイズを入れる。 */
 export async function seedQuizzes(page: Page, quizzes: unknown[]): Promise<void> {
   await seedStore(page, "quiz-game", "QuizData", [{ id: "record", value: { data: { quizzes, media: {} }, updatedAt: Date.now() } }]);
+}
+
+/** ジャックポットの景品と画面設定(`{ prizes, screens, media }` の1件のレコード)に、素材を持たない景品・画面設定を入れる。 */
+export async function seedJackpot(page: Page, record: { prizes?: unknown[]; screens?: unknown[] }): Promise<void> {
+  const data = { prizes: record.prizes ?? [], screens: record.screens ?? [], media: {} };
+  await seedStore(page, "jackpot-game", "JackpotData", [{ id: "record", value: { data, updatedAt: Date.now() } }]);
 }
 
 /** E2E用のクイズ(正解は2番)。 */

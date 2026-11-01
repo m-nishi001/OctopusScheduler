@@ -79,7 +79,7 @@ game-jackpot と app-scheduler は、目標の 85% にまだ届いていませ�
 - **リトライは使いません**(`retries: 0`)。落ちたら、待ち方かアプリを直します。
 - 固定の `waitForTimeout` は、「何も起きないことの確認(締切が Enter では動かない、など)」「描画が落ち着くまでの待ち(スクリーンショット)」「Enter を間隔を空けて押す進行」に限ります。何かが起きるのを待つときは `expect(...)` / `expect.poll(...)` で状態を待ちます。
 - **名簿に前から居る人がいる環境**(staging のシード参加者 20 人など)では、`jackpot-scale` は名簿の人数を実測して抽選回数と終了の理由(景品が尽きたか、メンバーが尽きたか)を決めます。「景品 > メンバー」で終わる経路を通るのは、まっさらなローカル/CI だけです。
-- 端末のデータを直接入れるときは、1件ずつ持つものは `seedStore`、一覧全体を1件のレコード `{ data, updatedAt }` で持つもの(クイズ `QuizData` / `PrizeData` / `ScreenConfigData` / `MemberExtraData`)は `seedRecord`(`e2e/ui/fixtures.ts`)を使います。更新日時は「いま」なので、サーバーより新しいものとして同期で送られます。
+- 端末のデータを直接入れるときは、1件ずつ持つものは `seedStore`、一覧全体を1件のレコード `{ data, updatedAt }` で持つもの(`MemberExtraData` など)は `seedRecord`、クイズ `{ quizzes, media }` は `seedQuizzes`、ジャックポットの景品と画面設定 `{ prizes, screens, media }` は `seedJackpot`(いずれも `e2e/ui/fixtures.ts`)を使います。更新日時は「いま」なので、サーバーより新しいものとして同期で送られます。
 - 同期(送信中の編集・他の端末の取り込み・失敗の詳細)は `sync-detail` が確かめます。ほかのテストへ影響しないよう、停止秒は最後に元の値へ戻します。
 - 画面の挙動を `console.log` の文言で読むテストがあります(`jackpot-stop-patterns` が `[MemberDrawAnimation] stopAt: pattern` / `[RouletteAnimation] stop pattern` を読む)。そのログの文言は変えない・消さない。
 

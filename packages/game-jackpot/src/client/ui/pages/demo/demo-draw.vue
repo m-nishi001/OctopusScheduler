@@ -37,10 +37,9 @@ import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { container } from 'tsyringe';
-import { PrizeRepository } from '@model/prize/prize-repository';
+import { JackpotRepository } from '@model/jackpot-repository';
 import { MemberRepository } from '@model/member/member-repository';
 import { DrawApplicationService } from '@control/draw/draw-application-service';
-import { AssetDataService } from '@control/asset/asset-data-service';
 import { DemoScreenSetting } from '@model/screen-config/demo-screen-setting';
 import { useScreenBgm } from '../../composables/use-screen-media';
 export default {
@@ -52,11 +51,10 @@ export default {
 
     const demoConfig = ref<DemoScreenSetting | null>(null);
     const screenSettingsService = container.resolve(ScreenSettingsService);
-    const assetService = container.resolve(AssetDataService);
 
     const prizes = ref<any[]>([]);
     const members = ref<any[]>([]);
-    const prizeRepo = container.resolve(PrizeRepository);
+    const prizeRepo = container.resolve(JackpotRepository);
     const memberRepo = container.resolve(MemberRepository);
     const fetchPrizes = async () => { prizes.value = await prizeRepo.getPrizes(); };
     const fetchMembers = async () => { members.value = await memberRepo.getMembers(); };
@@ -74,16 +72,13 @@ export default {
 
     const playSE = async (se: string) => {
       if (!demoConfig.value) return;
-      let assetId: string | undefined;
-      if (se === 'draw') {
-        assetId = demoConfig.value.demoSe1;
-      }
-      if (!assetId) return;
-      const asset = await assetService.getAssetDataById(assetId);
-      if (asset && (asset as any).blob) {
+      const name = se === 'draw' ? demoConfig.value.demoSe1 : undefined;
+      if (!name) return;
+      const blob = await prizeRepo.blobOf(name);
+      if (blob) {
         let tempUrl: string | undefined;
         try {
-          tempUrl = URL.createObjectURL((asset as any).blob);
+          tempUrl = URL.createObjectURL(blob);
           const seAudio = new Audio(tempUrl);
           seAudio.play().catch(() => { });
           if (tempUrl) {

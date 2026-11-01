@@ -14,10 +14,7 @@ import {
 } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { MemberRepository } from "../../model/member/member-repository";
-import { AssetDataRepository } from "../../model/asset/asset-data-repository";
-import { PrizeRepository } from "../../model/prize/prize-repository";
-import { ScreenConfigRepository } from "../../model/screen-config/screen-config-repository";
-import { AssetDataService } from "../asset/asset-data-service";
+import { JackpotRepository } from "../../model/jackpot-repository";
 import { ScreenSettingsService } from "../screen-config/screen-settings-service";
 import { MemberDrawService } from "../../model/draw/member-draw-service";
 import { PrizeDrawService } from "../../model/draw/prize-draw-service";
@@ -51,14 +48,7 @@ export class Container {
     });
 
     container.register(MemberRepository, { useClass: MemberRepository });
-    container.register(AssetDataRepository, {
-      useClass: AssetDataRepository,
-    });
-    container.register(PrizeRepository, { useClass: PrizeRepository });
-    container.register(ScreenConfigRepository, {
-      useClass: ScreenConfigRepository,
-    });
-    container.register(AssetDataService, { useClass: AssetDataService });
+    container.register(JackpotRepository, { useClass: JackpotRepository });
     container.register(ScreenSettingsService, {
       useClass: ScreenSettingsService,
     });

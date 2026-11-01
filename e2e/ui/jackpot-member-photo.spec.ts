@@ -1,11 +1,11 @@
 import type { Page } from "@playwright/test";
 import { makeBadgePng } from "../../scripts/seed-content.js";
-import { adminRpc, createSession, expect, loginByQr, nextButton, newDevice, openAdvanced, openEventTab, route, seedRecord, test } from "./fixtures";
+import { adminRpc, createSession, expect, loginByQr, nextButton, newDevice, openAdvanced, openEventTab, route, seedJackpot, test } from "./fixtures";
 
 /**
  * ジャックポットのメンバーの顔写真は、共通の名簿(Member.photo)から出る。ジャックポット独自の写真は持たない。
  *   - 管理 > メンバー: 一覧のサムネイルが名簿の写真。追加・編集ダイアログに写真のアップロード欄は無い
- *   - 管理 > メンバーの「データ取込」: ID をキーにした ランク・当選しやすさ だけ(名簿にいない ID は作らない)
+ *   - 管理 > メンバーの「CSVから取り込む」: ID をキーにした ランク・当選しやすさ(名簿にいない ID は、名前が無ければエラー)
  *   - メンバー抽選(ホストの画面)の各コマに名簿の写真が出て、回っている間に写真の通信が増えない
  *   - 結果の画面に、当選者の写真が出る
  * 参加者は別々のブラウザコンテキスト(= 別々のスマホ)。参加者・セッションは終わったら消す。
@@ -42,7 +42,7 @@ test.afterAll(async ({ request }) => {
   for (const id of ids) await adminRpc(request, "accounts_deleteMember", { id });
 });
 
-test("管理 > メンバー: 名簿の写真が一覧に出て、編集に写真の欄は無い。データ取込は ID をキーに rank / 当選しやすさだけ設定する", async ({ browser, request }) => {
+test("管理 > メンバー: 名簿の写真が一覧に出て、編集に写真の欄は無い。CSV取込は ID をキーに rank / 当選しやすさを設定する", async ({ browser, request }) => {
   const admin = await newDevice(browser, { signedIn: true });
   await admin.page.goto("/#/jackpot-admin");
   const row = (id: string) => admin.page.getByRole("row").filter({ hasText: nameOf(id) });
@@ -58,18 +58,25 @@ test("管理 > メンバー: 名簿の写真が一覧に出て、編集に写真
   await dialog.getByRole("button", { name: "キャンセル" }).click().catch(() => admin.page.keyboard.press("Escape"));
   await expect(dialog).toBeHidden();
 
-  // データ取込: メンバーの項目だけ。アセットフォルダの欄は出ない。名簿にいない ID は作らない
-  await admin.page.getByRole("button", { name: "データ取込" }).click();
+  // CSVから取り込む: ID をキーにした ランク・当選しやすさ。名簿にいない ID は名前が無ければエラー(取り込めない)、名前があれば名簿に追加する
+  await admin.page.getByTestId("table-import-open").click();
   const upload = admin.page.getByRole("dialog");
-  await expect(upload.locator("input[webkitdirectory]")).toHaveCount(0);
-  const csv = `id,rank,weight\n${ids[0]},2,77\n${ids[1]},,5\njp-photo-ghost,1,1\n`;
-  await upload.locator('input[type="file"][accept=".csv"]').setInputFiles({ name: "members.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
-  await upload.getByRole("button", { name: "アップロード" }).click();
-  await expect(upload).toContainText("2人を更新しました");
-  await expect(upload).toContainText("jp-photo-ghost");
+  const csv = `ID,名前,ランク,当選しやすさ\n${ids[0]},,2,77\n${ids[1]},,,5\njp-photo-ghost,,1,1\n`;
+  await admin.page.getByTestId("table-import-table").setInputFiles({ name: "jackpot-members.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await expect(admin.page.getByTestId("table-import-counts")).toContainText("更新 2 / 変更なし 0 / エラー 1");
+  await expect(upload.locator('[data-testid="table-import-row"][data-status="error"]')).toContainText("名簿にない ID");
+  await expect(upload.getByRole("button", { name: "取り込む" })).toBeDisabled();
+  await admin.page.getByTestId("table-import-table").setInputFiles({
+    name: "jackpot-members.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(`ID,名前,ランク,当選しやすさ\n${ids[0]},,2,77\n${ids[1]},,,5\n`),
+  });
+  await expect(admin.page.getByTestId("table-import-counts")).toContainText("更新 2 / 変更なし 0 / エラー 0");
+  await upload.getByRole("button", { name: "取り込む" }).click();
+  await expect(admin.page.getByTestId("table-import-result")).toContainText("更新 2", { timeout: 60_000 });
+  await admin.page.getByTestId("table-import-close").click();
   const roster = await adminRpc<Array<{ id: string }>>(request, "accounts_listMembers", {});
   expect(roster.some((m) => m.id === "jp-photo-ghost"), "名簿にいない ID のメンバーは作られない").toBe(false);
-  expect(roster.some((m) => m.id.startsWith("upload_member_")), "生成IDのメンバーは作られない").toBe(false);
   await admin.page.reload();
   await expect(row(ids[0])).toContainText("77");
   await expect(row(ids[1])).toContainText("5");
@@ -92,7 +99,7 @@ test("メンバー抽選のコマと結果の画面に、名簿の写真が出�
   });
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText("写真抽選会場");
-  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
+  await seedJackpot(host.page, { prizes: PRIZES });
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
 
   await openAdvanced(admin.page);

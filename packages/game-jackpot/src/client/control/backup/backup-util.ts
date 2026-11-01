@@ -6,22 +6,19 @@ import { LocalStorageService } from "@octopus/client-common/storage/local-storag
  *
  * このブラウザに保存してあるデータ（IndexedDB の `jackpot-game`）を1つの JSON にして書き出す。
  * 以前は localStorage の `jackpot-` で始まるキーだけを書き出していたため、実際のデータ（景品・メンバーの設定・
- * 画面設定・抽選結果・アセット）は1つも入らず、ほぼ空のファイルだった。
+ * 画面設定）は1つも入らず、ほぼ空のファイルだった。素材（画像・音声）の中身は含めない（レコードの索引だけ）。
  */
 
 /**
- * 常に書き出すストア（ストア名 → 内容）。景品・メンバーの設定・画面設定は、一覧全体を `record` というキー1つに
- * `{ data: 一覧, updatedAt: 最終更新日時 }` の形で持つ（同期の単位。素材は1件ごと）。抽選結果と確変の予定はセッションの結果ファイル（サーバー）にあり、ここには無い。 */
-export const BACKUP_STORES = ["PrizeData", "MemberExtraData", "ScreenConfigData"] as const;
-/** `includeAssets` のときだけ書き出すストア（画像・音声などの中身を含むため大きい）。 */
-export const BACKUP_ASSET_STORE = "AssetData";
+ * 書き出すストア（ストア名 → 内容）。景品と画面設定（と素材の索引）・メンバーの設定は、全体を `record` というキー1つに
+ * `{ data: 全体, updatedAt: 最終更新日時 }` の形で持つ（同期の単位）。抽選結果と確変の予定はセッションの結果ファイル（サーバー）にあり、ここには無い。 */
+export const BACKUP_STORES = ["JackpotData", "MemberExtraData"] as const;
 
 const DB_NAME = "jackpot-game";
 
 export interface LocalBackup {
   exportedAt: string;
-  includeAssets: boolean;
-  /** ストア名 → (キー → 保存されている値。景品・メンバーの設定・画面設定は `record` のみ)。Blob は `{ __blob: true, type, dataUrl }` に直してある。 */
+  /** ストア名 → (キー → 保存されている値。`record` のみ)。Blob は `{ __blob: true, type, dataUrl }` に直してある。 */
   stores: Record<string, Record<string, unknown>>;
 }
 
@@ -47,19 +44,18 @@ async function readStore(storeName: string): Promise<Record<string, unknown>> {
 }
 
 /** バックアップの内容を作る（ダウンロードはしない）。 */
-export async function buildLocalBackup(includeAssets = true): Promise<LocalBackup> {
-  const names: string[] = [...BACKUP_STORES, ...(includeAssets ? [BACKUP_ASSET_STORE] : [])];
+export async function buildLocalBackup(): Promise<LocalBackup> {
   const stores: Record<string, Record<string, unknown>> = {};
-  for (const name of names) stores[name] = await readStore(name);
-  return { exportedAt: new Date().toISOString(), includeAssets, stores };
+  for (const name of BACKUP_STORES) stores[name] = await readStore(name);
+  return { exportedAt: new Date().toISOString(), stores };
 }
 
 /**
  * バックアップを JSON ファイルとしてダウンロードする。
  * @returns ファイル名と大きさ(バイト)
  */
-export async function exportLocalBackup(includeAssets = true): Promise<{ filename: string; size: number }> {
-  const backup = await buildLocalBackup(includeAssets);
+export async function exportLocalBackup(): Promise<{ filename: string; size: number }> {
+  const backup = await buildLocalBackup();
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const filename = `jackpot-backup-${backup.exportedAt}.json`;
