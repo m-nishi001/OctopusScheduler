@@ -11,7 +11,7 @@ function makeRouter() {
     routes: [
       ...gamePathRedirectRoutes,
       { path: "/home", component: Empty },
-      { path: "/show-html/:id", redirect: (to) => ({ name: "show-html", params: { id: to.params.id } }) },
+      { path: "/show-image/:id", redirect: (to) => ({ name: "show-image", params: { id: to.params.id } }) },
       {
         path: "/execute",
         component: Empty,
@@ -21,7 +21,7 @@ function makeRouter() {
           { path: "jackpot-draw", component: Empty },
           { path: "quiz-admin", component: Empty },
           { path: "quiz/:id/play", name: "quiz-play", component: Empty },
-          { path: "show-html/:id", name: "show-html", component: Empty },
+          { path: "show-image/:id", name: "show-image", component: Empty },
         ],
       },
     ],
@@ -38,7 +38,7 @@ describe("toExecutePath", () => {
     expect(toExecutePath(path)).toBe(expected);
   });
 
-  it.each(["/home", "/execute/jackpot-admin", "/sessions", "/quizzes", "/jackpotx", "/", "/show-html/a"])(
+  it.each(["/home", "/execute/jackpot-admin", "/sessions", "/quizzes", "/jackpotx", "/", "/show-image/a"])(
     "それ以外(%s)や、すでに /execute 付きのパスはそのまま",
     (path) => {
       expect(toExecutePath(path)).toBe(path);
@@ -81,12 +81,12 @@ describe("ゲームの画面へのルート", () => {
   });
 });
 
-describe("HTML 表示のリンク（/show-html/:id）", () => {
+describe("画像表示のリンク（/show-image/:id）", () => {
   it("id から、実行画面の中の表示画面へ振り替わる（以前は必須の id が無く、開けなかった）", async () => {
     const router = makeRouter();
-    await router.push("/show-html/abc");
-    expect(router.currentRoute.value.name).toBe("show-html");
+    await router.push("/show-image/abc");
+    expect(router.currentRoute.value.name).toBe("show-image");
     expect(router.currentRoute.value.params.id).toBe("abc");
-    expect(router.currentRoute.value.fullPath).toBe("/execute/show-html/abc");
+    expect(router.currentRoute.value.fullPath).toBe("/execute/show-image/abc");
   });
 });

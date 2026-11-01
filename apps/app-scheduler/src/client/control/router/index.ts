@@ -34,7 +34,7 @@ const router = createRouter({
         const appExecuteChildren =
           (appExecuteRoute && (appExecuteRoute as any).children) || [];
         return [
-          // include app-defined children first (e.g. show-html, show-image, ...)
+          // include app-defined children first (e.g. show-image, show-video, ...)
           ...appExecuteChildren.map((c: any) => ({ ...c })),
           ...jackpotGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
           ...quizGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),

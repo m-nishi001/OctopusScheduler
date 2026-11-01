@@ -76,26 +76,23 @@ const rows = computed(() =>
 
 function getTypeLabel(type: string): string {
     switch (type) {
-        case 'ShowContentEvent': return 'コンテンツ表示';
-        case 'PlayAudioEvent': return '音楽再生';
-        case 'StopAudioEvent': return '音楽停止';
+        case 'AudioEvent': return '音楽';
+        case 'ScreenEvent': return 'スクリーン';
         case 'TransitionPageEvent': return '画面遷移';
-        case 'SlideshowEvent': return 'スライドショー';
         default: return type;
     }
 }
 
+/** 開始してから終了するまでの待ち時間(ミリ秒)。 */
 function calculateWaitTime(event: AppEvent): number {
     const baseTime = 5000; // 5秒
     switch (event.type) {
-        case 'ShowContentEvent':
-            return baseTime + (event.fadeInTime || 0) + (event.fadeOutTime || 0) + (event.duration || 0);
-        case 'PlayAudioEvent':
-        case 'StopAudioEvent':
+        case 'AudioEvent':
+            return baseTime + (event.fadeOutSec || 0) * 1000;
+        case 'ScreenEvent':
+            return baseTime;
         case 'TransitionPageEvent':
-            return baseTime + (event.fadeOutDuration || 0);
-        case 'SlideshowEvent':
-            return baseTime + (event.displayDuration || 0);
+            return baseTime + (event.fadeOutDuration || 0) * 1000;
     }
 }
 

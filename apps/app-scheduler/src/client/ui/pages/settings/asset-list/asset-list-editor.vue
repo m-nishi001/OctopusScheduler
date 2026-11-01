@@ -71,6 +71,7 @@ import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../control/asset/asset-service';
+import { classifyMedia } from '../../../../model/media/media-kind';
 
 const assetService = container.resolve(AssetService);
 
@@ -205,14 +206,7 @@ onBeforeUnmount(() => {
 onMounted(async () => { await fetchAssets(); });
 
 function deriveAssetKind(asset: any): string {
-    // blob is guaranteed to be present; use it directly.
-    const mime = asset.blob.type;
-    if (typeof mime === 'string') {
-        if (mime.startsWith('image')) return 'image';
-        if (mime.startsWith('video')) return 'video';
-        if (mime.startsWith('audio')) return 'audio';
-    }
-    return 'file';
+    return classifyMedia(asset.blob?.type, asset.name);
 }
 </script>
 

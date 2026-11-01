@@ -1,6 +1,5 @@
 /// <reference lib="dom" />
 import { getCurrentScope, onScopeDispose, readonly, ref } from "vue";
-import { eventBus } from "@octopus/client-common/events/event-bus";
 
 export interface PlayOptions {
   /** 繰り返し再生する（BGM 向け）。 */
@@ -117,17 +116,8 @@ export function useAudio() {
     if (audio) audio.volume = volume.value;
   }
 
-  // 「音声を止める」が、音声を指定せずに通知されたときは止める（指定ありは予定イベントの音声用なので止めない）。
-  const onStopAll = (event?: { audioId?: string }): void => {
-    if (!event?.audioId) void stop();
-  };
-  eventBus.on("stopAudio", onStopAll);
-
   if (getCurrentScope()) {
-    onScopeDispose(() => {
-      eventBus.off("stopAudio", onStopAll);
-      release();
-    });
+    onScopeDispose(release);
   }
 
   return {

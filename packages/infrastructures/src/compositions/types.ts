@@ -15,6 +15,8 @@ export interface DriveMetadata {
   parentFolderId: string;
   lastUpdate: string;
   size?: number;
+  /** 素材の表示名(拡張子つき)。一覧の表示と、種類の判定に使う。 */
+  fileName?: string;
 }
 
 export interface OperationResult<T = void> {

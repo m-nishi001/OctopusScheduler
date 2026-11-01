@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { container } from "tsyringe";
 import { createApp } from "vue";
 import "./style.css";
 import App from "./App.vue";
@@ -10,8 +11,8 @@ import { SessionHubContainer } from "@octopus/session-hub";
 import { PARTICIPANT_AUTH_KEY } from "@octopus/participant-portal";
 import router from "./control/router";
 import { useAuthSession } from "./control/auth/auth-session";
+import { ScreenRouterToken } from "./control/media/screen";
 import { registerEventHandlers } from "./ui/composables/register-event-handlers";
-import { registerKeyboardShortcutListener } from "./ui/composables/keyboard-shortcut-listener";
 import { setupHostAgent } from "./control/session/host-agent-setup";
 import { createSessionDrawPool } from "./control/session/event-host";
 
@@ -28,6 +29,7 @@ const app = createApp(App);
 app.provide(PARTICIPANT_AUTH_KEY, useAuthSession());
 app.use(router).mount("#app");
 
+container.registerInstance(ScreenRouterToken, router);
 registerEventHandlers(router);
 
 // ホスト端末なら、保存済みの入室情報からセッションへ復帰する(リロード対策)。
@@ -35,6 +37,3 @@ const hostAgent = setupHostAgent(router);
 // ジャックポットの抽選の対象を、イベントの設定（参加者全員(自動) / エントリーした人だけ）に従わせる。
 // JackpotContainer.register() のあとに差し替える（後から登録したものが優先される）。
 setDrawPoolProvider(createSessionDrawPool(hostAgent));
-
-// キーボードショートカットリスナー
-registerKeyboardShortcutListener();

@@ -30,6 +30,30 @@ export class AudioService {
         this._audioInstances = new Map<string, AudioInstance>();
     }
 
+    /** 音を出せる状態か(`running`)。ブラウザの自動再生の制限の間は `suspended`。 */
+    public get state(): AudioContextState {
+        return this._audioContext.state;
+    }
+
+    /**
+     * 自動再生の制限を解除する。クリックなどの利用者の操作の中で呼ぶこと。
+     * すでに `running` なら何もしない。解除できなくても(操作の外で呼ばれたときなど)例外にしない。
+     */
+    public async unlock(): Promise<void> {
+        if (this._audioContext.state === "running") return;
+        try {
+            await this._audioContext.resume();
+        } catch {
+            // 利用者の操作が無いと拒否されることがある。状態は `state` で分かる
+        }
+    }
+
+    /** 状態(`state`)が変わったときに呼ぶ。戻り値は解除関数。 */
+    public onStateChange(listener: () => void): () => void {
+        this._audioContext.addEventListener("statechange", listener);
+        return () => this._audioContext.removeEventListener("statechange", listener);
+    }
+
     /**
      * URLからオーディオファイルをロードし、ユニークなIDを返します。
      * @param url ロードするオーディオファイルのURL

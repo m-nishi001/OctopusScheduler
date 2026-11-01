@@ -39,6 +39,14 @@ async function mountConsole(sessionId: string, faults?: FaultInjector) {
 const button = (wrapper: ReturnType<typeof mount>, text: string) => wrapper.findAll("button").find((b) => b.text().includes(text))!;
 
 describe("session-console-view", () => {
+  it("音楽・スクリーンの欄がある(素材の一覧が取れなくても、ほかの操作は使える)", async () => {
+    const meta = await env.repo.create({ name: "x" });
+    const { wrapper } = await mountConsole(meta.id);
+    expect(wrapper.find('[data-testid="media-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="media-error"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="start-panel"]').exists()).toBe(true);
+  });
+
   it("管理端末として入室し、セッション名・接続状態を表示する(参加コードは出さない)", async () => {
     const meta = await env.repo.create({ name: "夏祭り" });
     const { wrapper, device } = await mountConsole(meta.id);

@@ -18,9 +18,12 @@ import { AssetRepository } from "../../model/asset/asset-repository";
 import { container, instanceCachingFactory } from "tsyringe";
 import { AppEventService } from "../app-event/app-event-service";
 import { AssetService } from "../asset/asset-service";
-import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
-import { KeyboardShortcutService } from "../keyboard-shortcut/keyboard-shortcut-service";
 import { SyncService } from "../sync/sync-service";
+import { AssetSource } from "../media/asset-source";
+import { AudioControl, AudioServiceToken } from "../media/audio";
+import { LobbyPathToken, ScreenControl } from "../media/screen";
+import { AudioService } from "@octopus/client-common/audio/audio-service";
+import { HostAgent } from "@octopus/session-hub";
 
 /** アプリの依存の登録。ビルド対象(GAS / Cloudflare)ごとの API クライアントなど、環境で変わるものをここで結ぶ。 */
 export class Container {
@@ -50,12 +53,14 @@ export class Container {
 
     container.register(AssetService, { useClass: AssetService });
     container.register(AppEventService, { useClass: AppEventService });
-    container.register(KeyboardShortcutRepository, {
-      useClass: KeyboardShortcutRepository,
+    // メディア(音楽・スクリーン)。ルーター(`ScreenRouterToken`)は、作ったあとに `main.ts` が登録する。
+    container.registerSingleton(AssetSource);
+    container.register(AudioServiceToken, { useFactory: instanceCachingFactory(() => new AudioService()) });
+    container.registerSingleton(AudioControl);
+    container.register(LobbyPathToken, {
+      useValue: () => (container.isRegistered(HostAgent) ? container.resolve(HostAgent).lobbyPath : null),
     });
-    container.register(KeyboardShortcutService, {
-      useClass: KeyboardShortcutService,
-    });
+    container.registerSingleton(ScreenControl);
     container.register(SyncRunner, { useClass: SyncRunner });
     container.register(SyncService, { useClass: SyncService });
   }

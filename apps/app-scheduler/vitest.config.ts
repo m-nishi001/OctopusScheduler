@@ -6,7 +6,7 @@ import { sharedAliasArray } from "../../vite.shared";
 export default defineConfig({
   plugins: [vue()],
   test: {
-    // `npm run test:coverage` で測る範囲と下限。予定イベント・素材・ショートカットのモデルと制御、サーバー。
+    // `npm run test:coverage` で測る範囲と下限。予定イベント・素材のモデルと制御、サーバー。
     // 下限は現在の実測を少し下回る値で、後退を防ぐためのもの(上げる方向にだけ見直す)。
     coverage: {
       provider: "v8",
