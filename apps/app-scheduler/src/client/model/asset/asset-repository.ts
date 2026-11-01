@@ -12,6 +12,7 @@ import {
 import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
 import { IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/scheduler-api-contract";
 import type { AssetRecordEntry, OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
+import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
 import type { DriveMetadata } from "@octopus/infrastructures/compositions";
 import type { Asset } from "./asset";
 
@@ -105,18 +106,24 @@ export class AssetRepository {
 
   /**
    * サーバーにある素材の一覧(メタデータ)。`folder` なしは、サーバーの素材の一覧(正)から。
-   * `folder` を渡すと、素材置き場直下のそのサブフォルダにあるファイルを一覧する(一覧に載らない、置いただけのファイル)。
+   * `folder` を渡すと、そのフォルダの素材(一覧の `directoryId` が指すもの)に加えて、素材置き場直下のそのサブフォルダに置いただけのファイルも一覧する。
    */
   async listRemote(folder?: string): Promise<DriveMetadata[]> {
-    if (folder) return (await this.schedulerApi.getDriveMetaData(folder)) || [];
-    return (await this.remoteEntries()).map((e) => ({
+    const toMeta = (e: AssetRecordEntry): DriveMetadata => ({
       driveDataId: e.id,
       fileId: "",
       parentFolderId: e.directoryId ?? "",
       lastUpdate: e.lastUpdated,
       size: e.size,
       fileName: e.name,
-    }));
+    });
+    if (folder) {
+      const directory = storagePath(StorageModule.Scheduler, StorageKind.Assets, folder);
+      const listed = (await this.remoteEntries()).filter((e) => e.directoryId === directory).map(toMeta);
+      const files = (await this.schedulerApi.getDriveMetaData(folder)) || [];
+      return [...listed, ...files];
+    }
+    return (await this.remoteEntries()).map(toMeta);
   }
 
   private async remoteEntries(): Promise<AssetRecordEntry[]> {
