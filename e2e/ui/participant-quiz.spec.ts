@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, seedRecord, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, test, seedQuizzes } from "./fixtures";
 
 /**
  * クイズを、ホスト(投影)・管理・参加者(ログイン済みのスマホ)で通しで動かす。
@@ -32,7 +32,7 @@ const publish = (request: APIRequestContext, sessionId: string, published = true
   adminRpc(request, "sessionHub_setPortalSession", { sessionId, published });
 
 const seedQuiz = (page: Page, id: string, timeLimit = 60) =>
-  seedRecord(page, "quiz-game", "QuizData", [sampleQuiz(id, timeLimit)]);
+  seedQuizzes(page, [sampleQuiz(id, timeLimit)]);
 
 async function scene(browser: import("@playwright/test").Browser, request: APIRequestContext, label: string, quizId: string, timeLimit: number) {
   const admin = await newDevice(browser, { signedIn: true });

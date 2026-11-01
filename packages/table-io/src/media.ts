@@ -4,21 +4,21 @@
  */
 
 /**
- * 項目が参照している名前だけを抜き出して、索引(名前 → ハッシュ)を作る。使われなくなった素材は自然に外れる。
+ * 項目が参照している名前だけを抜き出して、索引(名前 → 素材の情報 `V`。ハッシュなど)を作る。使われなくなった素材は自然に外れる。
  * `known` に無い名前を参照していれば例外(参照切れのまま保存しない)。
  */
-export function deriveMedia<E>(
+export function deriveMedia<E, V>(
   items: readonly E[],
   refsOf: (e: E) => Iterable<string>,
-  known: ReadonlyMap<string, string>
-): Record<string, string> {
-  const media: Record<string, string> = {};
+  known: ReadonlyMap<string, V>
+): Record<string, V> {
+  const media: Record<string, V> = {};
   for (const item of items) {
     for (const name of refsOf(item)) {
       if (!name || name in media) continue;
-      const hash = known.get(name);
-      if (hash === undefined) throw new Error(`素材「${name}」が見つかりません`);
-      media[name] = hash;
+      const entry = known.get(name);
+      if (entry === undefined) throw new Error(`素材「${name}」が見つかりません`);
+      media[name] = entry;
     }
   }
   return media;

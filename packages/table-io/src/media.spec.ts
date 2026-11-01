@@ -13,6 +13,11 @@ describe("deriveMedia", () => {
     expect(deriveMedia([{ files: ["a.png"] }], refs, known)).toEqual({ "a.png": "h1" });
   });
 
+  it("索引の値はハッシュに限らない(素材の情報をそのまま持てる)", () => {
+    const info = new Map([["a.png", { hash: "h1", mime: "image/png", size: 3 }]]);
+    expect(deriveMedia([{ files: ["a.png"] }], refs, info)).toEqual({ "a.png": { hash: "h1", mime: "image/png", size: 3 } });
+  });
+
   it("known に無い名前を参照していれば例外(参照切れのまま保存しない)", () => {
     expect(() => deriveMedia([{ files: ["zzz.png"] }], refs, known)).toThrow("zzz.png");
   });

@@ -108,13 +108,17 @@ export interface ParsedRow {
   cells: Row;
 }
 
-export type ParsedTable = { ok: true; rows: ParsedRow[] } | { ok: false; errors: string[] };
+/** 読んだ表。`headers` は実際に使った列の定義(列が可変の表では、ファイルの見出しから決めたもの)。 */
+export type ParsedTable = { ok: true; rows: ParsedRow[]; headers: readonly Header[] } | { ok: false; errors: string[] };
+
+/** 列の定義。列の数がファイルによって変わる表では、ファイルの見出し(`normalizeHeader` 済み)から決める関数を渡す。 */
+export type HeadersSource = readonly Header[] | ((names: readonly string[]) => readonly Header[]);
 
 /** 見出しの照合用の形: NFKC で正規化し、前後の空白を除いて小文字にする。 */
 export const normalizeHeader = (cell: string): string => cell.normalize("NFKC").trim().toLowerCase();
 
 /** CSV のバイト列を行にする。必須の列が無ければ `ok: false`。無い任意の列のセルは空文字。 */
-export function parseTable(bytes: Uint8Array, headers: readonly Header[]): ParsedTable {
+export function parseTable(bytes: Uint8Array, source: HeadersSource): ParsedTable {
   let table: CsvRecord[];
   try {
     table = parseCsv(decodeCsvBytes(bytes));
@@ -124,6 +128,7 @@ export function parseTable(bytes: Uint8Array, headers: readonly Header[]): Parse
   if (table.length === 0) return { ok: false, errors: ["CSV にデータがありません"] };
   const [head, ...body] = table;
   const names = head.cells.map(normalizeHeader);
+  const headers = typeof source === "function" ? source(names) : source;
   const columns = headers.map((h) => {
     const wanted = [h.label, ...(h.aliases ?? [])].map(normalizeHeader);
     return { header: h, index: names.findIndex((n) => wanted.includes(n)) };
@@ -138,7 +143,7 @@ export function parseTable(bytes: Uint8Array, headers: readonly Header[]): Parse
     for (const { header, index } of columns) row[header.key] = index < 0 ? "" : (cells[index] ?? "").trim();
     return { line, cells: row };
   });
-  return { ok: true, rows };
+  return { ok: true, rows, headers };
 }
 
 /** 表を CSV 文字列にする(Excel で開けるよう UTF-8 の BOM つき、改行は CRLF)。 */

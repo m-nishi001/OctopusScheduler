@@ -11,14 +11,15 @@ const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADEl
 const uniquePng = (seed: string) => Buffer.concat([PNG_1X1, Buffer.from(seed)]);
 
 type RecordEntry = { id: string; title: string; options: { image: string | null }[] };
+type QuizRecord = { quizzes: RecordEntry[]; media: Record<string, { hash: string }> };
 
-async function serverRecord(request: APIRequestContext): Promise<RecordEntry[]> {
+async function serverRecord(request: APIRequestContext): Promise<QuizRecord> {
   const { json } = await adminRpc<{ json: string | null }>(request, "quizGame_getRecord", {});
-  return json ? JSON.parse(json).data : [];
+  return json ? JSON.parse(json).data : { quizzes: [], media: {} };
 }
 
 async function createQuizWithImage(page: Page, title: string, seed: string) {
-  await page.getByRole("button", { name: "新規クイズ追加" }).click();
+  await page.getByRole("button", { name: "追加", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "クイズ追加" });
   await dialog.locator("input[type=text]").first().fill(title);
   await dialog.locator("textarea").fill("どれ?");
@@ -45,8 +46,9 @@ test.describe("クイズ管理の削除", () => {
     let hashes: string[] = [];
     await expect
       .poll(async () => {
-        const mine = (await serverRecord(request)).filter((q) => titles.includes(q.title));
-        hashes = mine.flatMap((q) => q.options.map((o) => o.image)).filter((h): h is string => !!h);
+        const { quizzes, media } = await serverRecord(request);
+        const mine = quizzes.filter((q) => titles.includes(q.title));
+        hashes = mine.flatMap((q) => q.options.map((o) => o.image)).filter((n): n is string => !!n).map((name) => media[name].hash);
         return mine.length;
       }, { timeout: 60_000 })
       .toBe(3);
@@ -64,7 +66,7 @@ test.describe("クイズ管理の削除", () => {
 
     // サーバーの一覧から消え、画像のファイルも消える
     await expect
-      .poll(async () => (await serverRecord(request)).filter((q) => titles.includes(q.title)).length, { timeout: 60_000 })
+      .poll(async () => (await serverRecord(request)).quizzes.filter((q) => titles.includes(q.title)).length, { timeout: 60_000 })
       .toBe(0);
     await expect
       .poll(async () => (await adminRpc<{ existing: string[] }>(request, "quizGame_existsBlobs", { hashes })).existing.length, { timeout: 60_000 })
@@ -72,9 +74,9 @@ test.describe("クイズ管理の削除", () => {
 
     // 再読み込みしても、題名の空のクイズも含めて戻ってこない
     await page.reload();
-    await expect(page.getByRole("button", { name: "新規クイズ追加" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "追加", exact: true })).toBeVisible();
     for (const title of titles) await expect(page.getByRole("row").filter({ hasText: title })).toHaveCount(0);
-    expect((await serverRecord(request)).filter((q) => !q.title)).toEqual([]);
+    expect((await serverRecord(request)).quizzes.filter((q) => !q.title)).toEqual([]);
     await d.context.close();
   });
 });

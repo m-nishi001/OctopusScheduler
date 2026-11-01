@@ -53,5 +53,5 @@ export interface UpdateQuizDto {
 }
 
 export interface DeleteQuizDto {
-  id: string;
+  ids: string[];
 }

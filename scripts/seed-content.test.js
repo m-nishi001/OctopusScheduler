@@ -8,6 +8,7 @@ import {
   buildQuizAssets,
   buildJackpotAssetRecord,
   blobHash,
+  buildQuizRecord,
   buildQuizzes,
   buildScreenSettings,
   makePng,
@@ -82,15 +83,21 @@ test("buildContentEntries: アセットのIDに _ を含めない(キーの先�
   for (const q of buildQuizzes()) assert.doesNotMatch(q.id, /_/);
 });
 
-test("buildQuizzes: 正解番号が選択肢にあり、ハッシュ参照にはすべて対応するアセットがある", () => {
-  const slots = new Set(buildQuizAssets().map(([s]) => s));
-  const quizzes = buildQuizzes();
+test("buildQuizRecord: 正解番号が選択肢にあり、素材の名前にはすべて索引と対応するアセットがある。索引は参照されている名前だけ", () => {
+  const hashes = new Set(buildQuizAssets().map(([hash]) => hash));
+  const { quizzes, media } = buildQuizRecord();
   assert.ok(quizzes.length >= 5);
+  const used = new Set();
   for (const q of quizzes) {
     assert.ok(q.options.some((o) => o.no === q.correctNo), q.id);
     const refs = [q.bgm, ...q.options.map((o) => o.image), q.settings?.prizeImage, q.settings?.prizeBgm].filter(Boolean);
-    for (const ref of refs) assert.ok(slots.has(ref), `${q.id}: ${ref}`);
+    for (const name of refs) {
+      used.add(name);
+      assert.ok(media[name], `${q.id}: ${name}`);
+      assert.ok(hashes.has(media[name].hash), `${q.id}: ${name}`);
+    }
   }
+  assert.deepEqual(new Set(Object.keys(media)), used);
 });
 
 test("buildJackpotAssetRecord: 素材の一覧は、固定の id と、対応するファイルのハッシュを持つ", () => {
@@ -146,11 +153,12 @@ test("buildContentEntries: 一覧のファイルは、アプリの同期が保�
   const quizzes = JSON.parse(entries.get("quiz-game/json/quiz-list.json"));
   const prizes = JSON.parse(entries.get("jackpot-game/json/prizes.json"));
   const screens = JSON.parse(entries.get("jackpot-game/json/screens.json"));
-  for (const record of [quizzes, prizes, screens]) {
+  for (const record of [prizes, screens]) {
     assert.equal(record.updatedAt, 1234567890);
     assert.ok(Array.isArray(record.data) && record.data.length > 0);
   }
-  assert.deepEqual(quizzes.data, JSON.parse(JSON.stringify(buildQuizzes())));
+  assert.equal(quizzes.updatedAt, 1234567890);
+  assert.deepEqual(quizzes.data, JSON.parse(JSON.stringify(buildQuizRecord())));
   assert.deepEqual(prizes.data, JSON.parse(JSON.stringify(buildPrizes())));
   assert.deepEqual(screens.data, JSON.parse(JSON.stringify(buildScreenSettings())));
   // 更新日時を渡さなければ、いまの時刻(端末の古いデータより新しいものとして取り込まれる)

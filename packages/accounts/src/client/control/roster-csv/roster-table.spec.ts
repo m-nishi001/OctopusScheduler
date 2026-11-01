@@ -25,7 +25,7 @@ describe("名簿の見出し", () => {
 
   it("Shift_JIS の CSV も読める", () => {
     const sjis = new Uint8Array([0x49, 0x44, 0x2c, 0x96, 0xbc, 0x91, 0x4f, 0x0d, 0x0a, 0x31, 0x2c, 0x96, 0xbc, 0x91, 0x4f]);
-    expect(parseTable(sjis, ROSTER_HEADERS)).toEqual({ ok: true, rows: [{ line: 2, cells: { id: "1", name: "名前", photo: "" } }] });
+    expect(parseTable(sjis, ROSTER_HEADERS)).toEqual({ ok: true, headers: ROSTER_HEADERS, rows: [{ line: 2, cells: { id: "1", name: "名前", photo: "" } }] });
   });
 });
 

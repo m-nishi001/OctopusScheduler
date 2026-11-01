@@ -23,7 +23,7 @@ export class QuizService {
     return await this.quizRepo.saveQuiz(quiz);
   }
 
-  async deleteQuiz(id: string): Promise<void> {
-    return await this.quizRepo.deleteQuiz(id);
+  async deleteQuizzes(ids: readonly string[]): Promise<void> {
+    return await this.quizRepo.deleteQuizzes(ids);
   }
 }
