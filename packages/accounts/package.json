@@ -38,7 +38,7 @@
     "@octopus/client-common": "*",
     "@octopus/infrastructures": "*",
     "@octopus/sync-engine": "*",
-    "fflate": "^0.8.3",
+    "@octopus/table-io": "*",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0"
   },

@@ -5,6 +5,7 @@
     { "path": "./packages/client-common" },
     { "path": "./packages/composables" },
     { "path": "./packages/sync-engine" },
+    { "path": "./packages/table-io" },
     { "path": "./packages/game-jackpot" },
     { "path": "./packages/game-quiz" },
     { "path": "./packages/accounts" },

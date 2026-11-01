@@ -145,9 +145,9 @@ describe("members-editor の一覧", () => {
   it("追加・書き出し・取り込みが同じ画面にあり、「アカウント追加」という別の入口は無い", async () => {
     const { wrapper } = await mountEditor(people());
     expect(wrapper.find('[data-testid="member-add"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="member-export"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="member-export-photos"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="member-import-open"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="table-export"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="table-export-media"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="table-import-open"]').exists()).toBe(true);
     expect(wrapper.text()).not.toContain("アカウント追加");
   });
 

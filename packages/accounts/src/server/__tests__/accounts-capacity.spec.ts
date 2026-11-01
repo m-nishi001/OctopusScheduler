@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { GAS_LIKE_LIMITS, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { StorageCapacityError } from "@octopus/infrastructures/interfaces";
-import { addMember, getRosterUsage, listMembers, replaceAllMembers } from "../accounts-use-cases";
+import { addMember, getRosterUsage, listMembers, applyRoster } from "../accounts-use-cases";
 import type { AccountsUseCaseDeps } from "../accounts-use-cases";
 
 /** GAS の ScriptProperty と同じ容量の上限をかけた保存先。名簿は1つの値(約9KB)に入れる。 */
@@ -45,7 +45,7 @@ describe("GAS の容量の上限での名簿", () => {
     const deps = createGasLikeDeps();
     await addMember(deps, person(0));
     const tooMany = Array.from({ length: 400 }, (_, i) => person(i + 1));
-    await expect(replaceAllMembers(deps, tooMany)).rejects.toBeInstanceOf(StorageCapacityError);
+    await expect(applyRoster(deps, { upserts: tooMany, deleteIds: [] })).rejects.toBeInstanceOf(StorageCapacityError);
     expect(await listMembers(deps)).toEqual([person(0)]);
   });
 

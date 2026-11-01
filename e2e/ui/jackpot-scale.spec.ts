@@ -18,8 +18,9 @@ const rpc = async (page: Page, name: string, args: unknown) => {
 };
 
 async function resetMembers(page: Page, names: string[]): Promise<void> {
-  await rpc(page, "accounts_replaceAllMembers", {
-    members: names.map((name, i) => ({ id: `m${i + 1}`, name })),
+  await rpc(page, "accounts_applyRoster", {
+    upserts: names.map((name, i) => ({ id: `m${i + 1}`, name })),
+    deleteIds: [],
   });
 }
 

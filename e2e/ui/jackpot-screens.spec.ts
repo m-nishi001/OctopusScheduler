@@ -56,8 +56,9 @@ test.describe("ジャックポットの全画面", () => {
         if (r.status() >= 400 && !r.url().includes("favicon")) problems.push(`[${current}] HTTP ${r.status()} ${r.url()}`);
       });
 
-      await rpc(page, "accounts_replaceAllMembers", {
-        members: Array.from({ length: 12 }, (_, i) => ({ id: `m${i + 1}`, name: `メンバー${i + 1}` })),
+      await rpc(page, "accounts_applyRoster", {
+        upserts: Array.from({ length: 12 }, (_, i) => ({ id: `m${i + 1}`, name: `メンバー${i + 1}` })),
+        deleteIds: [],
       });
       await page.goto("/#/sessions");
       await seedRecord(
