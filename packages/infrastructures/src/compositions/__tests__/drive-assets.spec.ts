@@ -118,6 +118,13 @@ describe("素材の取得・一覧", () => {
     expect((await assets.listMetadata({ storage }, " show1 ")).map((m) => m.fileId)).toEqual([`${NAMESPACE}/show1/b.png`]);
   });
 
+  it("一覧のメタデータに、素材の表示名(拡張子つき)が入る。表示名に _ を含んでいても欠けない", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    await assets.save({ storage }, makeDriveData({ fileName: "my_photo.png" }, "item-9"));
+    const [meta] = await assets.listMetadata({ storage });
+    expect(meta).toMatchObject({ driveDataId: "item-9", fileName: "my_photo.png" });
+  });
+
   it("フォルダ名が1階層のパス要素でなければ例外", async () => {
     await expect(assets.listMetadata({ storage: new InMemoryKeyValueStorage() }, "../x")).rejects.toThrow(/Invalid storage path/);
   });

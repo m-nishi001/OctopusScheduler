@@ -25,10 +25,10 @@ async function open(path: string) {
 }
 
 describe("settings-view のタブ", () => {
-  it("タブは イベント / アセット / メンバー / ショートカット の4つで、「アカウント」は無い", async () => {
+  it("タブは イベント / アセット / メンバー の3つで、「アカウント」は無い", async () => {
     const { wrapper } = await open("/settings");
     const labels = wrapper.findAll('[role="tab"]').map((t) => t.text());
-    expect(labels).toEqual(["イベント", "アセット", "メンバー", "ショートカット"]);
+    expect(labels).toEqual(["イベント", "アセット", "メンバー"]);
   });
 
   it("?tab=members でメンバーの画面を出す", async () => {

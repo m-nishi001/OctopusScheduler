@@ -1,8 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import { AppEventRepository } from "@model/app-event/app-event-repository";
 import type { ExecutionStatus } from "@model/app-event/execution-status";
-import { replaceAssetPlaceholderIds } from "@octopus/client-common/assets/asset-placeholder";
-import { AssetService } from "../asset/asset-service";
 import { appEventFromDto, reviveAppEvent, type AppEvent, type AppEventTiming } from "./app-event";
 import type { AppEventDto } from "./dto/app-event-dto";
 
@@ -12,10 +10,7 @@ import type { AppEventDto } from "./dto/app-event-dto";
  */
 @injectable()
 export class AppEventService {
-  constructor(
-    @inject(AppEventRepository) private repository: AppEventRepository,
-    @inject(AssetService) private assetService: AssetService
-  ) {}
+  constructor(@inject(AppEventRepository) private repository: AppEventRepository) {}
 
   async getScheduleEvents(): Promise<AppEvent[]> {
     const raws = await this.repository.getScheduleEvents();
@@ -145,44 +140,5 @@ export class AppEventService {
     } else {
       await this.addScheduleEvents([ev]);
     }
-  }
-
-  // Uploads any queued files for a ShowContentEvent's html body / contentId,
-  // rewriting `{{asset:image|video:<tempId>}}` placeholders to the resulting
-  // real asset ids. Replaces the old ContentDisplayEventRegister class.
-  async resolveShowContentUploads(
-    currentContentId: string | undefined,
-    currentHtml: string | undefined,
-    uploadFiles: Array<{ tempId: string; file: File }> | undefined
-  ): Promise<{ contentId: string; htmlString: string }> {
-    const queued = uploadFiles || [];
-    if (!queued.length) {
-      return { contentId: currentContentId ?? "", htmlString: currentHtml ?? "" };
-    }
-
-    const tempOrder: string[] = [];
-    const assetsToAdd: Array<Record<string, unknown>> = [];
-    for (const entry of queued) {
-      tempOrder.push(entry.tempId);
-      const f = entry.file;
-      assetsToAdd.push({
-        id: "",
-        name: f.name,
-        uploadedAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        size: f.size,
-        blob: f,
-      });
-    }
-    if (!assetsToAdd.length) {
-      return { contentId: currentContentId ?? "", htmlString: currentHtml ?? "" };
-    }
-
-    const ids = await this.assetService.addAssets(assetsToAdd as any);
-    const tempToReal = new Map(tempOrder.map((tempId, i) => [tempId, ids[i]]));
-    return {
-      contentId: tempToReal.get(currentContentId ?? "") ?? currentContentId ?? "",
-      htmlString: replaceAssetPlaceholderIds(currentHtml ?? "", tempToReal),
-    };
   }
 }

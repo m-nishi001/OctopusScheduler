@@ -9,17 +9,10 @@
 import { respond, IKeyValueStorageToken, ILockToken } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import type { IKeyValueStorage, ILock } from "@octopus/infrastructures/interfaces";
-import type {
-  KeyboardShortcutWireItem,
-  OctopusSchedulerEndpointName,
-} from "./scheduler-api-contract";
+import type { OctopusSchedulerEndpointName } from "./scheduler-api-contract";
 import { ASSET_RECORD_FILE, OCTOPUS_SCHEDULER_PREFIX, assetRecordHashes } from "./scheduler-api-contract";
 
 import { createDriveAssets, createHashedBlobStore, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
-import {
-  getKeyboardShortcuts,
-  setKeyboardShortcuts,
-} from "./keyboard-shortcuts-use-cases";
 import { secure } from "@octopus/accounts/secure";
 
 /** この置き場のファイルの一覧・取得(スライドショーのフォルダ表示用)。 */
@@ -44,12 +37,6 @@ declare let _octopusScheduler_saveAssetRecord: (args: { json: string }) => Promi
 declare let _octopusScheduler_existsAssetBlobs: (args: { hashes: string[] }) => Promise<string>;
 declare let _octopusScheduler_putAssetBlob: (args: { hash: string; dataUrl: string }) => Promise<string>;
 declare let _octopusScheduler_getAssetBlob: (args: { hash: string }) => Promise<string>;
-declare let _octopusScheduler_getKeyboardShortcuts: () => Promise<string>;
-declare let _octopusScheduler_setKeyboardShortcuts: (payload: {
-  shortcuts: KeyboardShortcutWireItem[];
-  config: unknown;
-  updatedAt: string;
-}) => Promise<string>;
 
 _octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string> => {
   return respond(() => assets.listMetadata(resolveDeps(), folderName));
@@ -73,24 +60,6 @@ _octopusScheduler_putAssetBlob = async (args: { hash: string; dataUrl: string })
 
 _octopusScheduler_getAssetBlob = async (args: { hash: string }): Promise<string> =>
   respond(() => store.get(resolveDeps(), args));
-
-_octopusScheduler_getKeyboardShortcuts = async (): Promise<string> => {
-  return respond(async () => {
-    const kv = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
-    return getKeyboardShortcuts({ kv });
-  });
-};
-
-_octopusScheduler_setKeyboardShortcuts = async (payload: {
-  shortcuts: KeyboardShortcutWireItem[];
-  config: unknown;
-  updatedAt: string;
-}): Promise<string> => {
-  return respond(async () => {
-    const kv = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
-    await setKeyboardShortcuts({ kv }, payload);
-  });
-};
 
 _octopusScheduler_doGet = (
   _e: GoogleAppsScript.Events.DoGet
@@ -125,8 +94,6 @@ _octopusScheduler_saveAssetRecord = secure("admin", _octopusScheduler_saveAssetR
 _octopusScheduler_existsAssetBlobs = secure("admin", _octopusScheduler_existsAssetBlobs);
 _octopusScheduler_putAssetBlob = secure("admin", _octopusScheduler_putAssetBlob);
 _octopusScheduler_getAssetBlob = secure("admin", _octopusScheduler_getAssetBlob);
-_octopusScheduler_getKeyboardShortcuts = secure("admin", _octopusScheduler_getKeyboardShortcuts);
-_octopusScheduler_setKeyboardShortcuts = secure("admin", _octopusScheduler_setKeyboardShortcuts);
 
 /**
  * Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。
@@ -144,8 +111,6 @@ export const OCTOPUS_SCHEDULER_HANDLERS: Record<
   existsAssetBlobs: _octopusScheduler_existsAssetBlobs,
   putAssetBlob: _octopusScheduler_putAssetBlob,
   getAssetBlob: _octopusScheduler_getAssetBlob,
-  getKeyboardShortcuts: _octopusScheduler_getKeyboardShortcuts,
-  setKeyboardShortcuts: _octopusScheduler_setKeyboardShortcuts,
 };
 
 export { OCTOPUS_SCHEDULER_PREFIX };

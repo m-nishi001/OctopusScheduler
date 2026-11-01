@@ -6,7 +6,6 @@ import AssetListEditor from "../pages/settings/asset-list/asset-list-editor.vue"
 import EventEditor from "../pages/settings/event-list/event-list.vue";
 import ShowImage from "../pages/execute/show-content/show-image.vue";
 import ShowVideo from "../pages/execute/show-content/show-video.vue";
-import ShowHtml from "../pages/execute/show-content/show-html.vue";
 import ShowSlideshow from "../pages/execute/show-content/show-slideshow.vue";
 import SessionsView from "../pages/session/sessions-view.vue";
 import SessionHostView from "../pages/session/session-host-view.vue";
@@ -57,12 +56,6 @@ const octopusSchedulerRoutes = [
         component: ShowVideo,
         props: true,
       },
-      {
-        path: "show-html/:id",
-        name: "show-html",
-        component: ShowHtml,
-        props: true,
-      },
       // クイズのエントリー画面(イントロの次)。本番とデモ(管理端末のプレビュー)の2つ
       { path: "quiz/:id/entry", name: "quiz-entry", component: QuizEntry },
       { path: "quiz/:id/entry/preview", name: "quiz-entry-preview", component: QuizEntry },
@@ -101,13 +94,6 @@ const octopusSchedulerRoutes = [
     path: "/show-video/:id",
     redirect: (to: any) => ({
       name: "show-video",
-      params: { id: to.params.id },
-    }),
-  },
-  {
-    path: "/show-html/:id",
-    redirect: (to: any) => ({
-      name: "show-html",
       params: { id: to.params.id },
     }),
   },

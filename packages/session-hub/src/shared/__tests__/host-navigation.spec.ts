@@ -12,10 +12,12 @@ describe("isAllowedHostPath", () => {
     "/quiz/q1/intro",
     "/execute/quiz/q1/play",
     "/execute/show-image/asset1",
+    "/execute/show-video/asset1",
     "/event-entry",
   ])("許可: %s", (p) => expect(isAllowedHostPath(p)).toBe(true));
 
   it.each([
+    "/execute/show-html/asset1",
     "/settings",
     "/assets",
     "/events",

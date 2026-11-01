@@ -5,7 +5,6 @@
         <EventEditor v-if="currentTab === 'events'" />
         <AssetListEditor v-else-if="currentTab === 'assets'" />
         <MembersEditor v-else-if="currentTab === 'members'" />
-        <KeyboardShortcutEditor v-else-if="currentTab === 'keyboard-shortcuts'" />
     </PageShell>
 </template>
 
@@ -18,13 +17,11 @@ import SettingsHeaderActions from './frames/settings-header-actions.vue';
 import EventEditor from './event-list/event-list.vue';
 import AssetListEditor from './asset-list/asset-list-editor.vue';
 import MembersEditor from './members/members-editor.vue';
-import KeyboardShortcutEditor from './keyboard-shortcut/keyboard-shortcut-editor.vue';
 
 const tabs = [
     { key: 'events', label: 'イベント' },
     { key: 'assets', label: 'アセット' },
     { key: 'members', label: 'メンバー' },
-    { key: 'keyboard-shortcuts', label: 'ショートカット' },
 ];
 // 表示中のタブはURL(?tab=)に持つので、再読み込みやリンクで同じタブに戻れる
 const route = useRoute();

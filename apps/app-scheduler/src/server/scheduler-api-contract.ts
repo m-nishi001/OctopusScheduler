@@ -15,8 +15,6 @@ export const OCTOPUS_SCHEDULER_ENDPOINTS = [
   "existsAssetBlobs",
   "putAssetBlob",
   "getAssetBlob",
-  "getKeyboardShortcuts",
-  "setKeyboardShortcuts",
 ] as const;
 
 /**
@@ -31,17 +29,6 @@ export type OctopusSchedulerEndpointName =
 
 export type OctopusSchedulerFunctionName =
   `${typeof OCTOPUS_SCHEDULER_PREFIX}_${OctopusSchedulerEndpointName}`;
-
-/**
- * キーボードショートカット1件のワイヤー形式。GAS側はこの中身を解釈せず
- * JSON文字列として保存・返却するだけの不透明なKVストアであるため、
- * クライアントのローカル正準モデル(`KeyboardShortcutData`)とそのまま揃えている。
- */
-export interface KeyboardShortcutWireItem {
-  id: string;
-  keys: string[];
-  eventIds: string[];
-}
 
 /**
  * 素材の一覧(カタログ)に載せる1件。素材の中身は持たず、内容のハッシュで参照する。
@@ -88,25 +75,6 @@ export interface OctopusSchedulerApi {
   existsAssetBlobs(args: { hashes: string[] }, options?: ApiCallOptions): Promise<{ existing: string[] }>;
   putAssetBlob(args: { hash: string; dataUrl: string }, options?: ApiCallOptions): Promise<void>;
   getAssetBlob(args: { hash: string }, options?: ApiCallOptions): Promise<{ dataUrl: string | null }>;
-  getKeyboardShortcuts(
-    args?: undefined,
-    options?: ApiCallOptions
-  ): Promise<{
-    shortcuts: KeyboardShortcutWireItem[];
-    config: unknown;
-    /** 最終更新日時(ISO文字列)。バックグラウンド同期のLast-Write-Winsに使う。
-     * 一度もpushされたことがない旧形式のデータの場合はnull。 */
-    updatedAt: string | null;
-  }>;
-  setKeyboardShortcuts(
-    payload: {
-      shortcuts: KeyboardShortcutWireItem[];
-      config: unknown;
-      /** クライアントがpush時に刻む更新日時(ISO文字列)。 */
-      updatedAt: string;
-    },
-    options?: ApiCallOptions
-  ): Promise<void>;
 }
 
 /** `OctopusSchedulerApi` をDI解決するためのトークン。 */

@@ -12,6 +12,7 @@ import {
 import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
 import { IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/scheduler-api-contract";
 import type { AssetRecordEntry, OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
+import type { DriveMetadata } from "@octopus/infrastructures/compositions";
 import type { Asset } from "./asset";
 
 const RECORD_SYNC_KIND = "asset";
@@ -100,6 +101,64 @@ export class AssetRepository {
     await this.clearLegacy();
     const entry = (await this.list.read())?.data.find((e) => e.id === id);
     return entry ? this.toAsset(entry) : null;
+  }
+
+  /**
+   * サーバーにある素材の一覧(メタデータ)。`folder` なしは、サーバーの素材の一覧(正)から。
+   * `folder` を渡すと、素材置き場直下のそのサブフォルダにあるファイルを一覧する(一覧に載らない、置いただけのファイル)。
+   */
+  async listRemote(folder?: string): Promise<DriveMetadata[]> {
+    if (folder) return (await this.schedulerApi.getDriveMetaData(folder)) || [];
+    return (await this.remoteEntries()).map((e) => ({
+      driveDataId: e.id,
+      fileId: "",
+      parentFolderId: e.directoryId ?? "",
+      lastUpdate: e.lastUpdated,
+      size: e.size,
+      fileName: e.name,
+    }));
+  }
+
+  private async remoteEntries(): Promise<AssetRecordEntry[]> {
+    const { json } = await this.schedulerApi.getAssetRecord();
+    const data = json ? (JSON.parse(json) as { data?: unknown }).data : null;
+    return Array.isArray(data) ? (data as AssetRecordEntry[]) : [];
+  }
+
+  /**
+   * サーバーから素材 1 件の中身を取って返す。
+   * `fileId`(フォルダのファイル)があればそのファイルを、無ければ素材の一覧の `id` から、ハッシュのファイルを取る。
+   * 一覧の素材の中身は、この端末にハッシュで保存する(一覧そのものは同期が運ぶので、ここでは触らない)。
+   * 失敗は例外で返す(成功のふりはしない)。
+   */
+  async pullRemote(id: string, fileId?: string): Promise<Asset> {
+    const now = new Date().toISOString();
+    if (fileId) {
+      const res = await this.schedulerApi.getDriveData(fileId);
+      if (!res?.fileDataUrl) throw new Error(`素材を取得できませんでした: ${id}`);
+      const blob = dataUrlToBlob(res.fileDataUrl);
+      if (!blob.size) throw new Error(`素材の中身を取得できませんでした: ${id}`);
+      return { id, blob, name: res.fileName, uploadedAt: res.uploadDate ? String(res.uploadDate) : now, lastUpdated: now, size: blob.size };
+    }
+    const entry = (await this.remoteEntries()).find((e) => e.id === id);
+    if (!entry) throw new Error(`素材がサーバーにありません: ${id}`);
+    let blob = await this.blobs.get(entry.hash);
+    if (!blob) {
+      const { dataUrl } = await this.schedulerApi.getAssetBlob({ hash: entry.hash });
+      if (!dataUrl) throw new Error(`素材を取得できませんでした: ${id}`);
+      blob = dataUrlToBlob(dataUrl);
+      if (!blob.size) throw new Error(`素材の中身を取得できませんでした: ${id}`);
+      await this.blobs.put(entry.hash, blob);
+    }
+    return {
+      id,
+      blob,
+      name: entry.name,
+      uploadedAt: entry.uploadedAt,
+      lastUpdated: entry.lastUpdated,
+      size: entry.size,
+      directoryId: entry.directoryId,
+    };
   }
 
   async deleteAssets(ids: string[]): Promise<void> {

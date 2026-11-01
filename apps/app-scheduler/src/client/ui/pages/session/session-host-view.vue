@@ -1,5 +1,5 @@
 <template>
-    <div class="host-view">
+    <div class="host-view" @pointerdown="unlockAudio" @keydown="unlockAudio">
         <header class="host-view__header">
             <ConnectionBanner :phase="state.phase" :failure-count="state.failureCount" />
             <div class="host-view__tools">
@@ -23,6 +23,9 @@
                 </p>
                 <p class="host-view__presence">管理端末 {{ state.presence?.admins.length ?? 0 }} 台</p>
                 <p class="host-view__hint" data-testid="prepare-status">{{ prepareText }}</p>
+                <p v-if="audioLocked" class="host-view__audio" role="status" data-testid="host-audio-hint">
+                    音を出すには、この画面を一度クリックしてください。
+                </p>
                 <p class="host-view__hint">この画面は管理端末からの操作で切り替わります。</p>
             </template>
 
@@ -50,13 +53,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { UiButton, UiDialog, useConfirm } from '@octopus/ui-kit';
 import { HostAgent, parseHubErrorCode, stripHubErrorCode, useConnectionState } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import { prepareHostData } from '../../../control/session/prepare-host-data';
+import { AudioServiceToken } from '../../../control/media/audio';
+import type { AudioService } from '@octopus/client-common/audio/audio-service';
 import ConnectionBanner from './components/connection-banner.vue';
 
 const route = useRoute();
@@ -80,6 +85,21 @@ const prepareText = computed(() => {
     return '';
 });
 
+/**
+ * 管理端末の指示で鳴らす音は、利用者の操作なしの再生になる。ブラウザの自動再生の制限で無音にならないよう、
+ * この画面のクリックなどの操作の中で音を出せる状態にしておく。リロード後の自動復帰では操作が無いので、
+ * 制限が残っている間(suspended)だけ、クリックを促す案内を出す。
+ */
+const audio = container.isRegistered(AudioServiceToken) ? container.resolve<AudioService>(AudioServiceToken) : null;
+const audioState = ref(audio?.state ?? 'running');
+const audioLocked = computed(() => audioState.value === 'suspended');
+const stopWatchingAudio = audio?.onStateChange(() => { audioState.value = audio.state; });
+function unlockAudio() {
+    if (!audio || audio.state === 'running') return;
+    void audio.unlock().then(() => { audioState.value = audio.state; });
+}
+onUnmounted(() => stopWatchingAudio?.());
+
 async function prepare() {
     prepareState.value = 'running';
     const result = await prepareHostData();
@@ -100,6 +120,7 @@ async function join(takeover: boolean) {
     if (joining.value) return;
     joining.value = true;
     errorMessage.value = '';
+    unlockAudio(); // 「ホストに戻す」などのクリックの中で呼ばれたときに、音を出せる状態にする
     try {
         // 別のセッションのホストとして接続中なら、切り替える前に確認する。
         const current = state.value.session;
@@ -186,5 +207,6 @@ onMounted(() => {
 .host-view__count-unit { font-size: clamp(1rem, 3vmin, 2rem); font-weight: 800; }
 .host-view__guide { margin: 0; max-width: 40em; line-height: 1.8; font-size: clamp(1rem, 2.6vmin, 1.5rem); opacity: 0.85; }
 .host-view__hint { margin: 0; opacity: 0.6; }
+.host-view__audio { margin: 0; padding: 6px 14px; border-radius: 8px; background: rgba(255, 179, 0, 0.18); color: #ffd54f; }
 .host-view__error { color: #ff8a80; max-width: 40em; }
 </style>

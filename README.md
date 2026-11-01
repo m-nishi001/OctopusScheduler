@@ -1,6 +1,6 @@
 # Octopus Scheduler
 
-社内イベント（忘年会など）の現場で、モニターへの画面表示・BGM・ショートカット操作によるクイズや抽選を一元管理する進行演出ツールです。Google Apps Script（GAS）と Cloudflare のどちらでも動きます。
+社内イベント（忘年会など）の現場で、モニターへの画面表示(画像・動画・スライドショー)・音楽・クイズや抽選を、手元のスマホの操作画面から一元管理する進行演出ツールです。Google Apps Script（GAS）と Cloudflare のどちらでも動きます。
 
 ## 3ステップで動かす
 
@@ -14,7 +14,7 @@
 
 | 知りたいこと | 読むもの |
 | --- | --- |
-| 使い方（アセット・イベント・ショートカット） | [docs/usage.md](docs/usage.md) |
+| 使い方（アセット・予定イベント・音楽とスクリーン） | [docs/usage.md](docs/usage.md) |
 | デプロイ手順 | [GAS](docs/deploy-gas.md) / [Cloudflare](docs/deploy-cloudflare.md) |
 | ログイン・初回管理者・復旧 | [docs/authentication.md](docs/authentication.md) |
 | 開発の始め方・テスト・CI | [docs/development.md](docs/development.md) |

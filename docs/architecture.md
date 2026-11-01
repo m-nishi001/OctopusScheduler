@@ -47,9 +47,9 @@ packages/
 
 | もの | 置き場 |
 | --- | --- |
-| 予定イベント（音楽・コンテンツ・スライドショー・画面遷移） | 保存形 `AppEventData`（`model/app-event/`）がそのまま実行時の型。種類ごとの違いは `control/app-event/app-event.ts` の表（実行 `RUNNERS`・新規の初期値 `EMPTY_FIELDS`）だけにある。編集は共通の `ScheduledEventDialog` と、種類ごとのフォーム `ui/pages/settings/app-events/events/*-form.vue`（ショートカットの編集と共通） |
+| 予定イベント（音楽・スクリーン・画面遷移） | 保存形 `AppEventData`（`model/app-event/`）がそのまま実行時の型。種類ごとの違いは `control/app-event/app-event.ts` の表（実行 `RUNNERS`・新規の初期値 `EMPTY_FIELDS`）だけにある。編集は共通の `ScheduledEventDialog` と、種類ごとのフォーム `ui/pages/settings/app-events/events/*-form.vue` |
 | エンドポイントの成功・失敗の変換 | `respond()`（`infrastructures/interfaces`）。各 `endpoints.ts` はこれで本体を包む |
-| 複数のパッケージで使う小さな部品 | `client-common`（`blobToDataUrl`・`{{asset:…}}` の解析 `assets/asset-placeholder.ts`・日時）、`ui-kit`（`lockScroll` など） |
+| 複数のパッケージで使う小さな部品 | `client-common`（`blobToDataUrl`・日時）、`ui-kit`（`lockScroll` など） |
 | セッション基盤の中核 | `session-hub/src/server/engine/`（`engine-core` / `engine-join` / `engine-feed` / `engine-commands` / `engine-rounds`。外からは `session-engine.ts` 経由）と、`server/room/`（`room-core`・`room-repo`・`room-types`）。詳しくは [session-hub.md](session-hub.md) |
 
 ## 保存
@@ -65,7 +65,7 @@ packages/
 
 端末（IndexedDB）とサーバー（Drive / R2）の間を、バックグラウンドで「新しいほうが勝つ」で揃えます。
 
-- **一覧は、種類(kind)ごとに `{ data, updatedAt }` のレコードを1件**持ちます（画面設定・賞品・メンバー設定・クイズ一覧・ショートカット）。データと最終更新日時は一緒に1回で書き、更新日時は `max(いま, 前の更新日時 + 1)` です（端末の時計がずれても、自分の編集が負けない）。レコードが無いことと、空の一覧 `[]` は区別されるので、全件削除も同期されます。
+- **一覧は、種類(kind)ごとに `{ data, updatedAt }` のレコードを1件**持ちます（画面設定・賞品・メンバー設定・クイズ一覧）。データと最終更新日時は一緒に1回で書き、更新日時は `max(いま, 前の更新日時 + 1)` です（端末の時計がずれても、自分の編集が負けない）。レコードが無いことと、空の一覧 `[]` は区別されるので、全件削除も同期されます。
 - **サーバーにも同じ `{ updatedAt, data }` を、テキストのまま保存**します（`<module>/json/<名前>.json`）。サーバーは中身を見ず、サーバーの時刻も使いません。
 - **push は保存して終わり**で、端末へ書き戻しません。送信の最中に編集しても、端末のほうが新しいままなので、次の同期で送られます。
 - **pull は、判定のときからローカルの更新日時が変わっていなければ、サーバーのレコードをそのまま1回書く**だけです。書く直前にもう一度読み、変わっていたら書かずに戻ります（その編集は次の同期で送られます）。
@@ -78,3 +78,16 @@ packages/
 
 - セッション基盤の設計 → [session-hub.md](session-hub.md)
 - 設計の経緯 → [design-decisions.md](design-decisions.md)
+
+## 音楽とスクリーン(メディア)
+
+会場スクリーンと音楽は、予定イベントと管理端末のどちらからも、同じ単体機能を呼びます。経路は、この関数だけです。
+
+- `audio.play(id)` / `audio.stop(id?, fadeSec?)`、`screen.show(spec)` / `screen.clear()`（`control/media/`）。呼び口は、予定イベント(`executeAppEvent`)と、ホストの `media` ハンドラ(`control/media/host-media-commands.ts`)の2つ。
+- `screen` は常に1つだけ出す。出したままで、消すのは `clear` だけ。後から出した指示が勝つ(連番は1つ。素材の取得を待つ間に別の指示が来たら、古いほうを捨てる)。`audio` も同じ考え方で、曲ごとの連番を持つ(取得を待つ間に停止が来たら、届いても鳴らさない)。`clear` の戻り先は、常にセッションのホスト画面(ロビー)で、直前の画面は覚えない。
+- 素材の取得は `AssetSource.ensure(id)` の1つだけ。手元(IndexedDB)にあればそれを返し、無ければサーバーから取って保存して返す。取得中の Promise を ID ごとに使い回し(二重に取らない)、失敗したら外す(次の呼び出しで取り直す)。持つ状態はこの Map だけ。
+- 先読み(`prefetchAll`)は、ホストの準備(`prepareHostData`)の中で、サーバーの一覧を1回取って始める。小さい素材から、同時3件。結果は待たず、失敗は警告まで。指示で要る素材は、先読みの列を待たずに先に取る(`ensure` が直接取りに行く)。
+- 管理端末の指示は、`media` 名前空間の4種類だけ(`play {assetId}` / `stop {assetId?, fadeSec?}` / `show {spec}` / `clear`)。検証は `parseMediaCommand`(`model/media/media-command.ts`)の1か所で、ホストが必ず通す。参加者(client)からの指示は捨てる。ホストは素材の取得を待たずに実行する(あとの「消す」が遅れないため)。
+- スライドショーは、開始したらそのフォルダの画像を先に `ensure` し、各スライドは自分の画像が取れてから表示する(取得が遅いときは前の画像が長めに映るだけで、抜けない)。フォルダの画像は、手元の素材の `directoryId` を先に使い、無いときだけサーバーの一覧を使う。
+- 限界(承知のうえ): 管理端末は、ホストで何が鳴っている・映っているかを見られない(状態を公開しない)。素材はサーバーから base64 の JSON で返るので、大きな動画の初回は遅く、メモリも食う(取得は `ensure` に閉じ込めてあり、あとで置き換えられる)。全素材を先読みするので、大きな動画が多いとブラウザの保存の上限に当たりうる。
+- ホストの音: コマンドは通信で届くため、操作なしの再生になる。ブラウザの自動再生の制限(`AudioContext` が `suspended`)の間は、ホスト画面に案内を出し、クリックで解除する(`AudioService.unlock()`)。

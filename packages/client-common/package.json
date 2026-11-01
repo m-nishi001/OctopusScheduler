@@ -22,8 +22,8 @@
     "build": "tsc -b",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:coverage": "vitest run"
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",

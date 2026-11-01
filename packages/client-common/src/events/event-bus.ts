@@ -1,36 +1,7 @@
 import mitt from "mitt";
 
 export const eventBus = mitt<{
-  playAudio: { audioId?: string };
-  /** audioId を省略すると、再生中の音声すべてを止める。fadeOutDuration は秒。 */
-  stopAudio: { audioId?: string; fadeOutDuration?: number } | undefined;
-  showContent: {
-    contentType: "image" | "movie" | "html";
-    // If true, the content was triggered manually (via keyboard shortcut)
-    // and should remain visible until hideContent is emitted.
-    manual?: boolean;
-    contentId?: string;
-    htmlString?: string;
-    eventId?: string;
-    displayMode?: "fade" | "scroll-up" | "scroll-down";
-    effect?: "fade" | "scroll" | "static";
-    duration?: number;
-    fadeInTime?: number;
-    fadeOutTime?: number;
-    scrollDirection?: "up" | "down" | "left" | "right";
-  };
-  // hideContent may be emitted without args (e.g. Escape key) or with
-  // contentType for explicit hiding.
-  hideContent: { contentType?: "image" | "movie" | "html" } | void;
   transitionPage: { transitionUrl: string };
-  startSlideshow: {
-    folderId: string;
-    displayDuration: number;
-    transitionType: "fade" | "slide";
-    slideDirection?: "left" | "right" | "up" | "down";
-    bgmIds: string[];
-  };
-  stopSlideshow: void;
   // ローカルデータが変更され、バックグラウンド同期のプッシュを早めるべき
   // ことを通知する。どのkindが変わったかは問わない(SyncRunnerは常に全対象を
   // 差分判定するため、シグナルは「そろそろ確認して」という合図でしかない)。

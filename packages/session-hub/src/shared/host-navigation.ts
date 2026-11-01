@@ -11,7 +11,7 @@ const ALLOWED_PATHS: readonly RegExp[] = [
   new RegExp(`^/session/host/${SESSION_ID}$`),
   /^\/(?:execute\/)?jackpot-(?:opening|entry|description|demo|draw|result|history|ending)$/,
   new RegExp(`^/(?:execute/)?quiz/${SEGMENT}/(?:intro|entry|play|answer|result)$`),
-  new RegExp(`^/execute/show-(?:image|video|html)/${SEGMENT}$`),
+  new RegExp(`^/execute/show-(?:image|video)/${SEGMENT}$`),
   // 参加者ポータルのイベントのエントリー受付（会場の画面）
   /^\/event-entry$/,
 ];

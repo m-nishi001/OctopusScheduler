@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { effectScope } from "vue";
-import { eventBus } from "@octopus/client-common/events/event-bus";
 import { useAudio } from "../use-audio";
 
 /** jsdom には再生機能が無いので、<audio> の代わりになる偽物。 */
@@ -129,51 +127,6 @@ describe("useAudio", () => {
       await audio.load(blob());
       await audio.play();
       expect(await audio.tryResume()).toBe(false);
-    });
-  });
-
-  describe("「音声を止める」の通知（stopAudio）", () => {
-    it("音声を指定しない通知（すべて止める）では止まる", async () => {
-      const audio = useAudio();
-      await audio.load(blob());
-      await audio.play();
-      eventBus.emit("stopAudio");
-      await Promise.resolve();
-      expect(audio.isPlaying.value).toBe(false);
-    });
-
-    it("特定の音声を指定した通知（予定イベントで流した音声を止める）では止まらない", async () => {
-      const audio = useAudio();
-      await audio.load(blob());
-      await audio.play();
-      eventBus.emit("stopAudio", { audioId: "scheduled-sound" });
-      await Promise.resolve();
-      expect(audio.isPlaying.value).toBe(true);
-    });
-  });
-
-  describe("画面（スコープ）を離れたとき", () => {
-    it("止めて、Blob の URL を破棄し、通知にも反応しなくなる", async () => {
-      const scope = effectScope();
-      const audio = scope.run(() => useAudio())!;
-      await audio.load(blob());
-      await audio.play();
-
-      scope.stop();
-      expect(FakeAudio.instances[0].paused).toBe(true);
-      expect(revoked).toEqual(["blob:test/0"]);
-      expect(audio.isPlaying.value).toBe(false);
-
-      const before = audio.isPlaying.value;
-      eventBus.emit("stopAudio");
-      expect(audio.isPlaying.value).toBe(before);
-    });
-
-    it("離れたあとに、別の画面の同じ通知を受けても例外にならない（購読が外れている）", () => {
-      const scope = effectScope();
-      scope.run(() => useAudio());
-      scope.stop();
-      expect(() => eventBus.emit("stopAudio")).not.toThrow();
     });
   });
 });

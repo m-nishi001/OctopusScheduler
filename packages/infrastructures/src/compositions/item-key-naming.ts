@@ -70,5 +70,6 @@ export function toDriveMetadata(
     parentFolderId: namespace,
     lastUpdate: meta.updatedAt,
     size: meta.size,
+    fileName: decodeDisplayName(localName),
   };
 }
