@@ -1,199 +1,209 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { injectable, inject } from "tsyringe";
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import type { SyncTarget } from "@octopus/sync-engine";
-import { IOctopusSchedulerApiToken } from "../../../server/scheduler-api-contract";
-import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
+import {
+  BLOB_HASH_PATTERN,
+  BlobRecordStore,
+  HashedBlobStore,
+  blobRecordSyncTarget,
+  hashBlob,
+  textBlobRecordRemote,
+  withHashedBlobs,
+} from "@octopus/sync-engine";
+import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
+import { IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/scheduler-api-contract";
+import type { AssetRecordEntry, OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
+import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
+import type { DriveMetadata } from "@octopus/infrastructures/compositions";
 import type { Asset } from "./asset";
-import type { DriveData, DriveMetadata } from "@octopus/infrastructures/compositions";
 
-/** 素材の保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。 */
+const RECORD_SYNC_KIND = "asset";
+
+/** データURLを Blob にする。 */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(",");
+  const mime = /data:([^;]+)/.exec(header)?.[1] ?? "application/octet-stream";
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  return new Blob([bytes], { type: mime });
+}
+
+/**
+ * 素材の保存先。正となるのは、この端末(IndexedDB)の「素材の一覧1件」(`{ data, updatedAt }`)だけ。
+ * 素材の中身は内容のハッシュで一覧から参照する、中身の変わらないファイル(別の置き場)。
+ * 削除は一覧から外すだけで、サーバーが一覧を書くときに、外れたハッシュのファイルを消す。
+ * 一覧が正なので、ファイルだけがあって素材が現れる、ということは起きない。
+ * 一覧は以前の素材の行と同じ保存先(`Asset`)に、ファイルは別のデータベースに置く(既存のデータベースにストアを足さない)。素材の `id` は作成時に決まり、同期で変わらない。
+ */
 @injectable()
 export class AssetRepository {
-  private readonly localStorage: LocalStorageService;
+  private readonly list = new BlobRecordStore<AssetRecordEntry[]>("octopus-scheduler", "Asset");
+  private readonly blobs = new HashedBlobStore("octopus-scheduler-asset-blobs", "Blobs");
+  private legacyCleared: Promise<void> | null = null;
 
   constructor(
     @inject(IOctopusSchedulerApiToken)
     private readonly schedulerApi: OctopusSchedulerApi
-  ) {
-    this.localStorage = new LocalStorageService("octopus-scheduler", "Asset");
+  ) {}
+
+  /** 以前の形式(素材1件ずつの行)のデータを、(初回だけ)使わずに消す。移行はしない。 */
+  private clearLegacy(): Promise<void> {
+    this.legacyCleared ??= this.list.purgeOtherRows().catch((e) => console.warn("[AssetRepository] failed to clear legacy rows", e));
+    return this.legacyCleared;
   }
 
-  private async driveDataToAsset(d: DriveData): Promise<Asset> {
-    const asset: Asset = {
-      id: d.metadata?.driveDataId || crypto.randomUUID(),
-      // initially set an empty Blob; replaced below when fetch succeeds
-      blob: new Blob(),
-      name: d.fileName,
-      uploadedAt: d.uploadDate
-        ? String(d.uploadDate)
-        : new Date().toISOString(),
-      lastUpdated: d.metadata?.lastUpdate
-        ? String(d.metadata.lastUpdate)
-        : new Date().toISOString(),
-      size: d.metadata?.size || 0,
-      directoryId: d.metadata?.parentFolderId || undefined,
+  /** 一覧の1件から素材を作る。中身がまだ手元に無ければ null(同期の途中)。 */
+  private async toAsset(entry: AssetRecordEntry): Promise<Asset | null> {
+    const blob = await this.blobs.get(entry.hash);
+    if (!blob) return null;
+    return {
+      id: entry.id,
+      blob,
+      name: entry.name,
+      uploadedAt: entry.uploadedAt,
+      lastUpdated: entry.lastUpdated,
+      size: entry.size,
+      directoryId: entry.directoryId,
     };
-
-    try {
-      const res = await fetch(d.fileDataUrl);
-      asset.blob = await res.blob();
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to convert DriveData.fileDataUrl to Blob", e);
-    }
-
-    return asset;
   }
 
+  /** 素材を追加する(同じ id は置き換える)。追加した id を返す。 */
   async addAssets(assets: Asset[]): Promise<string[]> {
-    const ids: string[] = [];
+    await this.clearLegacy();
+    const now = new Date().toISOString();
+    const entries: AssetRecordEntry[] = [];
     for (const asset of assets) {
-      const id = asset.id || crypto.randomUUID();
-      const assetWithId: Asset = {
-        ...asset,
-        id,
-      };
-      await this.localStorage.save(id, assetWithId);
-      ids.push(id);
+      const hash = await hashBlob(asset.blob);
+      await this.blobs.put(hash, asset.blob);
+      entries.push({
+        id: asset.id || crypto.randomUUID(),
+        name: asset.name,
+        mime: asset.blob.type || "application/octet-stream",
+        hash,
+        size: asset.size ?? asset.blob.size ?? 0,
+        uploadedAt: asset.uploadedAt || now,
+        lastUpdated: now,
+        directoryId: asset.directoryId || undefined,
+      });
     }
-    return ids;
+    await this.list.update((current) => {
+      const replaced = new Set(entries.map((e) => e.id));
+      return [...(current ?? []).filter((e) => !replaced.has(e.id)), ...entries];
+    });
+    return entries.map((e) => e.id);
   }
 
   async getAssets(): Promise<Asset[]> {
-    const all = await this.localStorage.getAll<any>();
-    const values = Array.from(all.values());
-    // parallelize drive-data->asset migration without concurrency cap
-    const migrated = await Promise.all(
-      values.map(async (v) => {
-        if (v && v.fileDataUrl && v.metadata) {
-          return await this.driveDataToAsset(v as DriveData);
-        }
-        return v as Asset;
-      })
-    );
-    const results: Asset[] = migrated as Asset[];
-    return results;
+    await this.clearLegacy();
+    const record = await this.list.read();
+    const assets = await Promise.all((record?.data ?? []).map((e) => this.toAsset(e)));
+    return assets.filter((a): a is Asset => a !== null);
   }
 
   async getAssetById(id: string): Promise<Asset | null> {
-    const v = await this.localStorage.get<any>(id);
-    if (!v) return null;
-    if (v && v.fileDataUrl && v.metadata) {
-      return await this.driveDataToAsset(v as DriveData);
-    }
-    return v as Asset;
-  }
-
-  /** サーバーにある素材の一覧(メタデータ)。`folder` を渡すと、素材置き場直下のそのサブフォルダを一覧する。 */
-  async listRemote(folder?: string): Promise<DriveMetadata[]> {
-    return (await this.schedulerApi.getDriveMetaData(folder)) || [];
+    await this.clearLegacy();
+    const entry = (await this.list.read())?.data.find((e) => e.id === id);
+    return entry ? this.toAsset(entry) : null;
   }
 
   /**
-   * サーバーから素材 1 件を取って、この端末に保存して返す。
-   * `fileId`(一覧のメタデータの値)が分かっていれば渡す。無いときは一覧から探す。
+   * サーバーにある素材の一覧(メタデータ)。`folder` なしは、サーバーの素材の一覧(正)から。
+   * `folder` を渡すと、そのフォルダの素材(一覧の `directoryId` が指すもの)に加えて、素材置き場直下のそのサブフォルダに置いただけのファイルも一覧する。
+   */
+  async listRemote(folder?: string): Promise<DriveMetadata[]> {
+    const toMeta = (e: AssetRecordEntry): DriveMetadata => ({
+      driveDataId: e.id,
+      fileId: "",
+      parentFolderId: e.directoryId ?? "",
+      lastUpdate: e.lastUpdated,
+      size: e.size,
+      fileName: e.name,
+    });
+    if (folder) {
+      const directory = storagePath(StorageModule.Scheduler, StorageKind.Assets, folder);
+      const listed = (await this.remoteEntries()).filter((e) => e.directoryId === directory).map(toMeta);
+      const files = (await this.schedulerApi.getDriveMetaData(folder)) || [];
+      return [...listed, ...files];
+    }
+    return (await this.remoteEntries()).map(toMeta);
+  }
+
+  private async remoteEntries(): Promise<AssetRecordEntry[]> {
+    const { json } = await this.schedulerApi.getAssetRecord();
+    const data = json ? (JSON.parse(json) as { data?: unknown }).data : null;
+    return Array.isArray(data) ? (data as AssetRecordEntry[]) : [];
+  }
+
+  /**
+   * サーバーから素材 1 件の中身を取って返す。
+   * `fileId`(フォルダのファイル)があればそのファイルを、無ければ素材の一覧の `id` から、ハッシュのファイルを取る。
+   * 一覧の素材の中身は、この端末にハッシュで保存する(一覧そのものは同期が運ぶので、ここでは触らない)。
    * 失敗は例外で返す(成功のふりはしない)。
    */
   async pullRemote(id: string, fileId?: string): Promise<Asset> {
-    let ref = fileId;
-    if (!ref) {
-      const found = (await this.listRemote()).find((m) => m?.driveDataId === id);
-      if (!found) throw new Error(`素材がサーバーにありません: ${id}`);
-      ref = found.fileId;
+    const now = new Date().toISOString();
+    if (fileId) {
+      const res = await this.schedulerApi.getDriveData(fileId);
+      if (!res?.fileDataUrl) throw new Error(`素材を取得できませんでした: ${id}`);
+      const blob = dataUrlToBlob(res.fileDataUrl);
+      if (!blob.size) throw new Error(`素材の中身を取得できませんでした: ${id}`);
+      return { id, blob, name: res.fileName, uploadedAt: res.uploadDate ? String(res.uploadDate) : now, lastUpdated: now, size: blob.size };
     }
-    const res = await this.schedulerApi.getDriveData(ref);
-    if (!res) throw new Error(`素材を取得できませんでした: ${id}`);
-    const asset = await this.driveDataToAsset(res);
-    if (!asset.blob.size) throw new Error(`素材の中身を取得できませんでした: ${id}`);
-    const saved: Asset = { ...asset, id };
-    await this.localStorage.save(id, saved);
-    return saved;
+    const entry = (await this.remoteEntries()).find((e) => e.id === id);
+    if (!entry) throw new Error(`素材がサーバーにありません: ${id}`);
+    let blob = await this.blobs.get(entry.hash);
+    if (!blob) {
+      const { dataUrl } = await this.schedulerApi.getAssetBlob({ hash: entry.hash });
+      if (!dataUrl) throw new Error(`素材を取得できませんでした: ${id}`);
+      blob = dataUrlToBlob(dataUrl);
+      if (!blob.size) throw new Error(`素材の中身を取得できませんでした: ${id}`);
+      await this.blobs.put(entry.hash, blob);
+    }
+    return {
+      id,
+      blob,
+      name: entry.name,
+      uploadedAt: entry.uploadedAt,
+      lastUpdated: entry.lastUpdated,
+      size: entry.size,
+      directoryId: entry.directoryId,
+    };
   }
 
   async deleteAssets(ids: string[]): Promise<void> {
-    await this.localStorage.removeMultiple(ids);
+    await this.clearLegacy();
+    const gone = new Set(ids);
+    await this.list.update((current) => (current ?? []).filter((e) => !gone.has(e.id)));
   }
 
   /**
-   * バックグラウンド同期エンジン(SyncRunner)向けに、アセット1件ごとの
-   * SyncTargetを列挙する。ローカル/リモートいずれかにのみ存在するIDも
-   * 含めることで、新規アップロードと新規ダウンロードの両方を1つの差分判定
-   * (Last-Write-Wins)で扱えるようにする。
+   * 同期の対象。素材の一覧1件と、それが参照するファイル(上げる → 一覧 → 取ってくる)。
+   * 先に一覧の保存先を1つだけ開いておく(同じデータベースの複数のストアを同時に初めて開くと、IndexedDB の版の更新が重なる)。
    */
-  async listSyncTargets(): Promise<SyncTarget<Asset, DriveMetadata>[]> {
-    let remoteMetas: DriveMetadata[] = [];
-    try {
-      // 空文字列ではなく明示的にundefinedを送る。サーバー側が
-      // 固定のアセット保存先(storage-paths)を解決するため。
-      remoteMetas = (await this.schedulerApi.getDriveMetaData(undefined)) || [];
-    } catch (e) {
-      console.error(
-        "[AssetRepository] Failed to fetch remote asset metadata for sync",
-        e
-      );
-      return [];
-    }
-
-    const remoteMap = new Map<string, DriveMetadata>();
-    for (const m of remoteMetas) {
-      if (m?.driveDataId) remoteMap.set(String(m.driveDataId), m);
-    }
-
-    const localRaw = await this.localStorage.getAll<any>();
-    const allIds = new Set<string>([
-      ...Array.from(localRaw.keys()),
-      ...remoteMap.keys(),
-    ]);
-
-    return Array.from(allIds).map((id) => this.buildAssetSyncTarget(id, remoteMap));
+  async listSyncTargets(): Promise<SyncTarget[]> {
+    await this.list.read();
+    const record = blobRecordSyncTarget(
+      RECORD_SYNC_KIND,
+      this.list,
+      textBlobRecordRemote<AssetRecordEntry[]>({
+        read: async () => (await this.schedulerApi.getAssetRecord()).json,
+        write: (json) => this.schedulerApi.saveAssetRecord({ json }),
+      })
+    );
+    return [
+      withHashedBlobs(record, {
+        local: this.blobs,
+        remote: this.blobRemote(),
+        hashesOf: (data) => assetRecordHashes(data).filter((h) => BLOB_HASH_PATTERN.test(h)),
+      }) as SyncTarget,
+    ];
   }
 
-  private buildAssetSyncTarget(
-    id: string,
-    remoteMap: Map<string, DriveMetadata>
-  ): SyncTarget<Asset, DriveMetadata> {
+  private blobRemote(): HashedBlobRemote {
     return {
-      id,
-      kind: "asset",
-      getLocal: async () => {
-        const asset = await this.getAssetById(id);
-        if (!asset) return null;
-        return { data: asset, updatedAt: new Date(asset.lastUpdated).getTime() };
-      },
-      getRemote: async () => {
-        const meta = remoteMap.get(id);
-        if (!meta) return null;
-        return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
-      },
-      push: async ({ data: asset }) => {
-        const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
-        const clientNow = new Date().toISOString();
-        const driveData = {
-          metadata: {
-            driveDataId: id,
-            parentFolderId: asset.directoryId || undefined,
-            lastUpdate: clientNow,
-            size: asset.size || 0,
-          },
-          fileName: asset.name,
-          fileKind: asset.blob?.type || "application/octet-stream",
-          fileDataUrl: dataUrl,
-          uploadDate: new Date().toISOString(),
-          parentFolderId: asset.directoryId || undefined,
-        } as any;
-
-        // 更新日時はサーバーの時刻を採る(端末の時計がずれていても、リモートとの新旧比較が狂わないように)
-        const saved = remoteMap.has(id)
-          ? await this.schedulerApi.updateDriveData(driveData)
-          : await this.schedulerApi.addDriveData(driveData);
-
-        await this.localStorage.save(id, { ...asset, lastUpdated: saved.lastUpdate });
-      },
-      pull: async ({ data: meta }) => {
-        const res = await this.schedulerApi.getDriveData(meta.fileId);
-        const asset = await this.driveDataToAsset(res);
-        await this.localStorage.save(id, asset);
+      exists: async (hashes) => (await this.schedulerApi.existsAssetBlobs({ hashes })).existing,
+      put: async (hash, blob) => this.schedulerApi.putAssetBlob({ hash, dataUrl: await blobToDataUrl(blob) }),
+      get: async (hash) => {
+        const { dataUrl } = await this.schedulerApi.getAssetBlob({ hash });
+        return dataUrl ? dataUrlToBlob(dataUrl) : null;
       },
     };
   }

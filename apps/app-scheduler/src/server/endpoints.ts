@@ -6,41 +6,37 @@
  * エントリポイントで、HtmlService の呼び出しはこのファイルに留める
  * (エントリポイント固有の関心事であり、ポート化しない)。
  */
-import { respond } from "@octopus/infrastructures/interfaces";
+import { respond, IKeyValueStorageToken, ILockToken } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
-import {
-  IKeyValueStorageToken,
-} from "@octopus/infrastructures/interfaces";
-import type {
-  IKeyValueStorage,
-} from "@octopus/infrastructures/interfaces";
-import type { DriveData } from "@octopus/infrastructures/compositions";
+import type { IKeyValueStorage, ILock } from "@octopus/infrastructures/interfaces";
 import type { OctopusSchedulerEndpointName } from "./scheduler-api-contract";
-import { OCTOPUS_SCHEDULER_PREFIX } from "./scheduler-api-contract";
+import { ASSET_RECORD_FILE, OCTOPUS_SCHEDULER_PREFIX, assetRecordHashes } from "./scheduler-api-contract";
 
-import { createDriveAssets, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
+import { createDriveAssets, createHashedBlobStore, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
 import { secure } from "@octopus/accounts/secure";
 
-/** この置き場の素材の保存・一覧・取得。 */
+/** この置き場のファイルの一覧・取得(スライドショーのフォルダ表示用)。 */
 const assets = createDriveAssets(StorageModule.Scheduler, StorageKind.Assets);
+/** 素材の一覧と、一覧が参照する素材の中身(内容のハッシュを名前にしたファイル)の保存。 */
+const store = createHashedBlobStore(StorageModule.Scheduler);
 
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
+    lock: container.resolve<ILock>(ILockToken),
   };
 }
 
 declare let _octopusScheduler_doGet: (
   e: GoogleAppsScript.Events.DoGet
 ) => GoogleAppsScript.HTML.HtmlOutput;
-declare let _octopusScheduler_addDriveData: (driveData: DriveData) => Promise<string>;
 declare let _octopusScheduler_getDriveMetaData: (folderName?: string) => Promise<string>;
 declare let _octopusScheduler_getDriveData: (dataId: string) => Promise<string>;
-declare let _octopusScheduler_updateDriveData: (driveData: DriveData) => Promise<string>;
-
-_octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> => {
-  return respond(() => assets.save(resolveDeps(), driveData));
-};
+declare let _octopusScheduler_getAssetRecord: () => Promise<string>;
+declare let _octopusScheduler_saveAssetRecord: (args: { json: string }) => Promise<string>;
+declare let _octopusScheduler_existsAssetBlobs: (args: { hashes: string[] }) => Promise<string>;
+declare let _octopusScheduler_putAssetBlob: (args: { hash: string; dataUrl: string }) => Promise<string>;
+declare let _octopusScheduler_getAssetBlob: (args: { hash: string }) => Promise<string>;
 
 _octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string> => {
   return respond(() => assets.listMetadata(resolveDeps(), folderName));
@@ -50,9 +46,20 @@ _octopusScheduler_getDriveData = async (dataId: string): Promise<string> => {
   return respond(() => assets.get(resolveDeps(), dataId));
 };
 
-_octopusScheduler_updateDriveData = async (driveData: DriveData): Promise<string> => {
-  return respond(() => assets.save(resolveDeps(), driveData));
-};
+_octopusScheduler_getAssetRecord = async (): Promise<string> =>
+  respond(() => store.getRecord(resolveDeps(), { fileName: ASSET_RECORD_FILE }));
+
+_octopusScheduler_saveAssetRecord = async (args: { json: string }): Promise<string> =>
+  respond(() => store.saveRecord(resolveDeps(), { fileName: ASSET_RECORD_FILE, json: args.json }, assetRecordHashes));
+
+_octopusScheduler_existsAssetBlobs = async (args: { hashes: string[] }): Promise<string> =>
+  respond(() => store.exists(resolveDeps(), args));
+
+_octopusScheduler_putAssetBlob = async (args: { hash: string; dataUrl: string }): Promise<string> =>
+  respond(() => store.put(resolveDeps(), args));
+
+_octopusScheduler_getAssetBlob = async (args: { hash: string }): Promise<string> =>
+  respond(() => store.get(resolveDeps(), args));
 
 _octopusScheduler_doGet = (
   _e: GoogleAppsScript.Events.DoGet
@@ -80,10 +87,13 @@ _octopusScheduler_doGet = (
 };
 
 // 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。
-_octopusScheduler_addDriveData = secure("admin", _octopusScheduler_addDriveData);
 _octopusScheduler_getDriveMetaData = secure("admin", _octopusScheduler_getDriveMetaData);
 _octopusScheduler_getDriveData = secure("admin", _octopusScheduler_getDriveData);
-_octopusScheduler_updateDriveData = secure("admin", _octopusScheduler_updateDriveData);
+_octopusScheduler_getAssetRecord = secure("admin", _octopusScheduler_getAssetRecord);
+_octopusScheduler_saveAssetRecord = secure("admin", _octopusScheduler_saveAssetRecord);
+_octopusScheduler_existsAssetBlobs = secure("admin", _octopusScheduler_existsAssetBlobs);
+_octopusScheduler_putAssetBlob = secure("admin", _octopusScheduler_putAssetBlob);
+_octopusScheduler_getAssetBlob = secure("admin", _octopusScheduler_getAssetBlob);
 
 /**
  * Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。
@@ -94,10 +104,13 @@ export const OCTOPUS_SCHEDULER_HANDLERS: Record<
   Exclude<OctopusSchedulerEndpointName, "doGet">,
   (args: any) => Promise<string>
 > = {
-  addDriveData: _octopusScheduler_addDriveData,
   getDriveMetaData: _octopusScheduler_getDriveMetaData,
   getDriveData: _octopusScheduler_getDriveData,
-  updateDriveData: _octopusScheduler_updateDriveData,
+  getAssetRecord: _octopusScheduler_getAssetRecord,
+  saveAssetRecord: _octopusScheduler_saveAssetRecord,
+  existsAssetBlobs: _octopusScheduler_existsAssetBlobs,
+  putAssetBlob: _octopusScheduler_putAssetBlob,
+  getAssetBlob: _octopusScheduler_getAssetBlob,
 };
 
 export { OCTOPUS_SCHEDULER_PREFIX };

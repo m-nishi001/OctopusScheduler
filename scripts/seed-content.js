@@ -3,13 +3,13 @@
  *
  * 画像(PNG)と音(WAV)はこのファイルで生成する(ネットワーク不要・著作権の問題なし・決定的)。
  * R2 のキー・保存形式は実アプリの同期処理に合わせてある:
- *   - クイズ一覧         quiz-game/json/quizzes.json      ({ updatedAt, data: QuizWithDataUrl[] }、画像は `drive:<slot>` 参照)
- *   - クイズのアセット   quiz-game/assets/<slot>_<slot>   (slot = `<クイズID>::option::<番号>` など)
+ *   - クイズ一覧         quiz-game/json/quiz-list.json    ({ updatedAt, data: QuizRecordEntry[] }、画像・音声は内容のハッシュで参照)
+ *   - クイズのアセット   quiz-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
  *   - 景品一覧           jackpot-game/json/prizes.json    ({ updatedAt, data: Prize[] })
  *   - 画面設定           jackpot-game/json/screens.json   ({ updatedAt, data: ScreenSetting[] }、settingValue は JSON 文字列)
  * 一覧のファイルは、アプリの同期が保存する `{ updatedAt, data }` の形(updatedAt はミリ秒)。端末が持つ同じ種類のデータより新しければ、取り込まれる。
- *   - ジャックポットのアセット jackpot-game/assets/<アセットID>_<ファイル名>
- * アセットID・クイズIDには `_` を入れない(キーの先頭の `_` までをIDとして読むため)。
+ *   - ジャックポットの素材一覧 jackpot-game/json/asset-list.json ({ updatedAt, data: AssetRecordEntry[] }。素材の id は景品・画面設定が参照する固定の id)
+ *   - ジャックポットの素材   jackpot-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
  */
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
@@ -163,7 +163,7 @@ const PRIZE_DEFS = [
 /** 景品の画像のアセット ID。1 が通常の画像、2 が確変の 2 回目に出す画像。 */
 const prizeImageId = (p, n) => p.id.replace("prize", n === 1 ? "img" : "img2");
 
-/** ジャックポット側のアセット。`[id, ファイル名, MIME, 中身]`。 */
+/** ジャックポット側のアセット。`[id, ファイル名, MIME, 中身]`(id は景品・画面設定が参照する固定の id)。 */
 export function buildJackpotAssets() {
   const assets = [];
   for (const p of PRIZE_DEFS) {
@@ -254,36 +254,58 @@ const QUIZ_DEFS = [
   { id: "seed-quiz-5", title: "富士山クイズ", question: "富士山の標高はおよそ何メートル?", choices: ["2,776m", "3,776m", "4,776m"], correctNo: 2, timeLimit: 20 },
 ];
 
-const slot = (quizId, type, idx) => (type === "option" ? `${quizId}::option::${idx}` : `${quizId}::${type}`);
+/** 中身のハッシュ(SHA-256 の先頭32桁・16進)。アプリの `hashBlob` と同じ。 */
+export const blobHash = (body) => createHash("sha256").update(body).digest("hex").slice(0, 32);
 
-/** クイズ一覧(quizzes.json。アプリの toWireEntry と同じ形)。 */
+/** クイズが参照する画像・音声の中身。`[MIME, 中身]` を種類ごとに作る(同じ中身は同じハッシュになる)。 */
+const optionImage = (i) => [PNG_TYPE, makeBadgePng(...OPTION_IMAGE_COLORS[i % OPTION_IMAGE_COLORS.length], { width: 160, height: 160 })];
+const quizBgm = () => [WAV_TYPE, makeWav(TUNES.quiz)];
+const prizeImage = () => [PNG_TYPE, makeBadgePng("#fbbf24", "#92400e", { width: 160, height: 160 })];
+const prizeBgm = () => [WAV_TYPE, makeWav(TUNES.prize)];
+const refOf = ([, body]) => blobHash(body);
+
+/** クイズ一覧(quiz-list.json。アプリの QuizRepository と同じ形)。 */
 export function buildQuizzes() {
   return QUIZ_DEFS.map((q) => ({
     id: q.id,
     title: q.title,
     question: q.question,
-    options: q.choices.map((text, i) => ({ no: i + 1, text, color: COLORS[i], image: q.images ? `drive:${slot(q.id, "option", i)}` : null })),
+    options: q.choices.map((text, i) => ({ no: i + 1, text, color: COLORS[i], image: q.images ? refOf(optionImage(i)) : null })),
     correctNo: q.correctNo,
     timeLimit: q.timeLimit,
-    bgm: q.bgm ? `drive:${slot(q.id, "bgm")}` : null,
+    bgm: q.bgm ? refOf(quizBgm()) : null,
     settings: q.prize
-      ? { correctBgmDataUrl: null, prizeImageDataUrl: `drive:${slot(q.id, "prizeImage")}`, prizeName: q.prize, prizeBgmDataUrl: `drive:${slot(q.id, "prizeBgm")}` }
+      ? { correctBgm: null, prizeImage: refOf(prizeImage()), prizeName: q.prize, prizeBgm: refOf(prizeBgm()) }
       : undefined,
   }));
 }
 
-/** クイズ側のアセット。`[スロットID, MIME, 中身]`(ファイル名もスロットIDと同じ)。 */
+/** クイズ側のアセット。`[ハッシュ, MIME, 中身]`(同じ中身は1つにまとめる)。 */
 export function buildQuizAssets() {
-  const assets = [];
+  const byHash = new Map();
+  const add = (item) => byHash.set(refOf(item), item);
   for (const q of QUIZ_DEFS) {
-    if (q.images) q.choices.forEach((_, i) => assets.push([slot(q.id, "option", i), PNG_TYPE, makeBadgePng(...OPTION_IMAGE_COLORS[i % OPTION_IMAGE_COLORS.length], { width: 160, height: 160 })]));
-    if (q.bgm) assets.push([slot(q.id, "bgm"), WAV_TYPE, makeWav(TUNES.quiz)]);
+    if (q.images) q.choices.forEach((_, i) => add(optionImage(i)));
+    if (q.bgm) add(quizBgm());
     if (q.prize) {
-      assets.push([slot(q.id, "prizeImage"), PNG_TYPE, makeBadgePng("#fbbf24", "#92400e", { width: 160, height: 160 })]);
-      assets.push([slot(q.id, "prizeBgm"), WAV_TYPE, makeWav(TUNES.prize)]);
+      add(prizeImage());
+      add(prizeBgm());
     }
   }
-  return assets;
+  return [...byHash].map(([hash, [mime, body]]) => [hash, mime, body]);
+}
+
+/** ジャックポットの素材一覧(asset-list.json。アプリの AssetDataRepository と同じ形)。 */
+export function buildJackpotAssetRecord(now = new Date().toISOString()) {
+  return buildJackpotAssets().map(([id, fileName, mime, body]) => ({
+    id,
+    type: mime,
+    name: fileName,
+    hash: blobHash(body),
+    size: body.length,
+    uploadedAt: now,
+    lastUpdated: now,
+  }));
 }
 
 // ---------- R2 への書き込み一覧 ----------
@@ -294,11 +316,12 @@ const record = (data, updatedAt) => JSON.stringify({ updatedAt, data });
 /** R2 に書く [キー, 値, Content-Type] の一覧(クイズ・景品・画面設定・アセット)。`updatedAt` は一覧の更新日時(ミリ秒。既定は今)。 */
 export function buildContentEntries(updatedAt = Date.now()) {
   const entries = [
-    ["quiz-game/json/quizzes.json", record(buildQuizzes(), updatedAt), JSON_TYPE],
+    ["quiz-game/json/quiz-list.json", record(buildQuizzes(), updatedAt), JSON_TYPE],
+    ["jackpot-game/json/asset-list.json", record(buildJackpotAssetRecord(new Date(updatedAt).toISOString()), updatedAt), JSON_TYPE],
     ["jackpot-game/json/prizes.json", record(buildPrizes(), updatedAt), JSON_TYPE],
     ["jackpot-game/json/screens.json", record(buildScreenSettings(), updatedAt), JSON_TYPE],
   ];
-  for (const [id, fileName, mime, body] of buildJackpotAssets()) entries.push([`jackpot-game/assets/${id}_${fileName}`, body, mime]);
-  for (const [slotId, mime, body] of buildQuizAssets()) entries.push([`quiz-game/assets/${slotId}_${slotId}`, body, mime]);
+  for (const [, , mime, body] of buildJackpotAssets()) entries.push([`jackpot-game/assets/${blobHash(body)}_blob`, body, mime]);
+  for (const [hash, mime, body] of buildQuizAssets()) entries.push([`quiz-game/assets/${hash}_blob`, body, mime]);
   return entries;
 }

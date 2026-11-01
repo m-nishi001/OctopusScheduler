@@ -3,8 +3,8 @@
  * 残りを Promise プールで並列に送る。写真の ID は内容のハッシュなので、同じ写真を送り直しても同じキーへの上書き。
  * 何度やり直しても安全で、途中で止まっても、もう一度流せば続きから進む。
  */
-import { mapPool } from "../pool/promise-pool";
-import type { PoolOptions } from "../pool/promise-pool";
+import { mapPool } from "@octopus/sync-engine/pool/promise-pool";
+import type { PoolOptions } from "@octopus/sync-engine/pool/promise-pool";
 import type { PreparedPhoto } from "./photo-prepare";
 
 /** アップロードに必要な窓口(AccountsRepository がそのまま満たす)。 */

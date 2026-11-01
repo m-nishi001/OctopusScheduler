@@ -37,7 +37,8 @@
     "navigation.spec.ts": 2,
     "quiz-admin-correct-answer.spec.ts": 1,
     "seeded-content.spec.ts": 1,
-    "seeded-walkthrough.spec.ts": 1
+    "seeded-walkthrough.spec.ts": 1,
+    "settings-members.spec.ts": 1
   },
   "gas": {
     "jackpot-scale.spec.ts": 525,
@@ -72,6 +73,7 @@
     "navigation.spec.ts": 3,
     "quiz-admin-correct-answer.spec.ts": 2,
     "seeded-content.spec.ts": 1,
-    "seeded-walkthrough.spec.ts": 1
+    "seeded-walkthrough.spec.ts": 1,
+    "settings-members.spec.ts": 1
   }
 }

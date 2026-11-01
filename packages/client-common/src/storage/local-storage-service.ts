@@ -161,6 +161,11 @@ export class LocalStorageService {
     return results;
   }
 
+  /** 保存されているすべての識別子(キー)。中身は読まない(Blob を持つストアで、一覧だけが欲しいとき)。 */
+  async keys(): Promise<string[]> {
+    return await this.lfInstance.keys();
+  }
+
   /**
    * ストレージ内のすべてのデータをクリアします。
    */

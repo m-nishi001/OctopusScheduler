@@ -17,6 +17,6 @@
     "rootDir": "src"
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../infrastructures" }, { "path": "../client-common" }],
+  "references": [{ "path": "../infrastructures" }, { "path": "../client-common" }, { "path": "../sync-engine" }],
   "exclude": ["node_modules", "dist"]
 }

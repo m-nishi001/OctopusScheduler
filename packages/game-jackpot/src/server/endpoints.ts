@@ -4,55 +4,50 @@
  * 各ハンドラは「引数パース -> use-case 呼び出し -> ApiResponse に詰めて
  * JSON.stringify」という薄い層のみを担う。
  */
-import { respond } from "@octopus/infrastructures/interfaces";
+import { respond, IKeyValueStorageToken, ILockToken } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
-import {
-  IKeyValueStorageToken,
-} from "@octopus/infrastructures/interfaces";
-import type {
-  IKeyValueStorage,
-} from "@octopus/infrastructures/interfaces";
-import type { DriveData } from "@octopus/infrastructures/compositions";
+import type { IKeyValueStorage, ILock } from "@octopus/infrastructures/interfaces";
 import type { JackpotGameEndpointName, JsonBlobWrite } from "./jackpot-api-contract";
-import { JACKPOT_GAME_PREFIX } from "./jackpot-api-contract";
+import { ASSET_RECORD_FILE, JACKPOT_GAME_PREFIX, assetRecordHashes } from "./jackpot-api-contract";
 
-import { createDriveAssets, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
+import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
 import { secure } from "@octopus/accounts/secure";
 
-/** この置き場の素材の保存・一覧・取得。 */
-const assets = createDriveAssets(StorageModule.Jackpot, StorageKind.Assets);
+/** 素材の一覧と、一覧が参照する素材の中身(内容のハッシュを名前にしたファイル)の保存。 */
+const store = createHashedBlobStore(StorageModule.Jackpot);
 
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
+    lock: container.resolve<ILock>(ILockToken),
     now: (): number => Date.now(),
   };
 }
 
-declare let _jackpotGame_addDriveData: (driveData: DriveData) => Promise<string>;
-declare let _jackpotGame_getDriveMetaData: (folderId?: string) => Promise<string>;
-declare let _jackpotGame_getDriveData: (dataId: string) => Promise<string>;
-declare let _jackpotGame_updateDriveData: (driveData: DriveData) => Promise<string>;
+declare let _jackpotGame_getAssetRecord: () => Promise<string>;
+declare let _jackpotGame_saveAssetRecord: (args: { json: string }) => Promise<string>;
+declare let _jackpotGame_existsAssetBlobs: (args: { hashes: string[] }) => Promise<string>;
+declare let _jackpotGame_putAssetBlob: (args: { hash: string; dataUrl: string }) => Promise<string>;
+declare let _jackpotGame_getAssetBlob: (args: { hash: string }) => Promise<string>;
 declare let _jackpotGame_addJson: (blob: JsonBlobWrite) => Promise<string>;
 declare let _jackpotGame_getJson: (fileName: string) => Promise<string>;
 
-_jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
-  return respond(() => assets.save(resolveDeps(), driveData));
-};
+_jackpotGame_getAssetRecord = async (): Promise<string> =>
+  respond(() => store.getRecord(resolveDeps(), { fileName: ASSET_RECORD_FILE }));
 
-_jackpotGame_getDriveMetaData = async (folderId?: string): Promise<string> => {
-  return respond(() => assets.listMetadata(resolveDeps()));
-};
+_jackpotGame_saveAssetRecord = async (args: { json: string }): Promise<string> =>
+  respond(() => store.saveRecord(resolveDeps(), { fileName: ASSET_RECORD_FILE, json: args.json }, assetRecordHashes));
 
-_jackpotGame_getDriveData = async (dataId: string): Promise<string> => {
-  return respond(() => assets.get(resolveDeps(), dataId));
-};
+_jackpotGame_existsAssetBlobs = async (args: { hashes: string[] }): Promise<string> =>
+  respond(() => store.exists(resolveDeps(), args));
 
-_jackpotGame_updateDriveData = async (driveData: DriveData): Promise<string> => {
-  return respond(() => assets.save(resolveDeps(), driveData));
-};
+_jackpotGame_putAssetBlob = async (args: { hash: string; dataUrl: string }): Promise<string> =>
+  respond(() => store.put(resolveDeps(), args));
+
+_jackpotGame_getAssetBlob = async (args: { hash: string }): Promise<string> =>
+  respond(() => store.get(resolveDeps(), args));
 
 _jackpotGame_addJson = async (blob: JsonBlobWrite): Promise<string> => {
   return respond(() => addJsonBlob(resolveDeps(), blob));
@@ -63,19 +58,21 @@ _jackpotGame_getJson = async (fileName: string): Promise<string> => {
 };
 
 // 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。
-_jackpotGame_addDriveData = secure("admin", _jackpotGame_addDriveData);
-_jackpotGame_getDriveMetaData = secure("admin", _jackpotGame_getDriveMetaData);
-_jackpotGame_getDriveData = secure("admin", _jackpotGame_getDriveData);
-_jackpotGame_updateDriveData = secure("admin", _jackpotGame_updateDriveData);
+_jackpotGame_getAssetRecord = secure("admin", _jackpotGame_getAssetRecord);
+_jackpotGame_saveAssetRecord = secure("admin", _jackpotGame_saveAssetRecord);
+_jackpotGame_existsAssetBlobs = secure("admin", _jackpotGame_existsAssetBlobs);
+_jackpotGame_putAssetBlob = secure("admin", _jackpotGame_putAssetBlob);
+_jackpotGame_getAssetBlob = secure("admin", _jackpotGame_getAssetBlob);
 _jackpotGame_addJson = secure("admin", _jackpotGame_addJson);
 _jackpotGame_getJson = secure("admin", _jackpotGame_getJson);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) => Promise<string>> = {
-  addDriveData: _jackpotGame_addDriveData,
-  getDriveMetaData: _jackpotGame_getDriveMetaData,
-  getDriveData: _jackpotGame_getDriveData,
-  updateDriveData: _jackpotGame_updateDriveData,
+  getAssetRecord: _jackpotGame_getAssetRecord,
+  saveAssetRecord: _jackpotGame_saveAssetRecord,
+  existsAssetBlobs: _jackpotGame_existsAssetBlobs,
+  putAssetBlob: _jackpotGame_putAssetBlob,
+  getAssetBlob: _jackpotGame_getAssetBlob,
   addJson: _jackpotGame_addJson,
   getJson: _jackpotGame_getJson,
 };

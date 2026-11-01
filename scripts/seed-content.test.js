@@ -6,6 +6,8 @@ import {
   buildJackpotAssets,
   buildPrizes,
   buildQuizAssets,
+  buildJackpotAssetRecord,
+  blobHash,
   buildQuizzes,
   buildScreenSettings,
   makePng,
@@ -76,19 +78,32 @@ test("buildContentEntries: 決定的で、キーが重複しない", () => {
 
 test("buildContentEntries: アセットのIDに _ を含めない(キーの先頭の _ までをIDとして読むため)", () => {
   for (const [id] of buildJackpotAssets()) assert.doesNotMatch(id, /_/);
-  for (const [slotId] of buildQuizAssets()) assert.doesNotMatch(slotId, /_/);
+  for (const [hash] of buildQuizAssets()) assert.match(hash, /^[0-9a-f]{32}$/);
   for (const q of buildQuizzes()) assert.doesNotMatch(q.id, /_/);
 });
 
-test("buildQuizzes: 正解番号が選択肢にあり、drive: 参照にはすべて対応するアセットがある", () => {
+test("buildQuizzes: 正解番号が選択肢にあり、ハッシュ参照にはすべて対応するアセットがある", () => {
   const slots = new Set(buildQuizAssets().map(([s]) => s));
   const quizzes = buildQuizzes();
   assert.ok(quizzes.length >= 5);
   for (const q of quizzes) {
     assert.ok(q.options.some((o) => o.no === q.correctNo), q.id);
-    const refs = [q.bgm, ...q.options.map((o) => o.image), q.settings?.prizeImageDataUrl, q.settings?.prizeBgmDataUrl].filter(Boolean);
-    for (const ref of refs) assert.ok(slots.has(ref.replace(/^drive:/, "")), `${q.id}: ${ref}`);
+    const refs = [q.bgm, ...q.options.map((o) => o.image), q.settings?.prizeImage, q.settings?.prizeBgm].filter(Boolean);
+    for (const ref of refs) assert.ok(slots.has(ref), `${q.id}: ${ref}`);
   }
+});
+
+test("buildJackpotAssetRecord: 素材の一覧は、固定の id と、対応するファイルのハッシュを持つ", () => {
+  const record = buildJackpotAssetRecord("2024-01-01T00:00:00.000Z");
+  const files = new Map(buildJackpotAssets().map(([id, , , body]) => [id, body]));
+  assert.equal(record.length, files.size);
+  for (const e of record) {
+    assert.match(e.hash, /^[0-9a-f]{32}$/);
+    assert.equal(e.hash, blobHash(files.get(e.id)));
+    assert.equal(e.size, files.get(e.id).length);
+  }
+  const keys = buildContentEntries().map((e) => e[0]);
+  for (const e of record) assert.ok(keys.includes(`jackpot-game/assets/${e.hash}_blob`), e.id);
 });
 
 test("buildPrizes / buildScreenSettings: 参照するアセットがすべて存在する", () => {
@@ -121,14 +136,14 @@ test("buildContentEntries: Content-Type が付き、画像と音のMIMEが正し
     else assert.equal(type, "image/png");
   }
   const keys = buildContentEntries().map((e) => e[0]);
-  assert.ok(keys.includes("quiz-game/json/quizzes.json"));
+  assert.ok(keys.includes("quiz-game/json/quiz-list.json"));
   assert.ok(keys.includes("jackpot-game/json/prizes.json"));
   assert.ok(keys.includes("jackpot-game/json/screens.json"));
 });
 
 test("buildContentEntries: 一覧のファイルは、アプリの同期が保存する { updatedAt, data } の形", () => {
   const entries = new Map(buildContentEntries(1234567890).map(([key, value]) => [key, value]));
-  const quizzes = JSON.parse(entries.get("quiz-game/json/quizzes.json"));
+  const quizzes = JSON.parse(entries.get("quiz-game/json/quiz-list.json"));
   const prizes = JSON.parse(entries.get("jackpot-game/json/prizes.json"));
   const screens = JSON.parse(entries.get("jackpot-game/json/screens.json"));
   for (const record of [quizzes, prizes, screens]) {

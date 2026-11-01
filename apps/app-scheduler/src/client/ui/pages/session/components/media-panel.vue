@@ -80,8 +80,7 @@ import { UiButton, toast } from '@octopus/ui-kit';
 import { parseHubErrorCode, stripHubErrorCode } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import type { DriveMetadata } from '@octopus/infrastructures/compositions';
-import { IOctopusSchedulerApiToken } from '../../../../../server/scheduler-api-contract';
-import type { OctopusSchedulerApi } from '../../../../../server/scheduler-api-contract';
+import { AssetRepository } from '@model/asset/asset-repository';
 import { COMMAND_MAX_INTERVAL_SEC, COMMAND_MIN_INTERVAL_SEC, MAX_FOLDER_LENGTH, MEDIA_NS, parseMediaCommand } from '../../../../model/media/media-command';
 import { listFolders, toCatalog, type CatalogItem } from '../../../../model/media/media-catalog';
 import type { ScreenSpec } from '../../../../model/media/screen-spec';
@@ -131,7 +130,7 @@ async function load() {
     try {
         const metas = props.loadMetas
             ? await props.loadMetas()
-            : (await container.resolve<OctopusSchedulerApi>(IOctopusSchedulerApiToken).getDriveMetaData(undefined)) || [];
+            : await container.resolve(AssetRepository).listRemote();
         catalog.value = toCatalog(metas);
     } catch (e) {
         console.warn('素材の一覧を取得できませんでした', e);

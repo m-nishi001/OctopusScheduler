@@ -9,83 +9,66 @@
  * 各 use-case ファイルにある。リポジトリ実装は infrastructures/gas/container.ts
  * が起動時に登録したものを tsyringe コンテナから解決する。
  */
-import { respond } from "@octopus/infrastructures/interfaces";
+import { respond, IKeyValueStorageToken, ILockToken } from "@octopus/infrastructures/interfaces";
+import type { IKeyValueStorage, ILock } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
-import { IKeyValueStorageToken } from "@octopus/infrastructures/interfaces";
-import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import type {
-  AddDriveDataArgs,
-  AddJsonArgs,
-  GetDriveDataArgs,
-  GetDriveMetaDataArgs,
-  GetJsonArgs,
+  ExistsBlobsArgs,
+  GetBlobArgs,
+  PutBlobArgs,
   QuizGameEndpointName,
-  UpdateDriveDataArgs,
+  SaveRecordArgs,
 } from "./quiz-api-contract";
-import { QUIZ_GAME_PREFIX } from "./quiz-api-contract";
+import { QUIZ_GAME_PREFIX, QUIZ_RECORD_FILE, quizRecordHashes } from "./quiz-api-contract";
 
-import { createDriveAssets, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
-import { addJsonBlob } from "./add-json-blob-use-case";
-import { getJsonBlob } from "./get-json-blob-use-case";
+import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
 import { secure } from "@octopus/accounts/secure";
 
-/** この置き場の素材の保存・一覧・取得。 */
-const assets = createDriveAssets(StorageModule.Quiz, StorageKind.Assets);
+/** 一覧と、一覧が参照する画像・音声(内容のハッシュを名前にしたファイル)の保存。 */
+const store = createHashedBlobStore(StorageModule.Quiz);
 
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
-    now: (): number => Date.now(),
+    lock: container.resolve<ILock>(ILockToken),
   };
 }
 
-declare let _quizGame_addDriveData: (args: AddDriveDataArgs) => Promise<string>;
-declare let _quizGame_getDriveMetaData: (args: GetDriveMetaDataArgs) => Promise<string>;
-declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => Promise<string>;
-declare let _quizGame_updateDriveData: (args: UpdateDriveDataArgs) => Promise<string>;
-declare let _quizGame_addJson: (args: AddJsonArgs) => Promise<string>;
-declare let _quizGame_getJson: (args: GetJsonArgs) => Promise<string>;
+declare let _quizGame_getRecord: (args: Record<string, never>) => Promise<string>;
+declare let _quizGame_saveRecord: (args: SaveRecordArgs) => Promise<string>;
+declare let _quizGame_existsBlobs: (args: ExistsBlobsArgs) => Promise<string>;
+declare let _quizGame_putBlob: (args: PutBlobArgs) => Promise<string>;
+declare let _quizGame_getBlob: (args: GetBlobArgs) => Promise<string>;
 
-_quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
-  return respond(() => assets.save(resolveDeps(), args.driveData));
-};
+_quizGame_getRecord = async (_args): Promise<string> =>
+  respond(() => store.getRecord(resolveDeps(), { fileName: QUIZ_RECORD_FILE }));
 
-_quizGame_getDriveMetaData = async (_args: GetDriveMetaDataArgs): Promise<string> => {
-  return respond(() => assets.listMetadata(resolveDeps()));
-};
+_quizGame_saveRecord = async (args: SaveRecordArgs): Promise<string> =>
+  respond(() => store.saveRecord(resolveDeps(), { fileName: QUIZ_RECORD_FILE, json: args.json }, quizRecordHashes));
 
-_quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
-  return respond(() => assets.get(resolveDeps(), args.dataId));
-};
+_quizGame_existsBlobs = async (args: ExistsBlobsArgs): Promise<string> =>
+  respond(() => store.exists(resolveDeps(), args));
 
-_quizGame_updateDriveData = async (args: UpdateDriveDataArgs): Promise<string> => {
-  return respond(() => assets.save(resolveDeps(), args.driveData));
-};
+_quizGame_putBlob = async (args: PutBlobArgs): Promise<string> =>
+  respond(() => store.put(resolveDeps(), args));
 
-_quizGame_addJson = async (args: AddJsonArgs): Promise<string> => {
-  return respond(() => addJsonBlob(resolveDeps(), args));
-};
-
-_quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
-  return respond(() => getJsonBlob(resolveDeps(), args.fileName));
-};
+_quizGame_getBlob = async (args: GetBlobArgs): Promise<string> =>
+  respond(() => store.get(resolveDeps(), args));
 
 // 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。
-_quizGame_addDriveData = secure("admin", _quizGame_addDriveData);
-_quizGame_getDriveMetaData = secure("admin", _quizGame_getDriveMetaData);
-_quizGame_getDriveData = secure("admin", _quizGame_getDriveData);
-_quizGame_updateDriveData = secure("admin", _quizGame_updateDriveData);
-_quizGame_addJson = secure("admin", _quizGame_addJson);
-_quizGame_getJson = secure("admin", _quizGame_getJson);
+_quizGame_getRecord = secure("admin", _quizGame_getRecord);
+_quizGame_saveRecord = secure("admin", _quizGame_saveRecord);
+_quizGame_existsBlobs = secure("admin", _quizGame_existsBlobs);
+_quizGame_putBlob = secure("admin", _quizGame_putBlob);
+_quizGame_getBlob = secure("admin", _quizGame_getBlob);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Promise<string>> = {
-  addDriveData: _quizGame_addDriveData,
-  getDriveMetaData: _quizGame_getDriveMetaData,
-  getDriveData: _quizGame_getDriveData,
-  updateDriveData: _quizGame_updateDriveData,
-  addJson: _quizGame_addJson,
-  getJson: _quizGame_getJson,
+  getRecord: _quizGame_getRecord,
+  saveRecord: _quizGame_saveRecord,
+  existsBlobs: _quizGame_existsBlobs,
+  putBlob: _quizGame_putBlob,
+  getBlob: _quizGame_getBlob,
 };
 
 export { QUIZ_GAME_PREFIX };

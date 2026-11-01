@@ -1,7 +1,7 @@
 import { adminRpc, createSession, expect, newDevice, route, test } from "./fixtures";
 import type { Browser } from "@playwright/test";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
-import { audioProbe, deleteLocalAsset, hasLocalAsset, installAudioProbe, PNG_1X1, seedLocalAsset, seedServerAsset, silentWav, uid } from "./helpers/media";
+import { audioProbe, deleteLocalBlob, hasLocalBlob, installAudioProbe, PNG_1X1, seedServerAsset, silentWav, uid } from "./helpers/media";
 
 /**
  * 管理端末の「音楽・スクリーン」から、ホスト(投影)の画面と音楽を動かす。
@@ -14,7 +14,7 @@ test.afterAll(async ({ request }) => {
 
 async function scene(browser: Browser, request: import("@playwright/test").APIRequestContext, label: string) {
   const tag = uid();
-  const image = { id: `e2eimg${tag}`, fileName: `e2e-pic-${tag}.png`, mime: "image/png", body: PNG_1X1 };
+  const image = { id: `e2eimg${tag}`, fileName: `e2e-pic-${tag}.png`, mime: "image/png", body: Buffer.concat([PNG_1X1, Buffer.from(tag)]) };
   const song = { id: `e2esong${tag}`, fileName: `e2e-tone-${tag}.wav`, mime: "audio/wav", body: silentWav() };
   await seedServerAsset(request, image);
   await seedServerAsset(request, song);
@@ -63,7 +63,8 @@ test.describe("コントロール画面: 音楽・スクリーン", () => {
     const { admin, host, lobby } = await scene(browser, request, "メディア(スライドショー)");
     const folder = `e2eshow${uid()}`;
     for (const n of [1, 2]) {
-      await seedLocalAsset(host.page, { id: `e2eslide${uid()}`, name: `s${n}.png`, mime: "image/png", body: PNG_1X1, directoryId: `octopus-scheduler/assets/${folder}` });
+      // 中身が 1 件ずつ違う画像(同じ中身は同じハッシュのファイルになる)
+      await seedServerAsset(request, { id: `e2eslide${uid()}`, fileName: `s${n}.png`, mime: "image/png", body: Buffer.concat([PNG_1X1, Buffer.from(`${folder}${n}`)]), directoryId: `octopus-scheduler/assets/${folder}` });
     }
     await admin.page.getByTestId("media-tab-screen").click();
     await admin.page.getByTestId("media-folder-input").fill(folder);
@@ -101,15 +102,15 @@ test.describe("コントロール画面: 音楽・スクリーン", () => {
     test.setTimeout(120_000);
     const { admin, host, image } = await scene(browser, request, "メディア(未取得)");
     // ホストが先読みで取った分を消して、「まだ取っていない」状態にする
-    await expect.poll(() => hasLocalAsset(host.page, image.id), { timeout: 30_000 }).toBe(true);
-    await deleteLocalAsset(host.page, image.id);
-    expect(await hasLocalAsset(host.page, image.id)).toBe(false);
+    await expect.poll(() => hasLocalBlob(host.page, image.body), { timeout: 30_000 }).toBe(true);
+    await deleteLocalBlob(host.page, image.body);
+    expect(await hasLocalBlob(host.page, image.body)).toBe(false);
 
     await admin.page.getByTestId("media-tab-screen").click();
     await admin.page.getByTestId(`media-show-${image.id}`).click();
     await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/execute/show-image/${image.id}`);
     await expect(host.page.locator(".fullscreen-image img")).toBeVisible();
-    expect(await hasLocalAsset(host.page, image.id)).toBe(true);
+    expect(await hasLocalBlob(host.page, image.body)).toBe(true);
     for (const d of [admin, host]) await d.context.close();
   });
 });

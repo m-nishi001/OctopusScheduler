@@ -59,6 +59,17 @@ export class BlobRecordStore<T> implements BlobRecordLocalStore<T> {
     });
   }
 
+  /**
+   * 以前の形式(キーごとの行)が同じ保存先に残っていれば消す。一覧のレコード以外の行を、すべて消す。
+   * (保存先の名前は以前と同じにして、既存のデータベースにストアを足さない。足すと、別のコードが同じデータベースを開く最中に競合しやすい。)
+   */
+  purgeOtherRows(): Promise<void> {
+    return this.enqueue(async () => {
+      const keys = await this.storage.keys();
+      await this.storage.removeMultiple(keys.filter((key) => key !== RECORD_KEY));
+    });
+  }
+
   replaceIfUnchanged(expectedUpdatedAt: number | null, next: SyncSnapshot<T>): Promise<boolean> {
     return this.enqueue(async () => {
       const current = await this.readNow();
