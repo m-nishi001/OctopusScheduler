@@ -5,7 +5,8 @@
 import { buildZip, exportTable } from "@octopus/table-io";
 import type { Member } from "../../../server/accounts-api-contract";
 import type { MemberPhotoCache } from "../photo/member-photo-cache";
-import { photoFileName, ROSTER_CSV_NAME, rosterAdapter, toRosterMembers } from "./roster-table";
+import { photoFileName, ROSTER_TABLE } from "./roster-table";
+import type { RosterMember, RosterTable } from "./roster-table";
 
 export interface RosterExport {
   filename: string;
@@ -25,15 +26,17 @@ export function dataUrlToBytes(dataUrl: string): { mime: string; bytes: Uint8Arr
   return { mime: match[1], bytes };
 }
 
-/** 名簿を書き出す。`includeMedia` が偽なら CSV のみ(写真の列は空)。 */
-export async function exportRoster(
+/** 名簿を書き出す。`includeMedia` が偽なら CSV のみ(写真の列は空)。`table` を渡すと、その表の列で書き出す(既定は名簿そのもの)。 */
+export async function exportRoster<E extends RosterMember = RosterMember>(
   members: readonly Member[],
   options: { includeMedia: boolean },
-  photoCache: Pick<MemberPhotoCache, "ensure" | "get">
+  photoCache: Pick<MemberPhotoCache, "ensure" | "get">,
+  table: RosterTable<E> = ROSTER_TABLE as unknown as RosterTable<E>
 ): Promise<RosterExport> {
-  const adapter = rosterAdapter();
+  const adapter = table.adapter({});
   if (!options.includeMedia) {
-    return { filename: ROSTER_CSV_NAME, mime: "text/csv;charset=utf-8", bytes: new TextEncoder().encode(exportTable(toRosterMembers(members), adapter)), missingPhotos: 0 };
+    const csv = exportTable(await table.current(members, new Map()), adapter);
+    return { filename: adapter.csvName, mime: "text/csv;charset=utf-8", bytes: new TextEncoder().encode(csv), missingPhotos: 0 };
   }
   await photoCache.ensure(members.map((m) => m.photo));
   const files = new Map<string, Uint8Array>();
@@ -52,9 +55,9 @@ export async function exportRoster(
     names.set(m.id, name);
   }
   return {
-    filename: "members.zip",
+    filename: adapter.csvName.replace(/\.csv$/, ".zip"),
     mime: "application/zip",
-    bytes: buildZip(ROSTER_CSV_NAME, exportTable(toRosterMembers(members, names), adapter), files),
+    bytes: buildZip(adapter.csvName, exportTable(await table.current(members, names), adapter), files),
     missingPhotos,
   };
 }

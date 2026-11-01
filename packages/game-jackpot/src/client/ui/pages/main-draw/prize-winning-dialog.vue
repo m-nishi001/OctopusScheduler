@@ -28,7 +28,7 @@
 <script lang="ts">
 import { defineComponent, ref, watch, onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { JackpotRepository } from '@model/jackpot-repository';
 import JackpotConfetti from '../../components/jackpot-confetti.vue';
 import '../../theme/jackpot-theme.css';
 
@@ -45,45 +45,29 @@ export default defineComponent({
     },
     emits: ['close'],
     setup(props, { emit }) {
-        const assetService = container.resolve(AssetDataService);
+        const repo = container.resolve(JackpotRepository);
         const imageUrl1 = ref<string>('');
         const imageUrl2 = ref<string>('');
+
+        /** 素材の名前の画像を、表示用の URL にする。無い・読めないときは空。 */
+        const urlOf = async (name: string | undefined): Promise<string> => {
+            if (!name) return '';
+            try {
+                const blob = await repo.blobOf(name);
+                return blob ? URL.createObjectURL(blob) : '';
+            } catch (e) {
+                console.error('Failed to load prize image:', name, e);
+                return '';
+            }
+        };
 
         const loadWinningImages = async () => {
             if (!props.prize) {
                 return;
             }
-            if (props.prize.winningImage1AssetId) {
-                try {
-                    const asset = await assetService.getAssetDataById(props.prize.winningImage1AssetId);
-                    if (asset && asset.blob) {
-                        imageUrl1.value = URL.createObjectURL(asset.blob);
-                    }
-                } catch (e) {
-                    console.error('Failed to load winning image 1:', e);
-                }
-            } else if (props.prize.imageAssetId) {
-                // fallback to roulette image
-                try {
-                    const asset = await assetService.getAssetDataById(props.prize.imageAssetId);
-                    if (asset && asset.blob) {
-                        imageUrl1.value = URL.createObjectURL(asset.blob);
-                    }
-                } catch (e) {
-                    console.error('Failed to load fallback image:', e);
-                }
-            }
-
-            if (props.prize.winningImage2AssetId) {
-                try {
-                    const asset = await assetService.getAssetDataById(props.prize.winningImage2AssetId);
-                    if (asset && asset.blob) {
-                        imageUrl2.value = URL.createObjectURL(asset.blob);
-                    }
-                } catch (e) {
-                    console.error('Failed to load winning image 2:', e);
-                }
-            }
+            // 当選画像1が無ければ、ルーレットの画像を使う
+            imageUrl1.value = await urlOf(props.prize.winningImage1 || props.prize.image);
+            imageUrl2.value = await urlOf(props.prize.winningImage2);
         };
 
         watch(

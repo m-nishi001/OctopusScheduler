@@ -1,5 +1,5 @@
 import type { APIRequestContext, Browser, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, loginByQr, newDevice, openAdvanced, route, seedRecord, test, type Device } from "./fixtures";
+import { adminRpc, createSession, expect, loginByQr, newDevice, openAdvanced, route, seedJackpot, test, type Device } from "./fixtures";
 
 /**
  * ジャックポットのサイクルの切れ目(当選ダイアログ → 「次へ」 → メンバー抽選の画面)が、通信が遅くても待たされないこと。
@@ -70,7 +70,7 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   host.page.on("dialog", (d) => void d.dismiss());
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText(label);
-  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
+  await seedJackpot(host.page, { prizes: PRIZES });
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
   if (kakuhenTimings) {
     // 確変の予定は、ホストの画面設定(端末のIndexedDB・サーバーとバックグラウンドで同期される共有の設定)ではなく、

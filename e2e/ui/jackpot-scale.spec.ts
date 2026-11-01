@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { ADMIN_TOKEN, expect, isGas, newDevice, seedRecord, test } from "./fixtures";
+import { ADMIN_TOKEN, expect, isGas, newDevice, seedJackpot, test } from "./fixtures";
 import { slotMetrics } from "./helpers/slot";
 
 /**
@@ -96,18 +96,15 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
 
       await resetMembers(page, Array.from({ length: sc.members }, (_, i) => `メンバー${i + 1}`));
       await page.goto("/#/sessions");
-      await seedRecord(
-        page,
-        "jackpot-game",
-        "PrizeData",
-        Array.from({ length: sc.prizes }, (_, i) => ({
+      await seedJackpot(page, {
+        prizes: Array.from({ length: sc.prizes }, (_, i) => ({
           id: `p${i + 1}`,
           name: `景品${i + 1}`,
           order: i + 1,
           weight: 10,
           ...(sc.animation ? { animation: sc.animation } : {}),
-        }))
-      );
+        })),
+      });
       await page.goto("/#/execute/jackpot-draw");
       await page.reload();
 

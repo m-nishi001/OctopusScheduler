@@ -36,7 +36,6 @@ const startDemo = () => router.push({ path: '/jackpot-opening', query: { [DEMO_Q
 const tabs = [
   { key: 'members', label: 'メンバー' },
   { key: 'prizes', label: '景品' },
-  { key: 'assets', label: 'アセット' },
   { key: 'results', label: '抽選結果' },
   { key: 'screens', label: '画面設定' },
 ];
@@ -62,7 +61,7 @@ const downloadingBackup = ref(false);
 async function onDownloadBackup() {
   downloadingBackup.value = true;
   try {
-    const { filename } = await exportLocalBackup(true);
+    const { filename } = await exportLocalBackup();
     toast.success(`バックアップを保存しました(${filename})`);
   } catch (e) {
     console.error('Failed to export local backup', e);

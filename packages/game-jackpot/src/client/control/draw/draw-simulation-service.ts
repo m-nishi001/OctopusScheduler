@@ -51,7 +51,7 @@ export class DrawSimulationService {
       id: `prize-${i + 1}`,
       name: `景品${i + 1}`,
       weight: weights[i % weights.length],
-      imageAssetId: "dummy",
+      image: "dummy",
       animation: "roulette",
       order: i + 1,
     }));

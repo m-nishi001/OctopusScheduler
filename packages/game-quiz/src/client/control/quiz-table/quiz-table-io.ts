@@ -7,11 +7,11 @@ import { saveFile } from "@octopus/client-common/blob/save-file";
 import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import { hashBlob, mapPool } from "@octopus/sync-engine";
 import type { PoolOptions } from "@octopus/sync-engine";
-import { buildZip, diffMedia, exportTable, mimeOfName, parseTable, planImport, readZip } from "@octopus/table-io";
+import { buildZip, diffMedia, exportTable, parseTable, planImport, readImportFiles, referencedMedia } from "@octopus/table-io";
 import type { ImportMode } from "@octopus/table-io";
 import type { QuizRecord } from "../../../server/quiz-api-contract";
 import type { ImportedFile } from "../../model/quiz-repository";
-import { headerOptionCount, maxOptionNo, mediaFileName, QUIZ_CSV_NAME, quizAdapter, quizHeadersFromNames, REMOVE_MEDIA } from "./quiz-table";
+import { headerOptionCount, maxOptionNo, QUIZ_CSV_NAME, quizAdapter, quizHeadersFromNames } from "./quiz-table";
 
 /** 書き出し・取込が使うクイズの窓口(`QuizRepository` がそのまま満たす)。 */
 export interface QuizTableRepository {
@@ -62,39 +62,18 @@ export interface QuizImportInput {
 
 /** 選んだファイルを読み、計画を立てる(まだ何も書かない)。確定する関数 `apply` を抱えて返る。 */
 export async function previewQuizImport(input: QuizImportInput, deps: QuizTableIoDeps) {
-  const files = new Map<string, Blob>();
-  let csvBytes: Uint8Array;
-  if (/\.zip$/i.test(input.table.name)) {
-    let zipped: ReturnType<typeof readZip>;
-    try {
-      zipped = readZip(new Uint8Array(await input.table.arrayBuffer()));
-    } catch {
-      return { ok: false as const, errors: ["ZIP を開けません"] };
-    }
-    if (!zipped.csv) return { ok: false as const, errors: ["ZIP の中に CSV が見つかりません"] };
-    csvBytes = zipped.csv;
-    for (const [name, bytes] of zipped.media) files.set(name, new Blob([bytes as BlobPart], { type: mimeOfName(name) }));
-  } else {
-    csvBytes = new Uint8Array(await input.table.arrayBuffer());
-  }
-  // フォルダで選んだ素材は、ZIP の中の同名の素材より優先する。
-  for (const f of input.media) files.set(f.name, f.type ? f : f.slice(0, f.size, mimeOfName(f.name)));
+  const read = await readImportFiles(input.table, input.media);
+  if (!read.ok) return read;
+  const { csv, files } = read.value;
 
-  const parsed = parseTable(csvBytes, quizHeadersFromNames);
+  const parsed = parseTable(csv, quizHeadersFromNames);
   if (!parsed.ok) return parsed;
 
   // CSV が指していて、選ばれたファイルにある素材だけ、ハッシュを並列に計算する。
-  const mediaKeys = parsed.headers.filter((h) => h.media).map((h) => h.key);
-  const referenced = new Set<string>();
-  for (const { cells } of parsed.rows) {
-    for (const key of mediaKeys) {
-      const cell = cells[key];
-      if (cell && cell !== REMOVE_MEDIA && files.has(mediaFileName(cell))) referenced.add(mediaFileName(cell));
-    }
-  }
+  const referenced = referencedMedia(parsed, files);
   const [record, hashes] = await Promise.all([
     deps.repo.readRecord(),
-    mapPool([...referenced], async (name) => [name, await hashBlob(files.get(name)!)] as const, deps.pool),
+    mapPool(referenced, async (name) => [name, await hashBlob(files.get(name)!)] as const, deps.pool),
   ]);
   const incoming = new Map(hashes);
   const diff = diffMedia(Object.fromEntries(Object.entries(record.media).map(([name, m]) => [name, m.hash])), incoming);

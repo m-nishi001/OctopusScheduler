@@ -4,26 +4,26 @@
     <template #cell-preview="{ row: prize }">
       <div class="prize-preview four-image">
           <template
-            v-if="prize.imageAssetId || prize.image2AssetId || prize.winningImage1AssetId || prize.winningImage2AssetId">
+            v-if="prize.image || prize.image2 || prize.winningImage1 || prize.winningImage2">
             <div class="preview-half">
-              <img v-if="prize.imageAssetId" :src="objectUrlMap.get(prize.imageAssetId) || BLANK_IMAGE"
+              <img v-if="prize.image" :src="urlOf(prize.image) || BLANK_IMAGE"
                 alt="image1" class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">画像1なし</div>
             </div>
             <div class="preview-half">
-              <img v-if="prize.image2AssetId" :src="objectUrlMap.get(prize.image2AssetId) || BLANK_IMAGE"
+              <img v-if="prize.image2" :src="urlOf(prize.image2) || BLANK_IMAGE"
                 alt="image2" class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">画像2なし</div>
             </div>
             <div class="preview-half">
-              <img v-if="prize.winningImage1AssetId"
-                :src="objectUrlMap.get(prize.winningImage1AssetId) || BLANK_IMAGE" alt="winning1"
+              <img v-if="prize.winningImage1"
+                :src="urlOf(prize.winningImage1) || BLANK_IMAGE" alt="winning1"
                 class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">当選1なし</div>
             </div>
             <div class="preview-half">
-              <img v-if="prize.winningImage2AssetId"
-                :src="objectUrlMap.get(prize.winningImage2AssetId) || BLANK_IMAGE" alt="winning2"
+              <img v-if="prize.winningImage2"
+                :src="urlOf(prize.winningImage2) || BLANK_IMAGE" alt="winning2"
                 class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">当選2なし</div>
             </div>
@@ -54,7 +54,8 @@ const columns: DataTableColumn[] = [
 defineProps({
   prizes: { type: Array as () => any[], required: true },
   selected: { type: Array as () => string[], required: true },
-  objectUrlMap: { type: Object as () => Map<string, string>, required: true },
+  /** 素材の名前から表示用の URL(まだ読めていなければ空)。 */
+  urlOf: { type: Function as unknown as () => (name?: string | null) => string, required: true },
 });
 
 defineEmits<{
@@ -63,7 +64,7 @@ defineEmits<{
   'update:selected': [ids: string[]];
 }>();
 
-// 画像(アセット)の取り込みがまだのとき。アセットIDをそのままURLにすると存在しないパスを取りに行って 404 になる
+// 画像の読み込みがまだのとき。名前をそのままURLにすると存在しないパスを取りに行って 404 になる
 const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
 
 const onImageError = (event: Event) => {

@@ -1,7 +1,7 @@
 import { onMounted, onScopeDispose, shallowRef } from "vue";
 import type { ShallowRef } from "vue";
 import { container } from "tsyringe";
-import { AssetDataService } from "@control/asset/asset-data-service";
+import { JackpotRepository } from "@model/jackpot-repository";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
 
 /**
@@ -17,8 +17,8 @@ import { ScreenSettingsService } from "@control/screen-config/screen-settings-se
 export interface MediaDeps {
   /** 画面設定を読む。無ければ null。 */
   fetchSetting(screenName: string, settingName: string): Promise<unknown | null>;
-  /** アセットの中身（音声・画像）。無い・中身が無いときは null。 */
-  getAssetBlob(assetId: string): Promise<Blob | null>;
+  /** 素材（音声・画像）の中身を名前で引く。無い・中身が無いときは null。 */
+  blobOf(name: string): Promise<Blob | null>;
   createObjectUrl(blob: Blob): string;
   revokeObjectUrl(url: string): void;
   createAudio(url: string): HTMLAudioElement;
@@ -27,7 +27,7 @@ export interface MediaDeps {
 function defaultMediaDeps(): MediaDeps {
   return {
     fetchSetting: (screenName, settingName) => container.resolve(ScreenSettingsService).fetchScreenSetting(screenName, settingName),
-    getAssetBlob: async (assetId) => (await container.resolve(AssetDataService).getAssetDataById(assetId))?.blob ?? null,
+    blobOf: (name) => container.resolve(JackpotRepository).blobOf(name),
     createObjectUrl: (blob) => URL.createObjectURL(blob),
     revokeObjectUrl: (url) => URL.revokeObjectURL(url),
     createAudio: (url) => new Audio(url),
@@ -37,8 +37,8 @@ function defaultMediaDeps(): MediaDeps {
 export interface ScreenBgm {
   /** 読み込み済みの BGM。まだ・読み込めなかったときは null。 */
   bgm: ShallowRef<HTMLAudioElement | null>;
-  /** アセットから BGM を読み込む（ループ再生に設定する）。`assetId` が空・読み込めないときは何もしない。再生は {@link play}。 */
-  load(assetId: string | null | undefined): Promise<void>;
+  /** 素材（名前）から BGM を読み込む（ループ再生に設定する）。名前が空・読み込めないときは何もしない。再生は {@link play}。 */
+  load(name: string | null | undefined): Promise<void>;
   /** 読み込んだ BGM を再生する（`delayMs` 後）。自動再生が拒否されても、画面は止めない。 */
   play(delayMs?: number): void;
 }
@@ -59,13 +59,13 @@ export function useScreenBgm(deps: MediaDeps = defaultMediaDeps()): ScreenBgm {
     url = null;
   });
 
-  async function load(assetId: string | null | undefined): Promise<void> {
-    if (!assetId) return;
+  async function load(name: string | null | undefined): Promise<void> {
+    if (!name) return;
     let blob: Blob | null = null;
     try {
-      blob = await deps.getAssetBlob(assetId);
+      blob = await deps.blobOf(name);
     } catch (error) {
-      console.warn("[ScreenMedia] failed to load BGM asset", assetId, error);
+      console.warn("[ScreenMedia] failed to load BGM", name, error);
     }
     if (!blob || disposed) return; // 読み込み中に画面を離れていたら、音を作らない
     url = deps.createObjectUrl(blob);
@@ -83,9 +83,9 @@ export function useScreenBgm(deps: MediaDeps = defaultMediaDeps()): ScreenBgm {
   return { bgm, load, play };
 }
 
-/** 画像などのコンテンツ（`assetId` を持つ）に、表示用の URL（`assetUrl`）を付ける。作った URL は画面を離れたら破棄する。 */
+/** 画像などのコンテンツ（素材の名前 `media` を持つ）に、表示用の URL（`assetUrl`）を付ける。作った URL は画面を離れたら破棄する。 */
 export function useScreenAssetUrls(deps: MediaDeps = defaultMediaDeps()): {
-  attach(contents: ReadonlyArray<{ assetId?: string; assetUrl?: string }>): Promise<void>;
+  attach(contents: ReadonlyArray<{ media?: string; assetUrl?: string }>): Promise<void>;
 } {
   const urls: string[] = [];
   let disposed = false;
@@ -100,9 +100,9 @@ export function useScreenAssetUrls(deps: MediaDeps = defaultMediaDeps()): {
     /** 1件が読めなくても、残りは続ける（読めなかった分は `assetUrl` を付けない）。 */
     async attach(contents) {
       for (const content of contents) {
-        if (!content.assetId) continue;
+        if (!content.media) continue;
         try {
-          const blob = await deps.getAssetBlob(content.assetId);
+          const blob = await deps.blobOf(content.media);
           if (disposed) return;
           if (blob) {
             const url = deps.createObjectUrl(blob);
@@ -110,7 +110,7 @@ export function useScreenAssetUrls(deps: MediaDeps = defaultMediaDeps()): {
             content.assetUrl = url;
           }
         } catch (error) {
-          console.warn("[ScreenMedia] failed to load asset for content", content, error);
+          console.warn("[ScreenMedia] failed to load media for content", content, error);
         }
       }
     },
@@ -133,10 +133,10 @@ export interface ScreenMedia<TConfig> {
 }
 
 /**
- * 画面設定（`bgmAssetId` と、`assetId` を持つ `contents`）を読み、BGM と画像の URL を用意して、
+ * 画面設定（BGM の名前 `bgm` と、素材の名前 `media` を持つ `contents`）を読み、BGM と画像の URL を用意して、
  * **準備ができてから** `config` を出し、BGM を鳴らす（画面が出た時点で画像が揃っている）。
  */
-export function useScreenMedia<TConfig extends { bgmAssetId?: string; contents?: Array<{ assetId?: string; assetUrl?: string }> }>(
+export function useScreenMedia<TConfig extends { bgm?: string; contents?: Array<{ media?: string; assetUrl?: string }> }>(
   options: ScreenMediaOptions<TConfig>,
   deps: MediaDeps = defaultMediaDeps()
 ): ScreenMedia<TConfig> {
@@ -158,7 +158,7 @@ export function useScreenMedia<TConfig extends { bgmAssetId?: string; contents?:
     }
     loaded ??= options.fallback();
     if (disposed) return;
-    await bgm.load(loaded.bgmAssetId);
+    await bgm.load(loaded.bgm);
     await assetUrls.attach(loaded.contents ?? []);
     if (disposed) return;
     config.value = loaded;

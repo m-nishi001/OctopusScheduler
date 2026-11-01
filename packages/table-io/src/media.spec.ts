@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveMedia, diffMedia } from "./media";
+import { deriveMedia, diffMedia, resolveMediaCell } from "./media";
 
 describe("deriveMedia", () => {
   const known = new Map([["a.png", "h1"], ["b.mp3", "h2"], ["old.png", "h0"]]);
@@ -30,5 +30,22 @@ describe("diffMedia", () => {
       replaced: ["b.png"],
       same: ["a.png"],
     });
+  });
+});
+
+describe("resolveMediaCell", () => {
+  const available = new Set(["a.png"]);
+
+  it("空 = いまのまま、`-` = 外す、それ以外 = ファイル名(フォルダ部分は無視)", () => {
+    expect(resolveMediaCell("", "old.png", available)).toEqual({ name: "old.png" });
+    expect(resolveMediaCell(undefined, undefined, available)).toEqual({ name: null });
+    expect(resolveMediaCell("-", "old.png", available)).toEqual({ name: null });
+    expect(resolveMediaCell(" images\\a.png ", null, available)).toEqual({ name: "a.png" });
+    expect(resolveMediaCell("sub/a.png", null, available)).toEqual({ name: "a.png" });
+  });
+
+  it("使える素材の中に無い名前は missing を返す。使える素材を渡さなければ検査しない", () => {
+    expect(resolveMediaCell("zzz.png", null, available)).toEqual({ missing: "zzz.png" });
+    expect(resolveMediaCell("zzz.png", null)).toEqual({ name: "zzz.png" });
   });
 });

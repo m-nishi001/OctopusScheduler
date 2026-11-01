@@ -33,7 +33,7 @@ export default {
         const { config: screenConfig, bgm } = useScreenMedia({
             screenName: 'ending',
             settingName: 'ending-screen-settings',
-            fallback: () => ({ bgmAssetId: '', contents: [] }),
+            fallback: () => ({ bgm: '', contents: [] }),
             bgmDelayMs: BGM_DELAY_MS,
         });
         return { screenConfig, bgm, isDemo, onFinished };

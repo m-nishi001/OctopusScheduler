@@ -4,9 +4,9 @@ import { inflateSync } from "node:zlib";
 import {
   buildContentEntries,
   buildJackpotAssets,
+  buildJackpotRecord,
   buildPrizes,
   buildQuizAssets,
-  buildJackpotAssetRecord,
   blobHash,
   buildQuizRecord,
   buildQuizzes,
@@ -58,13 +58,13 @@ test("makeWav: RIFF/WAVE のヘッダとデータ長が合う", () => {
   assert.equal(wav.readUInt32LE(4), 36 + dataLen);
 });
 
-test("buildPrizes: 確変の画像1と画像2(と当選画像1・2)は別のアセットで、中身も違う", () => {
-  const assets = new Map(buildJackpotAssets().map(([id, , , body]) => [id, body]));
-  for (const p of buildPrizes()) {
-    assert.notEqual(p.imageAssetId, p.image2AssetId, p.id);
-    assert.notEqual(p.winningImage1AssetId, p.winningImage2AssetId, p.id);
-    assert.ok(!assets.get(p.imageAssetId).equals(assets.get(p.image2AssetId)), `${p.id}: 画像1と画像2の中身が同じ`);
-    assert.ok(!assets.get(p.winningImage1AssetId).equals(assets.get(p.winningImage2AssetId)), `${p.id}: 当選画像1と2の中身が同じ`);
+test("buildPrizes: 確変の画像1と画像2(と当選画像1・2)は別の素材で、中身も違う", () => {
+  const { prizes, media } = buildJackpotRecord();
+  for (const p of prizes) {
+    assert.notEqual(p.image, p.image2, p.id);
+    assert.notEqual(p.winningImage1, p.winningImage2, p.id);
+    assert.notEqual(media[p.image].hash, media[p.image2].hash, `${p.id}: 画像1と画像2の中身が同じ`);
+    assert.notEqual(media[p.winningImage1].hash, media[p.winningImage2].hash, `${p.id}: 当選画像1と2の中身が同じ`);
   }
 });
 
@@ -78,7 +78,7 @@ test("buildContentEntries: 決定的で、キーが重複しない", () => {
 });
 
 test("buildContentEntries: アセットのIDに _ を含めない(キーの先頭の _ までをIDとして読むため)", () => {
-  for (const [id] of buildJackpotAssets()) assert.doesNotMatch(id, /_/);
+  for (const [hash] of buildJackpotAssets()) assert.match(hash, /^[0-9a-f]{32}$/);
   for (const [hash] of buildQuizAssets()) assert.match(hash, /^[0-9a-f]{32}$/);
   for (const q of buildQuizzes()) assert.doesNotMatch(q.id, /_/);
 });
@@ -100,40 +100,33 @@ test("buildQuizRecord: 正解番号が選択肢にあり、素材の名前には
   assert.deepEqual(new Set(Object.keys(media)), used);
 });
 
-test("buildJackpotAssetRecord: 素材の一覧は、固定の id と、対応するファイルのハッシュを持つ", () => {
-  const record = buildJackpotAssetRecord("2024-01-01T00:00:00.000Z");
-  const files = new Map(buildJackpotAssets().map(([id, , , body]) => [id, body]));
-  assert.equal(record.length, files.size);
-  for (const e of record) {
-    assert.match(e.hash, /^[0-9a-f]{32}$/);
-    assert.equal(e.hash, blobHash(files.get(e.id)));
-    assert.equal(e.size, files.get(e.id).length);
-  }
-  const keys = buildContentEntries().map((e) => e[0]);
-  for (const e of record) assert.ok(keys.includes(`jackpot-game/assets/${e.hash}_blob`), e.id);
-});
-
-test("buildPrizes / buildScreenSettings: 参照するアセットがすべて存在する", () => {
-  const assetIds = new Set(buildJackpotAssets().map(([id]) => id));
-  const prizes = buildPrizes();
+test("buildJackpotRecord: 景品と画面設定が参照する素材の名前はすべて索引にあり、索引は参照されている名前だけ。ファイルはハッシュで保存される", () => {
+  const { prizes, screens, media } = buildJackpotRecord();
   assert.ok(prizes.length >= 6);
+  const used = new Set();
   for (const p of prizes) {
-    for (const key of ["imageAssetId", "image2AssetId", "bgm1AssetId", "bgm2AssetId", "winningImage1AssetId", "winningImage2AssetId"]) assert.ok(assetIds.has(p[key]), `${p.id}.${key}`);
+    for (const key of ["image", "image2", "bgm1", "bgm2", "winningImage1", "winningImage2"]) {
+      assert.ok(media[p[key]], `${p.id}.${key}`);
+      used.add(p[key]);
+    }
     assert.ok(["roulette", "slot"].includes(p.animation));
   }
   assert.deepEqual(prizes.map((p) => p.order), prizes.map((_, i) => i + 1));
 
-  const screens = buildScreenSettings();
-  assert.deepEqual(
-    screens.map((s) => s.screenName).sort(),
-    ["demo", "description", "ending", "main", "opening", "result"]
-  );
+  assert.deepEqual(screens.map((s) => s.screenName).sort(), ["demo", "description", "ending", "main", "opening", "result"]);
   for (const s of screens) {
     assert.equal(typeof s.settingValue, "string");
     const v = JSON.parse(s.settingValue);
-    const ids = [v.bgmAssetId, v.descriptionBgm, v.demoBgm, v.demoSe1, v.resultBgm, v.resultSe1, ...(v.memberLotteryBgms ?? []), ...(v.contents ?? []).flatMap((c) => [c.assetId, c.seAssetId])].filter(Boolean);
-    for (const id of ids) assert.ok(assetIds.has(id), `${s.screenName}: ${id}`);
+    const names = [v.bgm, v.demoBgm, v.demoSe1, v.resultBgm, v.resultSe1, ...(v.memberLotteryBgms ?? []), ...(v.contents ?? []).flatMap((c) => [c.media, c.se])].filter(Boolean);
+    for (const name of names) {
+      assert.ok(media[name], `${s.screenName}: ${name}`);
+      used.add(name);
+    }
   }
+  assert.deepEqual(new Set(Object.keys(media)), used);
+
+  const keys = buildContentEntries().map((e) => e[0]);
+  for (const info of Object.values(media)) assert.ok(keys.includes(`jackpot-game/assets/${info.hash}_blob`));
 });
 
 test("buildContentEntries: Content-Type が付き、画像と音のMIMEが正しい", () => {
@@ -144,25 +137,20 @@ test("buildContentEntries: Content-Type が付き、画像と音のMIMEが正し
   }
   const keys = buildContentEntries().map((e) => e[0]);
   assert.ok(keys.includes("quiz-game/json/quiz-list.json"));
-  assert.ok(keys.includes("jackpot-game/json/prizes.json"));
-  assert.ok(keys.includes("jackpot-game/json/screens.json"));
+  assert.ok(keys.includes("jackpot-game/json/jackpot-config.json"));
 });
 
 test("buildContentEntries: 一覧のファイルは、アプリの同期が保存する { updatedAt, data } の形", () => {
   const entries = new Map(buildContentEntries(1234567890).map(([key, value]) => [key, value]));
   const quizzes = JSON.parse(entries.get("quiz-game/json/quiz-list.json"));
-  const prizes = JSON.parse(entries.get("jackpot-game/json/prizes.json"));
-  const screens = JSON.parse(entries.get("jackpot-game/json/screens.json"));
-  for (const record of [prizes, screens]) {
-    assert.equal(record.updatedAt, 1234567890);
-    assert.ok(Array.isArray(record.data) && record.data.length > 0);
-  }
+  const jackpot = JSON.parse(entries.get("jackpot-game/json/jackpot-config.json"));
+  assert.equal(jackpot.updatedAt, 1234567890);
+  assert.ok(jackpot.data.prizes.length > 0 && jackpot.data.screens.length > 0);
   assert.equal(quizzes.updatedAt, 1234567890);
   assert.deepEqual(quizzes.data, JSON.parse(JSON.stringify(buildQuizRecord())));
-  assert.deepEqual(prizes.data, JSON.parse(JSON.stringify(buildPrizes())));
-  assert.deepEqual(screens.data, JSON.parse(JSON.stringify(buildScreenSettings())));
+  assert.deepEqual(jackpot.data, JSON.parse(JSON.stringify(buildJackpotRecord())));
   // 更新日時を渡さなければ、いまの時刻(端末の古いデータより新しいものとして取り込まれる)
   const before = Date.now();
-  const now = JSON.parse(new Map(buildContentEntries().map(([k, v]) => [k, v])).get("jackpot-game/json/prizes.json")).updatedAt;
+  const now = JSON.parse(new Map(buildContentEntries().map(([k, v]) => [k, v])).get("jackpot-game/json/jackpot-config.json")).updatedAt;
   assert.ok(now >= before);
 });

@@ -2,7 +2,7 @@ import { adminRpc, expect, newDevice, test } from "./fixtures";
 import type { APIRequestContext } from "@playwright/test";
 
 /**
- * アセット(アプリ・ジャックポット)の削除: 一覧が正で、削除は一覧から外すだけ。同期のあと再読み込みしても戻らず、
+ * アプリのアセットの削除: 一覧が正で、削除は一覧から外すだけ。同期のあと再読み込みしても戻らず、
  * サーバーの一覧からもファイルからも消える。
  */
 
@@ -52,38 +52,6 @@ test.describe("アセットの削除", () => {
 
     await page.reload();
     await expect(page.getByRole("button", { name: "追加", exact: true })).toBeVisible();
-    await expect(page.getByRole("row").filter({ hasText: name })).toHaveCount(0);
-    await d.context.close();
-  });
-
-  test("ジャックポットのアセット: 削除 → 同期 → 再読み込みしても戻らず、サーバーのファイルも消える", async ({ browser, request }) => {
-    const d = await newDevice(browser, { signedIn: true });
-    const { page } = d;
-    const name = `e2e-jackpot-asset-${Date.now()}.png`;
-    await page.goto("/#/execute/jackpot-admin/assets");
-    await page.locator("input[type=file]").setInputFiles({ name, mimeType: "image/png", buffer: uniquePng(name) });
-    const row = page.getByRole("row").filter({ hasText: name });
-    await expect(row).toBeVisible();
-
-    let entry: Entry | undefined;
-    await expect
-      .poll(async () => (entry = (await serverEntries(request, "jackpotGame_getAssetRecord")).find((e) => e.name === name)) !== undefined, { timeout: 60_000 })
-      .toBe(true);
-    expect(await blobsExisting(request, "jackpotGame_existsAssetBlobs", [entry!.hash])).toEqual([entry!.hash]);
-
-    await row.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "選択削除" }).click();
-    await expect(row).toHaveCount(0);
-
-    await expect
-      .poll(async () => (await serverEntries(request, "jackpotGame_getAssetRecord")).some((e) => e.name === name), { timeout: 60_000 })
-      .toBe(false);
-    await expect
-      .poll(async () => (await blobsExisting(request, "jackpotGame_existsAssetBlobs", [entry!.hash])).length, { timeout: 60_000 })
-      .toBe(0);
-
-    await page.reload();
-    await expect(page.getByRole("button", { name: "追加" })).toBeVisible();
     await expect(page.getByRole("row").filter({ hasText: name })).toHaveCount(0);
     await d.context.close();
   });

@@ -22,7 +22,7 @@ import { DrawStateInitializer } from "./draw-state-initializer";
 import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
 import { mapToDrawResult } from "./mappers/draw-result-mapper";
 import { MemberRepository } from "../../model/member/member-repository";
-import { PrizeRepository } from "../../model/prize/prize-repository";
+import { JackpotRepository } from "../../model/jackpot-repository";
 import { DrawStoreProvider } from "./draw-store-provider";
 import type { DrawPlan, DrawStore, DrawStoreSource } from "./draw-store";
 
@@ -56,7 +56,7 @@ export type DrawNextResult =
 export class DrawApplicationService {
   constructor(
     @inject(MemberRepository) private readonly memberRepo: MemberRepository,
-    @inject(PrizeRepository) private readonly prizeRepo: PrizeRepository,
+    @inject(JackpotRepository) private readonly prizeRepo: JackpotRepository,
     @inject(DrawStoreProvider) private readonly stores: DrawStoreSource,
     @inject(MemberDrawService) private memberDrawService: MemberDrawService,
     @inject(PrizeDrawService) private prizeDrawService: PrizeDrawService,

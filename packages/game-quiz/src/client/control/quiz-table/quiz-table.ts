@@ -6,6 +6,7 @@
  *   続けて選択肢ごとに `選択肢k / 選択肢k画像 / 選択肢k色`。k は選択肢の番号で、列の数はファイルによって変わる。
  * - 素材のセル: 空 = いまのまま、`-` = 外す、それ以外 = ファイル名。
  */
+import { resolveMediaCell } from "@octopus/table-io";
 import type { Header, Row, TableAdapter } from "@octopus/table-io";
 import type { QuizRecordEntry } from "../../../server/quiz-api-contract";
 
@@ -14,8 +15,6 @@ export const DEFAULT_TIME_LIMIT = 30;
 export const DEFAULT_OPTION_COLOR = "red";
 /** 選択肢の列の数の上限(見出しに途方もない番号があっても列を作りすぎない)。 */
 export const MAX_OPTION_COLUMNS = 100;
-/** 素材のセルに書くと、素材を外す。 */
-export const REMOVE_MEDIA = "-";
 
 const MAX_TIME_LIMIT = 3600;
 const PALETTE = ["red", "blue", "green", "yellow", "purple"];
@@ -70,9 +69,6 @@ export const quizHeadersFromNames = (names: readonly string[]): Header[] => quiz
 export const maxOptionNo = (quizzes: readonly QuizRecordEntry[]): number =>
   quizzes.reduce((max, q) => q.options.reduce((m, o) => Math.max(m, o.no), max), 0);
 
-/** 素材のファイル名の照合用: フォルダ部分を除き、前後の空白を除く。 */
-export const mediaFileName = (cell: string): string => (cell.split(/[\\/]/).pop() ?? "").trim();
-
 export interface QuizAdapterOptions {
   /** 選択肢の番号の最大(列の数)。 */
   optionCount: number;
@@ -85,12 +81,9 @@ class RowError extends Error {}
 /** クイズ一覧の `TableAdapter`。取込では使える素材の名前を渡し、書き出しでは列の数だけを渡す。 */
 export function quizAdapter({ optionCount, available }: QuizAdapterOptions): TableAdapter<QuizRecordEntry> {
   const mediaRef = (label: string, cell: string | undefined, previous: string | null | undefined): string | null => {
-    const value = (cell ?? "").trim();
-    if (value === "") return previous ?? null;
-    if (value === REMOVE_MEDIA) return null;
-    const name = mediaFileName(value);
-    if (available && !available.has(name)) throw new RowError(`${label}「${name}」が見つかりません`);
-    return name;
+    const r = resolveMediaCell(cell, previous, available);
+    if ("missing" in r) throw new RowError(`${label}「${r.missing}」が見つかりません`);
+    return r.name;
   };
 
   function build(row: Row, existing: QuizRecordEntry | undefined): QuizRecordEntry {

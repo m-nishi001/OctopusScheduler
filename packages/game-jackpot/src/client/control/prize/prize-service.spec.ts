@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { beforeEach, describe, expect, it } from "vitest";
 import { PrizeService } from "./prize-service";
-import { PrizeRepository } from "../../model/prize/prize-repository";
+import { JackpotRepository } from "../../model/jackpot-repository";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
 describe("PrizeService", () => {
@@ -9,9 +9,9 @@ describe("PrizeService", () => {
   let n: number;
 
   beforeEach(async () => {
-    await new LocalStorageService("jackpot-game", "PrizeData").clear();
+    await new LocalStorageService("jackpot-game", "JackpotData").clear();
     n = 0;
-    service = new PrizeService(new PrizeRepository({} as never), { nextId: () => `id-${++n}` } as never);
+    service = new PrizeService(new JackpotRepository({} as never), { nextId: () => `id-${++n}` } as never);
   });
 
   it("追加を2回すると2件になり、id は別々で order は増えていく", async () => {

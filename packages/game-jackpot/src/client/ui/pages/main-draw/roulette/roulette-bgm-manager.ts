@@ -4,28 +4,28 @@ const cache = new Map<string, Blob | null>();
 
 export const RouletteBgmManager = {
   async load(
-    assetId: string | null,
-    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>
+    name: string | null,
+    loadBgmBlob: (name: string | null) => Promise<Blob | null>
   ) {
-    if (!assetId) return null;
-    if (cache.has(assetId)) return cache.get(assetId) || null;
+    if (!name) return null;
+    if (cache.has(name)) return cache.get(name) || null;
     try {
-      const blob = await loadBgmBlob(assetId);
-      cache.set(assetId, blob || null);
+      const blob = await loadBgmBlob(name);
+      cache.set(name, blob || null);
       return blob || null;
     } catch (e) {
-      console.warn("[RouletteBgmManager] failed to load asset", assetId, e);
-      cache.set(assetId, null);
+      console.warn("[RouletteBgmManager] failed to load media", name, e);
+      cache.set(name, null);
       return null;
     }
   },
 
-  async playAsset(
-    assetId: string | null,
-    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>
+  async playMedia(
+    name: string | null,
+    loadBgmBlob: (name: string | null) => Promise<Blob | null>
   ) {
-    if (!assetId) return null;
-    const blob = await this.load(assetId, loadBgmBlob);
+    if (!name) return null;
+    const blob = await this.load(name, loadBgmBlob);
     if (!blob) return null;
     return this.playBlob(blob);
   },
@@ -60,9 +60,9 @@ export const RouletteBgmManager = {
     }
   },
 
-  clear(assetId: string | null) {
-    if (!assetId) return;
-    cache.delete(assetId);
+  clear(name: string | null) {
+    if (!name) return;
+    cache.delete(name);
   },
 
   clearAll() {

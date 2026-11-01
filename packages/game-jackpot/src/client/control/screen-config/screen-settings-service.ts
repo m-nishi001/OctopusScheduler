@@ -1,58 +1,27 @@
-import { injectable, inject, container } from "tsyringe";
-import { AssetDataService } from "../asset/asset-data-service";
-import { ScreenConfigRepository } from "../../model/screen-config/screen-config-repository";
-import type { Asset } from "../../model/asset/asset-data";
+import { injectable, inject } from "tsyringe";
+import { JackpotRepository } from "../../model/jackpot-repository";
 import { ScreenSetting } from "../../model/screen-config/screen-setting";
 
-/** 各画面(オープニング・説明・エンディング・デモ・結果)の設定の取得・保存。保存のとき、選んだだけの素材(BGM・画像)も一緒に登録する。 */
+/** 各画面(オープニング・説明・エンディング・デモ・結果・本抽選)の設定の取得・保存。保存のとき、選んだだけの素材(BGM・画像)も一緒に登録する。 */
 @injectable()
 export class ScreenSettingsService {
-  private assetDataService: AssetDataService;
+  constructor(@inject(JackpotRepository) private readonly repo: JackpotRepository) {}
 
-  constructor(
-    @inject(ScreenConfigRepository) private readonly repo: ScreenConfigRepository
-  ) {
-    // Resolve AssetDataService by class token (registrations should be
-    // performed during app bootstrap). This avoids fragile string tokens.
-    this.assetDataService = container.resolve(AssetDataService);
+  /**
+   * 画面ごと・項目ごとに、設定1件を保存する。`files` は、設定が名前で参照している、選んだばかりの素材(名前 → 中身)。
+   * 素材の索引は保存のたびに作り直されるので、設定から外した素材は自然に消える。
+   */
+  async saveScreenSetting(screenName: string, settingName: string, payload: unknown, files?: ReadonlyMap<string, Blob>): Promise<void> {
+    const ss = new ScreenSetting(screenName, settingName, JSON.stringify(this.sanitizeDates(payload)));
+    await this.repo.updateScreenSettings([ss], files);
   }
 
-  // Save a single setting JSON under a screen-specific key
-  async saveScreenSetting(
-    screenName: string,
-    settingName: string,
-    payload: any,
-    tempAssets?: Asset[]
-  ): Promise<void> {
-    if (tempAssets && tempAssets.length > 0) {
-      // Only add assets that don't already have an id. Callers that have
-      // already uploaded assets will pass assets with ids and we should
-      // avoid re-uploading / creating duplicates in local store.
-      const toUpload = tempAssets.filter((a) => !a.id);
-      if (toUpload.length > 0) {
-        await this.assetDataService.addAssetData(toUpload);
-      }
-    }
-    const converter = payload as any;
-    // convert to ScreenSetting items expected by repository
-    // We store as a single setting entry per screen/settingName
-    const settingValue = JSON.stringify(this.sanitizeDates(converter));
-    const ss = new ScreenSetting(screenName, settingName, settingValue);
-    await this.repo.updateScreenSettings([ss]);
-  }
-
-  async fetchScreenSetting(
-    screenName: string,
-    settingName: string
-  ): Promise<any | null> {
-    const settings = await this.repo.getScreenSettingsByType(screenName);
-    if (!settings || settings.length === 0) return null;
-    // find by settingName
-    const found = settings.find((s) => s.settingName === settingName);
+  async fetchScreenSetting(screenName: string, settingName: string): Promise<any | null> {
+    const found = (await this.repo.getScreenSettingsByType(screenName)).find((s) => s.settingName === settingName);
     if (!found) return null;
     try {
       return JSON.parse(found.settingValue) as any;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -63,14 +32,12 @@ export class ScreenSettingsService {
       .map((s) => {
         try {
           return JSON.parse(s.settingValue) as any;
-        } catch (e) {
+        } catch {
           return null as any;
         }
       })
       .filter(Boolean) as any[];
   }
-
-  // no local keys here; repository manages storage layout
 
   // convert Date objects to ISO strings recursively for safety
   private sanitizeDates(obj: any): any {
@@ -79,9 +46,7 @@ export class ScreenSettingsService {
     if (Array.isArray(obj)) return obj.map((v) => this.sanitizeDates(v));
     if (typeof obj === "object") {
       const out: any = {};
-      for (const k of Object.keys(obj)) {
-        out[k] = this.sanitizeDates(obj[k]);
-      }
+      for (const k of Object.keys(obj)) out[k] = this.sanitizeDates(obj[k]);
       return out;
     }
     return obj;

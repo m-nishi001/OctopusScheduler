@@ -15,8 +15,8 @@ import { hashPhotoBytes, preparePhoto } from "../photo/photo-prepare";
 import type { EncodedImage, PreparedPhoto } from "../photo/photo-prepare";
 import { uploadMemberPhotos } from "../photo/photo-upload";
 import type { MemberPhotoUploader } from "../photo/photo-upload";
-import { photoFileKey, ROSTER_HEADERS, rosterAdapter, toRosterMembers } from "./roster-table";
-import type { RosterMember } from "./roster-table";
+import { photoFileKey, ROSTER_TABLE } from "./roster-table";
+import type { RosterMember, RosterTable } from "./roster-table";
 
 /** 取込に必要な名簿の窓口(AccountsRepository がそのまま満たす)。管理者を守るには `isAdmin` を含む一覧(`listAccounts`)を返すこと。 */
 export interface RosterImportRepository extends MemberPhotoUploader {
@@ -63,18 +63,22 @@ export interface RosterImportStats {
   rateLimited: number;
 }
 
-export type RosterImportPreview =
+export type RosterImportPreview<E extends RosterMember = RosterMember> =
   | { ok: false; errors: string[] }
   | {
       ok: true;
-      plan: ImportPlan<RosterMember>;
+      plan: ImportPlan<E>;
       /** 取り込む画像の件数(新しい / すでにある名前の差し替え)。 */
       media: { added: number; replaced: number };
       apply(onProgress?: (message: string) => void): Promise<RosterImportStats>;
     };
 
 /** CSV(または ZIP)と画像を読み、計画を立てる。名簿はまだ書かない。 */
-export async function previewRosterImport(input: RosterImportInput, deps: RosterImportDeps): Promise<RosterImportPreview> {
+export async function previewRosterImport<E extends RosterMember = RosterMember>(
+  input: RosterImportInput,
+  deps: RosterImportDeps,
+  table: RosterTable<E> = ROSTER_TABLE as unknown as RosterTable<E>
+): Promise<RosterImportPreview<E>> {
   const images = new Map<string, Blob>();
   let csvBytes: Uint8Array;
   if (/\.zip$/i.test(input.table.name)) {
@@ -93,7 +97,7 @@ export async function previewRosterImport(input: RosterImportInput, deps: Roster
   // フォルダで選んだ画像は、ZIP の中の同名の画像より優先する。
   for (const file of input.media) images.set(photoFileKey(file.name), file);
 
-  const parsed = parseTable(csvBytes, ROSTER_HEADERS);
+  const parsed = parseTable(csvBytes, table.headers);
   if (!parsed.ok) return parsed;
 
   // CSV が指している画像だけ、元ファイルのハッシュを並列に計算する(書き出した写真と同一か見分けるため)。
@@ -117,8 +121,8 @@ export async function previewRosterImport(input: RosterImportInput, deps: Roster
     else changedFiles.add(key);
   }
 
-  const current = toRosterMembers(members, sameFile);
-  const plan = planImport(current, parsed.rows, rosterAdapter({ files: new Set(images.keys()), currentUserId: deps.currentUserId }), input.mode, changedFiles);
+  const current = await table.current(members, sameFile);
+  const plan = planImport(current, parsed.rows, table.adapter({ files: new Set(images.keys()), currentUserId: deps.currentUserId }), input.mode, changedFiles);
 
   const seenFiles = new Set<string>();
   const media = { added: 0, replaced: 0 };
@@ -128,14 +132,15 @@ export async function previewRosterImport(input: RosterImportInput, deps: Roster
     if (byId.get(e.id)?.photo) media.replaced++;
     else media.added++;
   }
-  return { ok: true, plan, media, apply: (onProgress) => applyRosterImport(plan, { changedFiles, existingIds: new Set(byId.keys()) }, images, deps, onProgress) };
+  return { ok: true, plan, media, apply: (onProgress) => applyRosterImport(plan, { changedFiles, existing: byId }, images, deps, table, onProgress) };
 }
 
-async function applyRosterImport(
-  plan: ImportPlan<RosterMember>,
-  { changedFiles, existingIds }: { changedFiles: ReadonlySet<string>; existingIds: ReadonlySet<string> },
+async function applyRosterImport<E extends RosterMember>(
+  plan: ImportPlan<E>,
+  { changedFiles, existing }: { changedFiles: ReadonlySet<string>; existing: ReadonlyMap<string, Member> },
   images: ReadonlyMap<string, Blob>,
   deps: RosterImportDeps,
+  table: RosterTable<E>,
   onProgress: (message: string) => void = () => undefined
 ): Promise<RosterImportStats> {
   if (!plan.ok) throw new Error("エラーの行があるため取り込めません");
@@ -198,19 +203,22 @@ async function applyRosterImport(
 
   // 3. 名簿を1回だけ書く(追加・更新・削除)。画像を用意できなかった行は書かない。
   const failed = plan.upserts.filter((e) => e.photoFile && changedFiles.has(e.photoFile) && !hashOfFile.has(e.photoFile));
-  const upserts = plan.upserts
-    .filter((e) => !failed.includes(e))
+  const applied = plan.upserts.filter((e) => !failed.includes(e));
+  // 名簿に書くのは、名前か写真が変わる人だけ(名簿の外の項目だけが変わる人は書かない)。
+  const upserts = applied
     .map((e) => ({
       id: e.id || undefined,
       name: e.name,
       photo: e.photoFile && changedFiles.has(e.photoFile) ? hashOfFile.get(e.photoFile) : undefined,
-    }));
+    }))
+    .filter((u) => u.photo !== undefined || u.name !== existing.get(u.id ?? "")?.name);
   const deleteIds = plan.deletes.map((e) => e.id);
   onProgress("名簿を更新しています");
   if (upserts.length > 0 || deleteIds.length > 0) await deps.repo.applyRoster({ upserts, deleteIds });
+  await table.afterApply?.(applied);
   const finished = now();
 
-  const failedAdds = failed.filter((e) => !existingIds.has(e.id)).length;
+  const failedAdds = failed.filter((e) => !existing.has(e.id)).length;
   return {
     added: plan.counts.add - failedAdds,
     updated: plan.counts.update - (failed.length - failedAdds),

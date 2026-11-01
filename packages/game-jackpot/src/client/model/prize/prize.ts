@@ -1,17 +1,6 @@
-export interface Prize {
-  id: string;
-  name: string;
-  /** 当選確率の重み。目安は1〜100で、大きいほど当選しやすい。未設定時は既定値が使われる。 */
-  weight?: number;
-  imageAssetId?: string;
-  image2AssetId?: string;
-  bgm1AssetId?: string;
-  bgm2AssetId?: string;
-  animation?: string;
-  order: number;
-  winningImage1AssetId?: string;
-  winningImage2AssetId?: string;
-}
+import type { Prize } from "../../../server/jackpot-api-contract";
+
+export type { Prize };
 
 /** 景品のうち、画面で編集する項目(`id` と `order` は景品が持ち続けるので含めない)。 */
 export type PrizeFields = Omit<Prize, "id" | "order">;

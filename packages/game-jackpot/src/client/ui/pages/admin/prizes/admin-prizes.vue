@@ -1,146 +1,95 @@
 <template>
     <div class="admin-section">
         <UiToolbar>
-            <UiButton variant="primary" icon="add" @click.prevent="openAddModal">追加</UiButton>
-            <UiButton variant="danger" icon="delete" :disabled="!selectedPrizes.length || deleting"
-                @click="openDeleteModal">選択削除</UiButton>
-            <UiButton icon="file" @click.prevent="exportFormatCsv">書式CSV</UiButton>
-            <UiButton icon="upload" @click.prevent="openDataUploadDialog">データ取込</UiButton>
+            <UiButton variant="primary" icon="add" @click.prevent="showAddModal = true">追加</UiButton>
+            <UiButton v-if="selectedPrizes.length" variant="danger" icon="delete" :loading="deleting"
+                @click="deleteSelected">選択を削除({{ selectedPrizes.length }})</UiButton>
+            <TableIoToolbar :count="prizes.length" :on-export="prizeIo.onExport" media-label="素材も含める(ZIP)"
+                @import="importOpen = true" />
         </UiToolbar>
 
-        <PrizeList :prizes="prizes" v-model:selected="selectedPrizes" :object-url-map="objectUrlMap"
-            @edit="editPrize" @delete="deletePrize" />
+        <PrizeList :prizes="prizes" v-model:selected="selectedPrizes" :url-of="mediaUrls.urlOf" @edit="editPrize"
+            @delete="deleteOne" />
 
-        <PrizeAddDialog v-if="showAddModal" :show="showAddModal" :image-assets="imageAssets" :audio-assets="audioAssets"
-            :other-prizes="prizes" @close="showAddModal = false" @refresh="fetchPrizes" />
-        <PrizeEditDialog v-if="editPrizeData" :show="!!editPrizeData" :prize="editPrizeData" :image-assets="imageAssets"
-            :audio-assets="audioAssets" :object-url-map="objectUrlMap" :other-prizes="prizes"
+        <TableImportDialog v-model="importOpen" :on-preview="prizeIo.onPreviewImport" allow-replace
+            media-label="素材フォルダ" media-hint="CSVの画像・BGMの列のファイル名と同じファイルが入ったフォルダ。ZIPなら不要です" />
+
+        <PrizeAddDialog v-if="showAddModal" :show="showAddModal" :other-prizes="prizes" @close="showAddModal = false"
+            @refresh="fetchPrizes" />
+        <PrizeEditDialog v-if="editPrizeData" :show="!!editPrizeData" :prize="editPrizeData" :other-prizes="prizes"
             @close="editPrizeData = null" @refresh="fetchPrizes" />
-
-        <PrizeDeleteDialog v-if="showDeleteModal || deleting" :deleting="deleting" :delete-message="deleteMessage"
-            @confirm="confirmDeleteSelected" @cancel="closeDeleteModal" />
-
-        <DataUploadDialog v-if="showDataUploadDialog" :show="showDataUploadDialog" type="prize"
-            @close="showDataUploadDialog = false" @refresh="fetchPrizes" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { UiButton, UiToolbar } from '@octopus/ui-kit';
+import { TableImportDialog, TableIoToolbar, UiButton, UiToolbar, toast, useConfirm } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { usePrizes } from './use-prizes';
-import { useAssets } from './use-assets';
-import { AssetDataService } from '@control/asset/asset-data-service';
-import { PrizeService } from '@control/prize/prize-service';
-import { PrizeRepository } from '@model/prize/prize-repository';
-
 import { container } from 'tsyringe';
 import { eventBus } from '@octopus/client-common/events/event-bus';
-const prizeRepo = container.resolve(PrizeRepository);
-const assetDataService = container.resolve(AssetDataService);
-const prizeService = container.resolve(PrizeService);
-// initialize composables
-const { prizes, selectedPrizes, fetchPrizes: fetchPrizesInner, deletePrize: deletePrizeAction, deletePrizes: deletePrizesAction } = usePrizes(prizeRepo, prizeService);
-const { imageAssets, audioAssets, fetchAssets: fetchAssetsAction, objectUrlMap, createObjectUrlById } = useAssets(assetDataService);
-
+import { JackpotRepository } from '@model/jackpot-repository';
+import type { Prize } from '@model/prize/prize';
+import { PrizeService } from '@control/prize/prize-service';
+import { prizeTableIo } from '@control/prize-table/prize-table-io';
+import { useMediaUrls } from '@ui/composables/use-media-urls';
+import { usePrizes } from './use-prizes';
 import PrizeAddDialog from './prize-add-dialog.vue';
 import PrizeEditDialog from './prize-edit-dialog.vue';
 import PrizeList from './components/prize-list.vue';
-import PrizeDeleteDialog from './components/prize-delete-dialog.vue';
-import DataUploadDialog from '../components/data-upload-dialog.vue';
+
+const repo = container.resolve(JackpotRepository);
+const { prizes, selectedPrizes, fetchPrizes: fetchPrizesInner, deletePrizes } = usePrizes(repo, container.resolve(PrizeService));
+const mediaUrls = useMediaUrls(repo);
+const { confirmDelete } = useConfirm();
 
 const showAddModal = ref(false);
-const openAddModal = () => { showAddModal.value = true; };
-
-const showDeleteModal = ref(false);
-const openDeleteModal = () => { showDeleteModal.value = true; };
-const closeDeleteModal = () => { showDeleteModal.value = false; };
-
+const importOpen = ref(false);
 const deleting = ref(false);
-const deleteMessage = ref("");
+const editPrizeData = ref<Prize | null>(null);
+const editPrize = (prize: Prize) => {
+    editPrizeData.value = prize;
+};
 
 const fetchPrizes = async () => {
     await fetchPrizesInner();
-    // create object urls for prize assets so the UI can display them
-    for (const prize of prizes.value) {
-        if (prize.imageAssetId) await createObjectUrlById(prize.imageAssetId);
-        if (prize.image2AssetId) await createObjectUrlById(prize.image2AssetId);
-        if (prize.winningImage1AssetId) await createObjectUrlById(prize.winningImage1AssetId);
-        if (prize.winningImage2AssetId) await createObjectUrlById(prize.winningImage2AssetId);
-    }
+    // 一覧に出す画像(景品の画像・当選画像)のプレビューを読み直す
+    await mediaUrls.load(prizes.value.flatMap((p) => [p.image, p.image2, p.winningImage1, p.winningImage2]));
 };
 
-const fetchAssets = async () => { await fetchAssetsAction(); };
+// CSV の書き出し・取込。取り込んだら一覧を読み直す。
+const prizeIo = prizeTableIo({
+    repo,
+    afterImport: fetchPrizes,
+    warn: (message) => toast.error(message),
+});
 
-const deletePrize = async (id: string) => {
+// 確認を待つ間に一覧が入れ替わっても別の景品を消さないよう、id で消す。複数でもレコードの書き込みは1回。
+const deleteByIds = async (ids: string[], message: string) => {
+    if (!(await confirmDelete(message))) return;
     deleting.value = true;
-    deleteMessage.value = "景品を削除しています...";
     try {
-        await deletePrizeAction(id);
+        await deletePrizes(ids);
         await fetchPrizes();
-    } catch (e) {
-        console.error('Failed to delete prize', e);
-    } finally {
-        deleting.value = false;
-    }
-};
-
-const deleteSelectedPrizes = async () => {
-    if (!selectedPrizes.value.length) return;
-    deleting.value = true;
-    deleteMessage.value = "景品を削除しています...";
-    try {
-        await deletePrizesAction(selectedPrizes.value);
-        await fetchPrizes();
-        selectedPrizes.value = [];
     } catch (e) {
         console.error('Failed to delete prizes', e);
+        toast.error('削除に失敗しました');
     } finally {
         deleting.value = false;
     }
 };
-
-const confirmDeleteSelected = async () => { await deleteSelectedPrizes(); closeDeleteModal(); };
-
-const exportFormatCsv = () => {
-    const csv = '名前,ランク,アニメーション,画像1ファイル名,画像2ファイル名,BGM1ファイル名,BGM2ファイル名,当選景品画像1ファイル名,当選景品画像2ファイル名,表示順\n';
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'prizes_format.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-};
-
-const showDataUploadDialog = ref(false);
-const openDataUploadDialog = () => { showDataUploadDialog.value = true; };
-
-const editPrizeData = ref<any>(null);
-const editPrize = async (prize: any) => {
-    editPrizeData.value = prize;
-};
+const deleteOne = (id: string) => deleteByIds([id], `「${prizes.value.find((p) => p.id === id)?.name ?? id}」を削除しますか?`);
+const deleteSelected = () => deleteByIds([...selectedPrizes.value], `選択した${selectedPrizes.value.length}件の景品を削除しますか?`);
 
 // 初めて開くブラウザでは、表示した後の背景同期でサーバーのデータが取り込まれる。取り込み完了時に一覧を読み直す
 const reloadAfterSync = () => {
     void fetchPrizes();
-    void fetchAssets();
 };
 
 onMounted(async () => {
     eventBus.on('syncPulled', reloadAfterSync);
     await fetchPrizes();
-    await fetchAssets();
 });
 
 onBeforeUnmount(() => {
     eventBus.off('syncPulled', reloadAfterSync);
-    try {
-        for (const [, url] of objectUrlMap) {
-            try { URL.revokeObjectURL(url); } catch { }
-        }
-        objectUrlMap.clear();
-    } catch { }
 });
-
 </script>

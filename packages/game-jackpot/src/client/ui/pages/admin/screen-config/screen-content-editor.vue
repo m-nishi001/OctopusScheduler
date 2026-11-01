@@ -2,17 +2,8 @@
 	<div class="screen-config">
 		<h3>{{ title }}</h3>
 		<div class="config-item">
-			<label>BGM:</label>
-			<div class="asset-mode">
-				<label><input type="radio" v-model="localConfig.bgmMode" value="select" /> 既存から選択</label>
-				<label><input type="radio" v-model="localConfig.bgmMode" value="upload" /> アップロード</label>
-			</div>
-			<select v-if="localConfig.bgmMode === 'select'" v-model="localConfig.bgmAssetId" class="admin-input">
-				<option value="">選択なし</option>
-				<option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-			</select>
-			<input v-if="localConfig.bgmMode === 'upload'" type="file" @change="onBgmChange" accept="audio/*"
-				class="admin-input" />
+			<MediaPicker label="BGM" kind="audio" v-model="localConfig.bgm" :options="draft.optionsOf('audio')"
+				:preview-url="draft.urlOf(localConfig.bgm)" @pick="draft.pick" />
 		</div>
 
 		<div class="config-item">
@@ -66,21 +57,8 @@
 
 					<textarea v-if="dialogContent.type === 'html'" v-model="dialogContent.content" placeholder="HTMLを入力" rows="6"></textarea>
 
-					<div v-if="dialogContent.type === 'image'">
-						<div class="asset-mode">
-							<label><input type="radio" v-model="dialogContent.imageMode" value="select" />
-								既存から選択</label>
-							<label><input type="radio" v-model="dialogContent.imageMode" value="upload" />
-								アップロード</label>
-						</div>
-						<select v-if="dialogContent.imageMode === 'select'" v-model="dialogContent.assetId">
-							<option value="">選択なし</option>
-							<option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
-							</option>
-						</select>
-						<input v-if="dialogContent.imageMode === 'upload'" type="file" @change="onDialogImageChange"
-							accept="image/*" />
-					</div>
+					<MediaPicker v-if="dialogContent.type === 'image'" label="画像" kind="image" v-model="dialogMedia"
+						:options="draft.optionsOf('image')" :preview-url="draft.urlOf(dialogMedia)" @pick="draft.pick" />
 
 					<div class="content-row">
 						<select v-model="dialogContent.effect">
@@ -91,16 +69,8 @@
 						<input v-model.number="dialogContent.duration" type="number" placeholder="表示時間(ms)" />
 					</div>
 
-					<div class="asset-mode">
-						<label><input type="radio" v-model="dialogContent.seMode" value="select" /> SE選択</label>
-						<label><input type="radio" v-model="dialogContent.seMode" value="upload" /> SEアップロード</label>
-					</div>
-					<select v-if="dialogContent.seMode === 'select'" v-model="dialogContent.seAssetId">
-						<option value="">選択なし</option>
-						<option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-					</select>
-					<input v-if="dialogContent.seMode === 'upload'" type="file" @change="onDialogSeChange"
-						accept="audio/*" />
+					<MediaPicker label="効果音(SE)" kind="audio" v-model="dialogSe" :options="draft.optionsOf('audio')"
+						:preview-url="draft.urlOf(dialogSe)" @pick="draft.pick" />
 				</div>
 
 		</UiDialog>
@@ -120,9 +90,9 @@ import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
 import { eventBus } from '@octopus/client-common/events/event-bus';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { useMediaDraft } from '@ui/composables/use-media-draft';
+import MediaPicker from '@ui/components/media-picker.vue';
 import type { OpeningContent } from '@model/screen-config/opening-screen-setting';
-import type { Asset } from "@model/asset/asset-data";
 import UnsavedChangesDialog from './unsaved-changes-dialog.vue';
 import { onBeforeRouteLeave } from 'vue-router';
 
@@ -145,12 +115,8 @@ const props = withDefaults(
 );
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
-const assetService = container.resolve(AssetDataService);
+const draft = useMediaDraft();
 
-const audioAssets = ref<any[]>([]);
-const imageAssets = ref<any[]>([]);
-
-const assetUrlMap = new Map<string, string>();
 const saving = ref(false);
 const saveStatus = ref('');
 
@@ -159,45 +125,19 @@ const showUnsavedDialog = ref(false);
 const pendingRoute = ref<(() => void) | null>(null);
 
 const localConfig = ref({
-	bgmAssetId: "",
-	bgmMode: "select",
+	bgm: "",
 	contents: [] as OpeningContent[],
 });
 
-const tempAssets: Asset[] = [];
-
-const fetchAssets = async () => {
-	try {
-		const raw = await assetService.getAllAssetData();
-		const mapped = raw.map((a: any) => {
-			const copy: any = { ...a };
-			if (!copy.url && copy.blob) {
-				try {
-					const url = URL.createObjectURL(copy.blob);
-					copy.url = url;
-					if (copy.id) assetUrlMap.set(copy.id, url);
-				} catch (err) {
-					console.error('Failed to create object URL for asset', err);
-				}
-			}
-			return copy;
-		});
-
-		audioAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('audio/'));
-		imageAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('image/'));
-	} catch (e) {
-		audioAssets.value = [];
-		imageAssets.value = [];
-	}
-};
+// 参照している素材(BGM・コンテンツの画像と効果音)のプレビューを用意する
+draft.track(() => [localConfig.value.bgm, ...localConfig.value.contents.flatMap((c) => [c.media, c.se])]);
 
 const loadConfig = async () => {
 	try {
 		const cfg = await screenSettingsService.fetchScreenSetting(props.screenName, props.settingName);
 		if (cfg) {
-			localConfig.value.bgmAssetId = (cfg as any).bgmAssetId || '';
-			localConfig.value.bgmMode = 'select';
-			localConfig.value.contents = (cfg as any).contents || (cfg as any).screenElements || [];
+			localConfig.value.bgm = cfg.bgm || '';
+			localConfig.value.contents = cfg.contents || [];
 		}
 	} catch (error) {
 		console.error(`Failed to load ${props.screenName} config:`, error);
@@ -214,7 +154,7 @@ const reloadAfterSync = async () => {
 
 onMounted(async () => {
 	eventBus.on('syncPulled', reloadAfterSync);
-	await Promise.all([loadConfig(), fetchAssets()]);
+	await Promise.all([loadConfig(), draft.reload()]);
 	hasUnsavedChanges.value = false; // 初期ロード後リセット
 });
 
@@ -233,7 +173,6 @@ onBeforeRouteLeave((_to, _from, next) => {
 
 const discardChanges = () => {
 	showUnsavedDialog.value = false;
-	tempAssets.length = 0; // アップロードアセットを破棄
 	if (pendingRoute.value) {
 		pendingRoute.value();
 	}
@@ -244,15 +183,6 @@ const cancelNavigation = () => {
 	pendingRoute.value = null;
 };
 
-const onBgmChange = async (e: Event) => {
-	const file = (e.target as HTMLInputElement).files?.[0];
-	if (file) {
-		const dto = await assetService.createDriveDataDtoFromFile(file);
-		tempAssets.push(dto);
-		localConfig.value.bgmAssetId = dto.id;
-	}
-};
-
 const dialogVisible = ref(false);
 const editingIndex = ref<number>(-1);
 
@@ -261,15 +191,16 @@ const createEmptyContent = (): OpeningContent => ({
 	name: '',
 	text: '',
 	content: '',
-	imageMode: 'select',
-	assetId: '',
+	media: '',
 	effect: 'scroll',
 	duration: 3000,
-	seMode: 'select',
-	seAssetId: '',
+	se: '',
 } as OpeningContent);
 
 const dialogContent = ref<OpeningContent>(createEmptyContent());
+// 画像・効果音の素材の名前(未設定は空)。ダイアログの入力欄に結ぶ
+const dialogMedia = computed({ get: () => dialogContent.value.media ?? '', set: (v: string) => { dialogContent.value.media = v; } });
+const dialogSe = computed({ get: () => dialogContent.value.se ?? '', set: (v: string) => { dialogContent.value.se = v; } });
 
 const showAddDialog = () => {
 	editingIndex.value = -1;
@@ -297,24 +228,6 @@ const saveDialog = async () => {
 	closeDialog();
 };
 
-const onDialogImageChange = async (e: Event) => {
-	const file = (e.target as HTMLInputElement).files?.[0];
-	if (file) {
-		const dto = await assetService.createDriveDataDtoFromFile(file);
-		tempAssets.push(dto);
-		(dialogContent.value as any).assetId = dto.id;
-	}
-};
-
-const onDialogSeChange = async (e: Event) => {
-	const file = (e.target as HTMLInputElement).files?.[0];
-	if (file) {
-		const dto = await assetService.createDriveDataDtoFromFile(file);
-		tempAssets.push(dto);
-		(dialogContent.value as any).seAssetId = dto.id;
-	}
-};
-
 const moveUp = async (idx: number) => {
 	if (idx <= 0) return;
 	const arr = localConfig.value.contents;
@@ -331,21 +244,13 @@ const getContentTitle = (c: OpeningContent) => {
 	if (!c) return '';
 	if ((c as any).name) return (c as any).name;
 	if (c.type === 'text') return c.text ? (c.text.length > 30 ? c.text.substr(0, 30) + '…' : c.text) : 'テキスト';
-	if (c.type === 'image') return '画像' + (c.assetId ? ` (${c.assetId})` : '');
+	if (c.type === 'image') return '画像' + (c.media ? ` (${c.media})` : '');
 	if (c.type === 'html') return 'HTML';
 	return '';
 };
 
 onBeforeUnmount(() => {
 	eventBus.off('syncPulled', reloadAfterSync);
-	for (const url of assetUrlMap.values()) {
-		try {
-			URL.revokeObjectURL(url);
-		} catch (e) {
-			/* ignore */
-		}
-	}
-	assetUrlMap.clear();
 });
 
 const selectedIndices = ref<number[]>([]);
@@ -373,15 +278,15 @@ const handleSaveClick = async () => {
 	saving.value = true;
 	saveStatus.value = '保存中...';
 	try {
-		const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
-		tempAssets.length = 0; // 保存できた分は空にする(空にしないと、次の保存のたびに同じファイルを保存し直す)
 		const payload = {
-			bgmAssetId: localConfig.value.bgmAssetId || '',
+			bgm: localConfig.value.bgm || '',
 			contents: localConfig.value.contents,
 		};
-		await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload, uploads.length ? uploads : undefined);
+		// 選んだばかりのファイルは、設定が参照している名前の分だけ、設定と一緒に保存する(素材の索引は保存のたびに作り直される)
+		const files = draft.filesFor([payload.bgm, ...payload.contents.flatMap((c) => [c.media, c.se])]);
+		await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload, files);
 		await loadConfig();
-		await fetchAssets();
+		await draft.reload();
 		saveStatus.value = '保存しました';
 		hasUnsavedChanges.value = false;
 	} catch (err) {
@@ -437,20 +342,6 @@ const handleSaveClick = async () => {
 
 .admin-input:focus {
 	outline: 2px solid #4f8cff;
-}
-
-.asset-mode {
-	display: flex;
-	gap: 16px;
-	margin-bottom: 16px;
-	flex-wrap: wrap;
-}
-
-.asset-mode label {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	color: var(--ui-text, #fff);
 }
 
 .content-list {

@@ -1,4 +1,4 @@
-import { adminRpc, createSession, expect, loginByQr, nextButton, newDevice, openAdvanced, openEventTab, route, seedRecord, test } from "./fixtures";
+import { adminRpc, createSession, expect, loginByQr, nextButton, newDevice, openAdvanced, openEventTab, route, seedJackpot, test } from "./fixtures";
 
 /**
  * 5名構成(管理者1 + 参加者4)で、景品がメンバーより多いジャックポットを最後まで通す。
@@ -39,7 +39,7 @@ test("管理者+参加者4名・景品10件: 当選表示の自動クローズ�
   host.page.on("dialog", (d) => void d.dismiss());
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText("五人会場");
-  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
+  await seedJackpot(host.page, { prizes: PRIZES });
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
 
   // イベントを始め、参加者4人がポータルに入る(抽選の対象は既定の「参加者全員(自動)」。エントリーは要らない)

@@ -15,127 +15,81 @@
       </div>
 
       <div v-for="slot in IMAGE_SLOTS" :key="slot.field" :class="slot.area">
-        <ImageField :label="slot.label" v-model:mode="slotState[slot.field].mode" v-model:assetId="formData[slot.field]"
-          :filename="slotState[slot.field].filename" :preview="previewOf(slot)" :assets="imageAssets"
-          @file-change="onFileChange(slot, $event)" />
+        <MediaPicker :label="slot.label" kind="image" v-model="formData[slot.field]" :options="draft.optionsOf('image')"
+          :preview-url="draft.urlOf(formData[slot.field])" @pick="draft.pick" />
       </div>
 
       <div class="bgm-actions">
-        <BgmField v-for="slot in BGM_SLOTS" :key="slot.field" :label="slot.label" v-model:mode="slotState[slot.field].mode"
-          v-model:assetId="formData[slot.field]" :filename="slotState[slot.field].filename" :assets="audioAssets"
-          @file-change="onFileChange(slot, $event)" />
+        <MediaPicker v-for="slot in BGM_SLOTS" :key="slot.field" :label="slot.label" kind="audio"
+          v-model="formData[slot.field]" :options="draft.optionsOf('audio')"
+          :preview-url="draft.urlOf(formData[slot.field])" @pick="draft.pick" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import FieldText from '../../../ui/pages/admin/prizes/components/field-text.vue';
 import FieldNumberStepper from '../../../ui/pages/admin/prizes/components/field-number-stepper.vue';
 import FieldSelect from '../../../ui/pages/admin/prizes/components/field-select.vue';
-import ImageField from '../../../ui/pages/admin/prizes/components/image-field.vue';
-import BgmField from '../../../ui/pages/admin/prizes/components/bgm-field.vue';
-import { useObjectUrlStore } from '@ui/composables/use-object-url-store';
-import { useAssetUpload } from '@ui/composables/use-asset-upload';
-import { container } from 'tsyringe';
-import { AssetDataService } from '@control/asset/asset-data-service';
-import type { Asset } from '@model/asset/asset-data';
-import type { Prize } from '@model/prize/prize';
+import MediaPicker from '../media-picker.vue';
+import { useMediaDraft } from '@ui/composables/use-media-draft';
+import type { Prize, PrizeFields } from '@model/prize/prize';
 import { DEFAULT_WEIGHT, resolveWeight } from '@model/draw/weighted-selector';
-import {
-  BGM_SLOTS,
-  IMAGE_SLOTS,
-  PRIZE_ASSET_SLOTS,
-  initialSlotMode,
-  slotModeFor,
-  type PrizeAssetField,
-  type PrizeAssetSlot,
-  type SlotMode,
-} from './prize-asset-slots';
+
+/** 景品の素材欄(画像4つ・BGM2つ)。どの項目に入るか・表示名・画面上の位置。 */
+type MediaField = 'image' | 'image2' | 'winningImage1' | 'winningImage2' | 'bgm1' | 'bgm2';
+const IMAGE_SLOTS: { field: MediaField; label: string; area: string }[] = [
+  { field: 'image', label: '画像1', area: 'image1-preview' },
+  { field: 'image2', label: '画像2', area: 'image2-section' },
+  { field: 'winningImage1', label: '当選画像1', area: 'winning-image1-section' },
+  { field: 'winningImage2', label: '当選画像2', area: 'winning-image2-section' },
+];
+const BGM_SLOTS: { field: MediaField; label: string }[] = [
+  { field: 'bgm1', label: 'BGM1' },
+  { field: 'bgm2', label: 'BGM2' },
+];
+const MEDIA_FIELDS = [...IMAGE_SLOTS, ...BGM_SLOTS].map((s) => s.field);
 
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },
   prize: { type: Object, default: null },
-  imageAssets: { type: Array as () => Asset[], required: true },
-  audioAssets: { type: Array as () => Asset[], required: true },
-  objectUrlMap: { type: Object as () => Map<string, string> | undefined, required: false },
   /** 当選確率プレビュー計算のための、このプール内の他の景品(編集中の景品自身は除く)。 */
   otherPrizes: { type: Array as () => Prize[], default: () => [] },
 });
 
-const emit = defineEmits(['submit', 'cancel']);
+const emit = defineEmits<{
+  /** 保存する項目と、選んだばかりの素材(名前 → ファイル)。 */
+  submit: [payload: { fields: PrizeFields; files: Map<string, File> }];
+  cancel: [];
+}>();
 
-// 親から渡された objectUrlMap があればそれを、無ければこのフォームの中だけのものを使う。
-const localStore = useObjectUrlStore();
-const getMap = () => props.objectUrlMap ?? localStore.objectUrlMap;
-
-function createObjUrl(file: File | Blob, id: string): void {
-  if (props.objectUrlMap) {
-    try { props.objectUrlMap.set(id, URL.createObjectURL(file)); } catch { }
-    return;
-  }
-  localStore.createObjectUrl(file, id);
-}
-
-function revokeObj(id: string): void {
-  if (props.objectUrlMap) {
-    const url = props.objectUrlMap.get(id);
-    if (url) {
-      try { URL.revokeObjectURL(url); } catch { }
-      try { props.objectUrlMap.delete(id); } catch { }
-    }
-    return;
-  }
-  localStore.revoke(id);
-}
-const { uploadAsset } = useAssetUpload();
-const assetDataService = container.resolve(AssetDataService);
+const draft = useMediaDraft();
 
 const animationOptions = [
   { value: 'roulette', label: 'ルーレット' },
   { value: 'slot', label: 'スロット' },
 ];
 
-type FormData = { name: string; weight: number; animation: string } & Record<PrizeAssetField, string>;
+type FormData = { name: string; weight: number; animation: string } & Record<MediaField, string>;
 
 const emptyFormData = (): FormData => ({
   name: '',
   weight: DEFAULT_WEIGHT,
   animation: 'roulette',
-  imageAssetId: '',
-  image2AssetId: '',
-  bgm1AssetId: '',
-  bgm2AssetId: '',
-  winningImage1AssetId: '',
-  winningImage2AssetId: '',
+  image: '',
+  image2: '',
+  bgm1: '',
+  bgm2: '',
+  winningImage1: '',
+  winningImage2: '',
 });
 const formData = ref<FormData>(emptyFormData());
 
-/** 素材欄ごとの状態。選び方・選んだファイル名・まだ保存していない(アップロード前の)素材。 */
-interface SlotState { mode: SlotMode; filename: string; temp: Asset | null }
-const slotState = reactive(
-  Object.fromEntries(PRIZE_ASSET_SLOTS.map((s) => [s.field, { mode: initialSlotMode(s), filename: '', temp: null } as SlotState]))
-) as Record<PrizeAssetField, SlotState>;
-
-/** プレビューの URL。選んだだけの画像 → 登録済みの素材の URL → 素材の id そのもの、の順。 */
-function previewOf(slot: PrizeAssetSlot): string {
-  const map = getMap();
-  const id = formData.value[slot.field];
-  return (slot.previewKey ? map.get(slot.previewKey) : undefined) || (id ? map.get(id) : undefined) || id;
-}
-
-async function onFileChange(slot: PrizeAssetSlot, e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const state = slotState[slot.field];
-  state.temp = await assetDataService.createDriveDataDtoFromFile(file);
-  state.filename = file.name;
-  if (slot.previewKey) {
-    revokeObj(slot.previewKey);
-    createObjUrl(file, slot.previewKey);
-  }
-}
+// 参照している素材のプレビューを用意する(登録済みの素材の一覧も読む)
+draft.track(() => MEDIA_FIELDS.map((f) => formData.value[f]));
+onMounted(() => void draft.reload());
 
 const isValid = computed(() => formData.value.name.trim());
 
@@ -155,39 +109,27 @@ const oddsPreviewPercent = computed(() => {
 defineExpose({ submit, cancel });
 
 watch(() => props.prize, (val) => {
-  if (val && props.mode === 'edit') loadPrize(val);
+  if (val && props.mode === 'edit') loadPrize(val as Prize);
 }, { immediate: true });
 
-function loadPrize(prize: any) {
+function loadPrize(prize: Prize) {
   formData.value = {
     ...emptyFormData(),
     name: prize.name,
     weight: prize.weight ?? DEFAULT_WEIGHT,
     animation: prize.animation || 'roulette',
-    ...Object.fromEntries(PRIZE_ASSET_SLOTS.map((s) => [s.field, prize[s.field] || ''])),
+    ...Object.fromEntries(MEDIA_FIELDS.map((f) => [f, prize[f] || ''])),
   };
-  for (const slot of PRIZE_ASSET_SLOTS) slotState[slot.field].mode = slotModeFor(prize, slot);
 }
 
-async function submit() {
+function submit() {
   if (!isValid.value) return;
-
-  try {
-    // 選んだだけの素材を、まとめてアップロードして id を入れる
-    const pending = PRIZE_ASSET_SLOTS.filter((s) => slotState[s.field].temp);
-    const uploaded = await Promise.all(pending.map(async (s) => ({ slot: s, result: await uploadAsset(slotState[s.field].temp!) })));
-    for (const { slot, result } of uploaded) formData.value[slot.field] = (result as { assetId: string }).assetId;
-
-    // 一時的なプレビュー URL と、アップロード済みの素材を片付ける
-    for (const slot of PRIZE_ASSET_SLOTS) {
-      if (slot.previewKey) revokeObj(slot.previewKey);
-      slotState[slot.field].temp = null;
-    }
-
-    emit('submit', formData.value);
-  } catch (error) {
-    console.error('Failed to upload assets:', error);
-  }
+  const { name, weight, animation } = formData.value;
+  const media = Object.fromEntries(MEDIA_FIELDS.map((f) => [f, formData.value[f] || undefined]));
+  emit('submit', {
+    fields: { name, weight, animation, ...media },
+    files: draft.filesFor(MEDIA_FIELDS.map((f) => formData.value[f])),
+  });
 }
 
 function cancel() {
