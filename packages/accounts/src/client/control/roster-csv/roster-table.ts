@@ -64,6 +64,8 @@ export interface RosterAdapterOptions {
   files?: ReadonlySet<string>;
   /** ログイン中のメンバー(削除しない)。 */
   currentUserId?: string;
+  /** 真なら ID の空の行はエラー(ID を必ず決める画面用)。偽なら空の ID は新規で、名簿が採番する。 */
+  idRequired?: boolean;
 }
 
 /** 名簿の `TableAdapter`。取込では選ばれた画像の一覧とログイン中のメンバーを渡し、書き出しでは引数なしで使う。 */
@@ -75,6 +77,7 @@ export function rosterAdapter(options: RosterAdapterOptions = {}): TableAdapter<
     key: (m) => m.id,
     toRow: (m): Row => ({ id: m.id, name: m.name, photo: m.photoFile ?? "" }),
     fromRow(row, existing) {
+      if (options.idRequired && !row.id) return "ID が空です";
       if (!row.name) return "名前が空です";
       if (row.name.length > MAX_NAME_LENGTH) return `名前が長すぎます(${MAX_NAME_LENGTH}文字まで)`;
       if (row.id.length > MAX_ID_LENGTH) return `ID が長すぎます(${MAX_ID_LENGTH}文字まで)`;

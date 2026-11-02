@@ -30,6 +30,7 @@ const { items: members, loading, error, load, add: addMember, update: updateMemb
 // CSV の書き出し・取込は設定>メンバーと同じ部品。共有の名簿は消さないので、置き換え(allow-replace)は付けない。
 const roster = rosterTableIo({
     repo,
+    idRequired: true,
     photos: container.resolve(MemberPhotoCache),
     afterImport: load,
     warn: (message) => toast.error(message),

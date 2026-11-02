@@ -2,6 +2,8 @@ import { injectable, inject } from "tsyringe";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import type { Asset } from "../../model/asset/asset";
 import { AssetRepository } from "../../model/asset/asset-repository";
+import type { ImportedAsset } from "../../model/asset/asset-repository";
+import type { AssetRecordEntry } from "../../../server/scheduler-api-contract";
 
 /**
  * 素材(画像・音声・動画)の追加・取得・削除。
@@ -25,6 +27,21 @@ export class AssetService {
     }
     eventBus.emit("syncDirty");
     return ids;
+  }
+
+  readEntries(): Promise<AssetRecordEntry[]> {
+    return this.assetRepository.readEntries();
+  }
+
+  blobOf(hash: string): Promise<Blob | null> {
+    return this.assetRepository.blobOf(hash);
+  }
+
+  /** 取込の反映(一覧は1回だけ書く)。一覧を開いている画面と同期に知らせる。 */
+  async applyImport(files: readonly ImportedAsset[]): Promise<void> {
+    await this.assetRepository.applyImport(files);
+    window.dispatchEvent(new CustomEvent("assets:updated", { detail: { added: files.map((f) => f.id) } }));
+    eventBus.emit("syncDirty");
   }
 
   async getAssets(): Promise<Asset[]> {

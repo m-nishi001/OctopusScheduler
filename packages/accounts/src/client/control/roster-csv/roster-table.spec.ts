@@ -45,6 +45,15 @@ describe("rosterAdapter の計画", () => {
     expect(p.rows[3].message).toBe("名前が空です");
   });
 
+  it("ID の空の行は、既定では新規(名簿が採番)。ID を必ず決める画面(idRequired)ではエラー", () => {
+    const csv = "ID,名前,写真\n,カール,\nc,チャーリー,\n";
+    const lax = planImport(toRosterMembers(members), rowsOf(csv), rosterAdapter(), "upsert");
+    expect(lax.rows.map((r) => r.status)).toEqual(["add", "add"]);
+    const strict = planImport(toRosterMembers(members), rowsOf(csv), rosterAdapter({ idRequired: true }), "upsert");
+    expect(strict.rows.map((r) => [r.status, r.message])).toEqual([["error", "ID が空です"], ["add", undefined]]);
+    expect(strict.ok).toBe(false);
+  });
+
   it("名前・ID が長すぎる / 画像が見つからない はエラー、ID の重複は後の行がエラー", () => {
     const long = "あ".repeat(101);
     const p = plan(`ID,名前,写真\nx,${long},\n${"i".repeat(65)},N,\ny,Y,none.png\nz,Z,\nz,Z2,\n`, "upsert");

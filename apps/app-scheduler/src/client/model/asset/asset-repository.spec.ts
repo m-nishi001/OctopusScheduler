@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { FixedConcurrencyPolicy, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import { SyncRunner } from "@octopus/sync-engine";
+import { hashBlob, SyncRunner } from "@octopus/sync-engine";
 import { AssetRepository } from "./asset-repository";
 import type { Asset } from "./asset";
 import { ASSET_RECORD_FILE, assetRecordHashes } from "../../../server/scheduler-api-contract";
@@ -87,6 +87,27 @@ describe("AssetRepository", () => {
     expect((await repo.getAssets()).map((a) => a.id).sort()).toEqual(["a1", "a2"]);
     expect((await repo.getAssetById("a1"))!.name).toBe("a1.png");
     expect(await repo.getAssetById("nope")).toBeNull();
+  });
+
+  it("applyImport: 新しい素材を追加し、同じ id は中身だけ差し替える(名前・登録日時は残す)。一覧は1回だけ書く", async () => {
+    await repo.addAssets([asset("a1", "one"), asset("keep", "k")]);
+    const before = (await repo.readEntries()).find((e) => e.id === "a1")!;
+    const picture = (content: string) => new Blob([content], { type: "image/png" });
+    const one = picture("changed");
+    const added = picture("brand new");
+    await repo.applyImport([
+      { id: "a1", name: "ignored.png", blob: one, hash: await hashBlob(one) },
+      { id: "n1", name: "new.png", blob: added, hash: await hashBlob(added) },
+    ]);
+    const entries = await repo.readEntries();
+    expect(entries.map((e) => e.id).sort()).toEqual(["a1", "keep", "n1"]);
+    const replaced = entries.find((e) => e.id === "a1")!;
+    expect(replaced).toMatchObject({ name: "a1.png", uploadedAt: before.uploadedAt });
+    expect(replaced.hash).not.toBe(before.hash);
+    expect(entries.find((e) => e.id === "n1")).toMatchObject({ name: "new.png" });
+    expect(await repo.blobOf(replaced.hash)).not.toBeNull();
+    await repo.applyImport([]);
+    expect(await repo.readEntries()).toHaveLength(3);
   });
 
   it("同期でサーバーにファイルと一覧が上がり、削除 → 同期でどちらからも消えて、再同期しても戻らない", async () => {

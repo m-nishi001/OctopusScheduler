@@ -42,9 +42,16 @@ export class AppEventRepository {
     }
   }
 
+  /** 予定イベントを消す。実行状態も一緒に消す(同じ id が実行済みのまま残らないように)。 */
   async deleteScheduleEvents(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
-    await this.localStorage.removeMultiple(ids);
+    await Promise.all([this.localStorage.removeMultiple(ids), this.executionStatusStorage.removeMultiple(ids)]);
+  }
+
+  /** 取込の反映: 追加・更新するイベントをまとめて書き、消すイベントをまとめて消す(書き込みはそれぞれ1回)。 */
+  async applyImport(upserts: readonly AppEventData[], deleteIds: readonly string[]): Promise<void> {
+    if (upserts.length > 0) await this.localStorage.saveMultiple(new Map(upserts.map((e) => [e.id, e] as const)));
+    await this.deleteScheduleEvents([...deleteIds]);
   }
 
   async addScheduleEvents(events: AppEventData[]): Promise<string[]> {

@@ -57,6 +57,11 @@ export class AppEventService {
     await this.repository.deleteScheduleEvents(ids);
   }
 
+  /** 取込の反映: 追加・更新するイベントと、消すイベントの id。 */
+  async applyImport(upserts: readonly AppEvent[], deleteIds: readonly string[]): Promise<void> {
+    await this.repository.applyImport(upserts, deleteIds);
+  }
+
   async addScheduleEvents(events: AppEvent[]): Promise<string[]> {
     return await this.repository.addScheduleEvents(events);
   }
