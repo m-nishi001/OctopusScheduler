@@ -17,6 +17,7 @@
     { "path": "../../packages/sync-engine" },
     { "path": "../../packages/game-quiz" },
     { "path": "../../packages/game-jackpot" },
+    { "path": "../../packages/table-io" },
     { "path": "../../packages/infrastructures" }
   ]
 }

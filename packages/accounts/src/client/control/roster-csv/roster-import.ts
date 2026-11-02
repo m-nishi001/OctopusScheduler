@@ -28,6 +28,8 @@ export interface RosterImportDeps {
   repo: RosterImportRepository;
   /** ログイン中のメンバー(置き換えでも削除しない)。 */
   currentUserId?: string;
+  /** 真なら ID の空の行はエラー。 */
+  idRequired?: boolean;
   /** 縮小した写真を端末のキャッシュに入れる(取込後すぐ名簿に顔を出すため)。 */
   photoCache?: { remember(hash: string, dataUrl: string): Promise<void> };
   /** 縮小・変換の実装。テストで差し替える。 */
@@ -122,7 +124,7 @@ export async function previewRosterImport<E extends RosterMember = RosterMember>
   }
 
   const current = await table.current(members, sameFile);
-  const plan = planImport(current, parsed.rows, table.adapter({ files: new Set(images.keys()), currentUserId: deps.currentUserId }), input.mode, changedFiles);
+  const plan = planImport(current, parsed.rows, table.adapter({ files: new Set(images.keys()), currentUserId: deps.currentUserId, idRequired: deps.idRequired }), input.mode, changedFiles);
 
   const seenFiles = new Set<string>();
   const media = { added: 0, replaced: 0 };

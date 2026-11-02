@@ -16,6 +16,8 @@ export interface RosterTableIoDeps<E extends RosterMember = RosterMember> {
   /** 名簿の窓口(`AccountsRepository`)。 */
   repo: RosterImportRepository & { listAccounts(): Promise<Member[]> };
   photos: Pick<MemberPhotoCache, "ensure" | "get" | "remember">;
+  /** 真なら CSV の ID の空の行はエラー(ID を必ず決める画面用。クイズ>メンバー管理)。 */
+  idRequired?: boolean;
   /** ログイン中のメンバー(置き換えでも削除しない)。 */
   currentUserId?: () => string | undefined;
   /** 取込を確定したあとに呼ぶ(一覧の読み直しなど)。 */
@@ -49,7 +51,7 @@ export function rosterTableIo<E extends RosterMember = RosterMember>(deps: Roste
 
   /** 選んだ CSV・画像を読んでプレビューを作る。確定すると、写真を並列に送ってから名簿を1回だけ書く。 */
   async function onPreviewImport(input: { table: File; media: File[]; mode: ImportMode }) {
-    const preview = await previewRosterImport(input, { repo: importRepo, photoCache: photos, currentUserId: deps.currentUserId?.() }, deps.table);
+    const preview = await previewRosterImport(input, { repo: importRepo, photoCache: photos, currentUserId: deps.currentUserId?.(), idRequired: deps.idRequired }, deps.table);
     if (!preview.ok) return preview;
     return {
       ok: true as const,

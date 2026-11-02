@@ -15,7 +15,7 @@ export interface CatalogItem {
 const ROOT = storageNamespace(StorageModule.Scheduler, StorageKind.Assets);
 
 /** 素材の置き場所(`parentFolderId`)から、サブフォルダ名を取り出す。置き場直下や、ほかの場所なら空。 */
-function folderOf(parentFolderId: string | undefined): string {
+export function folderOf(parentFolderId: string | undefined): string {
   const prefix = `${ROOT}/`;
   if (!parentFolderId?.startsWith(prefix)) return "";
   return parentFolderId.slice(prefix.length).split("/")[0];

@@ -6,15 +6,24 @@ import {
   HashedBlobStore,
   blobRecordSyncTarget,
   hashBlob,
+  mapPool,
   textBlobRecordRemote,
   withHashedBlobs,
 } from "@octopus/sync-engine";
-import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
+import type { HashedBlobRemote, PoolOptions, SyncTarget } from "@octopus/sync-engine";
 import { IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/scheduler-api-contract";
 import type { AssetRecordEntry, OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
 import type { DriveMetadata } from "@octopus/infrastructures/compositions";
 import type { Asset } from "./asset";
+
+/** 取込で入れる素材。`id` が一覧にあれば中身の差し替え、無ければ `name` の新しい素材。`hash` は中身のハッシュ。 */
+export interface ImportedAsset {
+  id: string;
+  name: string;
+  blob: Blob;
+  hash: string;
+}
 
 const RECORD_SYNC_KIND = "asset";
 
@@ -89,6 +98,40 @@ export class AssetRepository {
       return [...(current ?? []).filter((e) => !replaced.has(e.id)), ...entries];
     });
     return entries.map((e) => e.id);
+  }
+
+  /** 素材の一覧(メタデータだけ。中身は読まない)。 */
+  async readEntries(): Promise<AssetRecordEntry[]> {
+    await this.clearLegacy();
+    return (await this.list.read())?.data ?? [];
+  }
+
+  /** 素材の中身をハッシュで読む。端末に無ければ null。 */
+  blobOf(hash: string): Promise<Blob | null> {
+    return this.blobs.get(hash);
+  }
+
+  /**
+   * 取込の反映: 中身を端末に並列に入れ、一覧を1回だけ書く。
+   * 一覧に同じ `id` があればその素材の中身を差し替え(名前・フォルダ・登録日時は残す)、無ければ新しい素材として追加する。
+   */
+  async applyImport(files: readonly ImportedAsset[], pool?: PoolOptions): Promise<void> {
+    if (files.length === 0) return;
+    await this.clearLegacy();
+    await mapPool(files, (f) => this.blobs.put(f.hash, f.blob), pool);
+    const now = new Date().toISOString();
+    const incoming = new Map(files.map((f) => [f.id, f] as const));
+    await this.list.update((current) => {
+      const known = new Set((current ?? []).map((e) => e.id));
+      const replaced = (current ?? []).map((e): AssetRecordEntry => {
+        const f = incoming.get(e.id);
+        return f ? { ...e, mime: f.blob.type || "application/octet-stream", hash: f.hash, size: f.blob.size, lastUpdated: now } : e;
+      });
+      const added = files
+        .filter((f) => !known.has(f.id))
+        .map((f): AssetRecordEntry => ({ id: f.id, name: f.name, mime: f.blob.type || "application/octet-stream", hash: f.hash, size: f.blob.size, uploadedAt: now, lastUpdated: now }));
+      return [...replaced, ...added];
+    });
   }
 
   async getAssets(): Promise<Asset[]> {
