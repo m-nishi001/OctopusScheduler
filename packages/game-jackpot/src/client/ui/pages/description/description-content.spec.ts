@@ -7,7 +7,6 @@ import { HostAgent } from "@octopus/session-hub";
 import { makeDevice, makeHub } from "@octopus/session-hub/testing";
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
-import { AssetDataService } from "@control/asset/asset-data-service";
 import DescriptionContent from "./description-content.vue";
 import { buildJackpotDescriptionState } from "@model/jackpot-host-state";
 
@@ -23,9 +22,8 @@ const slides = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`
 
 async function scene(slideCount: number) {
   container.register(ScreenSettingsService, {
-    useValue: { fetchScreenSetting: async () => ({ descriptionBgm: "", screenElements: slides(slideCount) }) } as unknown as ScreenSettingsService,
+    useValue: { fetchScreenSetting: async () => ({ bgm: "", contents: slides(slideCount) }) } as unknown as ScreenSettingsService,
   });
-  container.register(AssetDataService, { useValue: { getAssetDataById: async () => null } as unknown as AssetDataService });
 
   const hub = makeHub();
   const meta = await svc.createSession(hub.deps, { name: "x" }, "a");

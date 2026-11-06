@@ -14,7 +14,6 @@ import DemoScreenConfig from "../../ui/pages/admin/screen-config/demo-screen-con
 import MainScreenConfig from "../../ui/pages/admin/screen-config/draw-screen-config/draw-screen-config.vue";
 import ResultScreenConfig from "../../ui/pages/admin/screen-config/result-screen-config.vue";
 import EndingScreenConfig from "../../ui/pages/admin/screen-config/ending-screen-config.vue";
-import AdminAssets from "../../ui/pages/admin/admin-assets.vue";
 import AdminResults from "../../ui/pages/admin/admin-results.vue";
 
 const jackpotGameRoutes = [
@@ -44,7 +43,6 @@ const jackpotGameRoutes = [
       { path: "screens/draw", component: MainScreenConfig },
       { path: "screens/result", component: ResultScreenConfig },
       { path: "screens/ending", component: EndingScreenConfig },
-      { path: "assets", component: AdminAssets },
       { path: "results", component: AdminResults },
     ],
   },

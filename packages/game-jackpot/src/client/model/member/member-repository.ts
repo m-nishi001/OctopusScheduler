@@ -9,7 +9,7 @@ import type { JackpotMemberExtra } from "./jackpot-member-extra";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 
-const DEFAULT_RANK = 5;
+export const DEFAULT_RANK = 5;
 const SYNC_KIND = "member-extras";
 const DRIVE_FILE_NAME = "member-extras.json";
 
@@ -46,7 +46,7 @@ export class MemberRepository {
   }
 
   /** 保存してあるメンバー拡張設定(rank/weight)を、memberId をキーにした Map で返す。 */
-  private async getExtras(): Promise<Map<string, JackpotMemberExtra>> {
+  async readExtras(): Promise<Map<string, JackpotMemberExtra>> {
     const record = await this.extraStore.read();
     return new Map((record?.data ?? []).map((e) => [e.memberId, e] as const));
   }
@@ -62,7 +62,7 @@ export class MemberRepository {
   }
 
   async getMembers(): Promise<Member[]> {
-    const [directoryMembers, extras] = await Promise.all([this.directory.listMembers(), this.getExtras()]);
+    const [directoryMembers, extras] = await Promise.all([this.directory.listMembers(), this.readExtras()]);
     return directoryMembers.map((m) => this.toMember(m, extras.get(m.id)));
   }
 
@@ -70,7 +70,7 @@ export class MemberRepository {
     const directoryMembers = await this.directory.listMembers();
     const directoryMember = directoryMembers.find((m) => m.id === id);
     if (!directoryMember) return null;
-    const extra = (await this.getExtras()).get(id);
+    const extra = (await this.readExtras()).get(id);
     return this.toMember(directoryMember, extra);
   }
 

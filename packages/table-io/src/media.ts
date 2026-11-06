@@ -1,0 +1,62 @@
+/**
+ * 素材(画像・音声)の索引の純粋関数。素材は「同じファイル名 = 同じ素材」として、モジュールの中で1つだけ持つ。
+ * 索引(名前 → ハッシュ)は状態として持たず、項目が参照している名前から保存のたびに作り直す。
+ */
+
+/**
+ * 項目が参照している名前だけを抜き出して、索引(名前 → 素材の情報 `V`。ハッシュなど)を作る。使われなくなった素材は自然に外れる。
+ * `known` に無い名前を参照していれば例外(参照切れのまま保存しない)。
+ */
+export function deriveMedia<E, V>(
+  items: readonly E[],
+  refsOf: (e: E) => Iterable<string>,
+  known: ReadonlyMap<string, V>
+): Record<string, V> {
+  const media: Record<string, V> = {};
+  for (const item of items) {
+    for (const name of refsOf(item)) {
+      if (!name || name in media) continue;
+      const entry = known.get(name);
+      if (entry === undefined) throw new Error(`素材「${name}」が見つかりません`);
+      media[name] = entry;
+    }
+  }
+  return media;
+}
+
+/** 取り込む素材と、いまの索引を比べる: 新しい名前 / 同じ名前で中身が違う(差し替え) / 同じ中身。 */
+export function diffMedia(
+  stored: Readonly<Record<string, string>>,
+  incoming: ReadonlyMap<string, string>
+): { added: string[]; replaced: string[]; same: string[] } {
+  const out = { added: [] as string[], replaced: [] as string[], same: [] as string[] };
+  for (const [name, hash] of incoming) {
+    if (!(name in stored)) out.added.push(name);
+    else if (stored[name] !== hash) out.replaced.push(name);
+    else out.same.push(name);
+  }
+  return out;
+}
+
+/** 素材のセルに書くと、素材を外す(空のセルは「いまのまま」)。 */
+export const REMOVE_MEDIA = "-";
+
+/** 素材のファイル名の照合用: フォルダ部分を除き、前後の空白を除く。 */
+export const mediaFileName = (cell: string): string => (cell.split(/[\\/]/).pop() ?? "").trim();
+
+/**
+ * 素材のセルを素材の名前にする: 空 = いまのまま(`previous`)、`-` = 外す(null)、それ以外 = ファイル名。
+ * `available` を渡すと、その中に無い名前は `missing` で返す(書き出し用は渡さず、検査しない)。
+ */
+export function resolveMediaCell(
+  cell: string | undefined,
+  previous: string | null | undefined,
+  available?: ReadonlySet<string>
+): { name: string | null } | { missing: string } {
+  const value = (cell ?? "").trim();
+  if (value === "") return { name: previous ?? null };
+  if (value === REMOVE_MEDIA) return { name: null };
+  const name = mediaFileName(value);
+  if (available && !available.has(name)) return { missing: name };
+  return { name };
+}

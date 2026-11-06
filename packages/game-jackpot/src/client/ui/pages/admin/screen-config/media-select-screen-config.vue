@@ -4,11 +4,9 @@
         <div class="tab-content">
             <div class="screen-config">
                 <div v-for="field in fields" :key="field.key" class="config-item">
-                    <label>{{ field.label }}:</label>
-                    <select v-model="localConfig[field.key]" class="admin-input">
-                        <option value="">選択なし</option>
-                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                    </select>
+                    <MediaPicker :label="field.label" kind="audio" v-model="localConfig[field.key]"
+                        :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(localConfig[field.key])"
+                        @pick="draft.pick" />
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
@@ -32,7 +30,8 @@ import { eventBus } from '@octopus/client-common/events/event-bus';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { useMediaDraft } from '@ui/composables/use-media-draft';
+import MediaPicker from '@ui/components/media-picker.vue';
 import UnsavedChangesDialog from './unsaved-changes-dialog.vue';
 
 /**
@@ -48,9 +47,7 @@ const props = defineProps<{
 }>();
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
-const assetService = container.resolve(AssetDataService);
-
-const audioAssets = ref<any[]>([]);
+const draft = useMediaDraft();
 const saving = ref(false);
 const saveStatus = ref('');
 
@@ -65,16 +62,7 @@ const buildEmptyConfig = () => {
 };
 
 const localConfig = ref<Record<string, string>>(buildEmptyConfig());
-
-const fetchAssets = async () => {
-    try {
-        const raw = await assetService.getAllAssetData();
-        audioAssets.value = raw.filter((a: any) => a?.blob?.type?.startsWith('audio/'));
-    } catch (error) {
-        console.error('Failed to fetch assets:', error);
-        audioAssets.value = [];
-    }
-};
+draft.track(() => Object.values(localConfig.value));
 
 const loadConfig = async () => {
     try {
@@ -99,7 +87,7 @@ const reloadAfterSync = async () => {
 
 onMounted(async () => {
     eventBus.on('syncPulled', reloadAfterSync);
-    await Promise.all([loadConfig(), fetchAssets()]);
+    await Promise.all([loadConfig(), draft.reload()]);
     hasUnsavedChanges.value = false;
 });
 
@@ -126,8 +114,9 @@ const handleSaveClick = async () => {
     try {
         const payload: Record<string, string> = {};
         for (const field of props.fields) payload[field.key] = localConfig.value[field.key];
-        await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload);
+        await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload, draft.filesFor(Object.values(payload)));
         await loadConfig();
+        await draft.reload();
         saveStatus.value = '保存しました';
         hasUnsavedChanges.value = false;
     } catch (err) {

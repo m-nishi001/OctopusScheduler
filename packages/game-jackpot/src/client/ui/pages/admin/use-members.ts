@@ -34,7 +34,6 @@ export function useMembers(
   const availableDirectoryMembers = ref<DirectoryMember[]>([]);
   const selectedMembers = ref<string[]>([]);
   const deleting = ref(false);
-  const deleteMessage = ref("");
 
   /** 写真が読み込めるたびに進める(一覧の再描画のきっかけ)。 */
   const photoTick = ref(0);
@@ -121,7 +120,6 @@ export function useMembers(
 
   const deleteMember = async (id: string) => {
     deleting.value = true;
-    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ)を初期値に戻しています...";
     try {
       await memberService.deleteMember(id);
       await fetchMembers();
@@ -136,7 +134,6 @@ export function useMembers(
   const deleteSelectedMembers = async () => {
     if (!selectedMembers.value.length) return;
     deleting.value = true;
-    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ)を初期値に戻しています...";
     try {
       await memberService.deleteMembers(selectedMembers.value);
       await fetchMembers();
@@ -149,32 +146,17 @@ export function useMembers(
     }
   };
 
-  const exportFormatCsv = () => {
-    const csv = members.value.length
-      ? "id,rank,weight\n" + members.value.map((m) => `"${String(m.id).replace(/"/g, '""')}",${m.rank},${m.weight ?? ""}`).join("\n") + "\n"
-      : "id,rank,weight\n";
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "members_format.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return {
     members,
     availableDirectoryMembers,
     selectedMembers,
     isAllSelected,
     deleting,
-    deleteMessage,
     getMemberImageSrc,
     fetchMembers,
     addMember,
     updateMember,
     deleteMember,
     deleteSelectedMembers,
-    exportFormatCsv,
   };
 }

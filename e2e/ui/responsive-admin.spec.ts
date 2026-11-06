@@ -12,7 +12,6 @@ const SCREENS: Array<{ name: string; hash: string }> = [
   { name: "セッション一覧", hash: "/sessions" },
   { name: "ジャックポット管理(メンバー)", hash: "/jackpot-admin" },
   { name: "ジャックポット景品", hash: "/jackpot-admin/prizes" },
-  { name: "ジャックポットアセット", hash: "/jackpot-admin/assets" },
   { name: "ジャックポット抽選結果", hash: "/jackpot-admin/results" },
   { name: "画面設定(オープニング)", hash: "/jackpot-admin/screens/opening" },
   { name: "画面設定(説明)", hash: "/jackpot-admin/screens/description" },

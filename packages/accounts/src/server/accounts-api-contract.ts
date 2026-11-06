@@ -16,7 +16,7 @@ export const ACCOUNTS_ENDPOINTS = [
   "addMember",
   "updateMember",
   "deleteMember",
-  "replaceAllMembers",
+  "applyRoster",
   "putMemberPhoto",
   "existsMemberPhotos",
   "getMemberPhotos",
@@ -94,12 +94,16 @@ export interface DeleteMemberArgs {
   id: string;
 }
 
-export interface ReplaceAllMembersArgs {
-  members: Member[];
+/** CSV 取込の確定。追加・更新と削除を1回で反映する。管理者を `deleteIds` に含めると全体が拒否される。 */
+export interface ApplyRosterArgs {
+  /** `photo` は省略=保つ、空文字=外す、値=写真のハッシュ。`id` を省略すると自動採番。 */
+  upserts: { id?: string; name: string; photo?: string }[];
+  deleteIds: string[];
 }
 
-export interface ReplaceAllMembersResult {
-  replaced: number;
+export interface ApplyRosterResult {
+  upserted: number;
+  deleted: number;
 }
 
 export interface PutMemberPhotoArgs {
@@ -182,10 +186,7 @@ export interface AccountsApi {
   addMember(args: AddMemberArgs, options?: ApiCallOptions): Promise<Member>;
   updateMember(args: UpdateMemberArgs, options?: ApiCallOptions): Promise<Member>;
   deleteMember(args: DeleteMemberArgs, options?: ApiCallOptions): Promise<void>;
-  replaceAllMembers(
-    args: ReplaceAllMembersArgs,
-    options?: ApiCallOptions
-  ): Promise<ReplaceAllMembersResult>;
+  applyRoster(args: ApplyRosterArgs, options?: ApiCallOptions): Promise<ApplyRosterResult>;
   /** 顔写真を保存する(管理者のみ)。同じハッシュなら上書きなので、送り直しても安全。 */
   putMemberPhoto(args: PutMemberPhotoArgs, options?: ApiCallOptions): Promise<PutMemberPhotoResult>;
   /** 保存済みの写真を一度に確かめる(管理者のみ)。 */

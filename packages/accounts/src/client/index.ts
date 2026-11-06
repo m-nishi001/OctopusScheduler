@@ -16,16 +16,23 @@ export type { PoolOptions } from "@octopus/sync-engine/pool/promise-pool";
 export {
   exportRoster,
   previewRosterImport,
-  exportRosterCsv,
-  parseRosterCsv,
-  planRosterImport,
+  rosterAdapter,
+  rosterTableIo,
+  photoFileKey,
+  photoFileName,
+  toRosterMembers,
+  ROSTER_HEADERS,
+  ROSTER_TABLE,
 } from "./control/roster-csv";
 export type {
+  RosterAdapterOptions,
   RosterExport,
   RosterImportInput,
   RosterImportPreview,
+  RosterImportRepository,
   RosterImportStats,
-  PlannedRow,
-  RosterImportPlan,
-  ImportStatus,
+  RosterMember,
+  RosterTable,
+  RosterTableIoDeps,
 } from "./control/roster-csv";
+export type { ApplyRosterArgs, ApplyRosterResult } from "../server/accounts-api-contract";

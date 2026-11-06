@@ -1,4 +1,4 @@
-import { adminRpc, createSession, expect, loginByQr, newDevice, nextButton, openAdvanced, openEventTab, route, seedRecord, test, type Device } from "./fixtures";
+import { adminRpc, createSession, expect, loginByQr, newDevice, nextButton, openAdvanced, openEventTab, route, seedJackpot, test, type Device } from "./fixtures";
 
 /**
  * ジャックポットのエントリー画面。クイズと共通のエントリー画面で、抽選の対象が「エントリーした人のみ」のときだけオープニングの次に挟まる。
@@ -34,7 +34,7 @@ test("自動ではオープニングの次は説明(エントリー画面を挟�
   host.page.on("dialog", (d) => void d.dismiss());
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toBeVisible();
-  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
+  await seedJackpot(host.page, { prizes: PRIZES });
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
   const devices: Device[] = [admin, host];
 

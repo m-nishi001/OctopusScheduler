@@ -6,11 +6,10 @@ import type { Device } from "./fixtures";
  * 停止秒(景品抽選が止まるまでの時間)を使って、画面設定を別の端末と受け渡す。
  */
 const DRAW_PAGE = "/#/execute/jackpot-admin/screens/draw";
-const SCREENS_FILE = "screens.json";
 
 /** サーバーに保存されている画面設定の中の停止秒(未設定なら null)。 */
 async function serverStopSec(device: Device): Promise<number | null> {
-  const res = await adminRpc<{ json: string | null }>(device.page.request, "jackpotGame_getJson", SCREENS_FILE);
+  const res = await adminRpc<{ json: string | null }>(device.page.request, "jackpotGame_getRecord", {});
   const match = res.json?.match(/prizeStopSec[^0-9]*(\d+)/);
   return match ? Number(match[1]) : null;
 }
@@ -77,7 +76,7 @@ test.describe("画面設定の同期と、同期の詳細", () => {
       const gate = new Promise<void>((resolve) => (release = resolve));
       await a.page.route("**/rpc", async (route) => {
         const body = route.request().postData() ?? "";
-        if (!sending && body.includes("jackpotGame_addJson") && new RegExp(`prizeStopSec[^0-9]*${first}\\b`).test(body)) {
+        if (!sending && body.includes("jackpotGame_saveRecord") && new RegExp(`prizeStopSec[^0-9]*${first}\\b`).test(body)) {
           sending = true;
           await gate;
         }
@@ -110,10 +109,10 @@ test.describe("画面設定の同期と、同期の詳細", () => {
       await expect(sec).toBeVisible();
       const original = Number(await sec.inputValue());
 
-      // 保存はサーバーへの送信(addJson)が 500 で断られる
+      // 保存はサーバーへの送信(saveRecord)が 500 で断られる
       const failing = async (route: import("@playwright/test").Route) => {
         const body = route.request().postData() ?? "";
-        if (body.includes("jackpotGame_addJson")) {
+        if (body.includes("jackpotGame_saveRecord")) {
           await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ status: "error", message: "サーバー内部のエラー", retryable: false }) });
           return;
         }

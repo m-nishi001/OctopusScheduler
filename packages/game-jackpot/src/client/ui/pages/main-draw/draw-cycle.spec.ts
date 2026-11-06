@@ -96,7 +96,7 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
 
   it("通常サイクルを Enter ごとに進めると、画面の状態が期待どおりに変わる", async () => {
     const ctx = createTestContext({ prizeStopSec: 6 });
-    ctx.selectedPrize.value = { id: "p1", bgm1AssetId: null };
+    ctx.selectedPrize.value = { id: "p1", bgm1: null };
     const { advance, queue } = run(ctx);
 
     await advance(); // メンバー抽選の画面へ

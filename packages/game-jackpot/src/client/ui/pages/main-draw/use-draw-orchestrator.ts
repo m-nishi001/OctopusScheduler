@@ -3,9 +3,8 @@ import type { Component } from "vue";
 import { container } from "tsyringe";
 import { useRouter } from "vue-router";
 import { DrawApplicationService } from "@control/draw/draw-application-service";
-import { PrizeRepository } from "@model/prize/prize-repository";
+import { JackpotRepository } from "@model/jackpot-repository";
 import { MemberRepository } from "@model/member/member-repository";
-import { AssetDataService } from "@control/asset/asset-data-service";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
 import { parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC } from "@model/draw/prize-stop-sec";
 import { parseKakuhenPlan, AUTO_KAKUHEN_PLAN, type KakuhenPlan } from "@model/draw/kakuhen-plan";
@@ -40,15 +39,14 @@ const MEMBER_REEL_VISIBLE = 10;
 // ステップ(buildCycle)につなぐだけにして、ロジックは単体テストできるモジュール側に置く。
 /** 抽選画面の進行役。メンバー抽選・景品抽選・確変・終了を、Enter(または遠隔の「次へ」)で順に進め、画面を離れたら受付・BGM・画像の URL をすべて片付ける。 */
 export function useDrawOrchestrator() {
-  const prizeRepo = container.resolve(PrizeRepository);
+  const prizeRepo = container.resolve(JackpotRepository);
   const memberRepo = container.resolve(MemberRepository);
   const drawService = container.resolve(DrawApplicationService);
-  const assetService = container.resolve(AssetDataService);
   const { to } = useJackpotSession();
   const router = useRouter();
 
   const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, buildPrizeItems, installPreparedPrizes, updateSelectedPrize } =
-    usePrizeDrawState(assetService);
+    usePrizeDrawState(prizeRepo);
 
   const members = ref<MemberDto[]>([]);
   const phase = ref("idle");
@@ -82,7 +80,7 @@ export function useDrawOrchestrator() {
     selectedPrize,
     setSelectedPrize: updateSelectedPrize,
     preparePrizes,
-    loadBgmBlob: createBgmBlobLoader(assetService),
+    loadBgmBlob: createBgmBlobLoader(prizeRepo),
     memberAnim: memberAnimRef,
     prizeAnim: animationRef,
     showPrizeWinningDialog,

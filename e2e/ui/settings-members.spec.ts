@@ -146,7 +146,7 @@ test.describe("設定のメンバータブ(名簿とアカウントを1つに統
     };
     await fits("一覧");
     // ツールバーのボタンは折り返して全部見える
-    for (const testId of ["member-add", "member-export", "member-import-open", "member-issue-missing"]) {
+    for (const testId of ["member-add", "table-export", "table-import-open", "member-issue-missing"]) {
       const box = await phone.page.getByTestId(testId).boundingBox();
       expect(box, testId).not.toBeNull();
       expect(box!.x + box!.width, testId).toBeLessThanOrEqual(390 + 1);

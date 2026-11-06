@@ -1,57 +1,34 @@
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { container } from "tsyringe";
-import { PrizeRepository } from "@model/prize/prize-repository";
+import { JackpotRepository } from "@model/jackpot-repository";
+import type { Prize } from "@model/prize/prize";
 import { PrizeService } from "@control/prize/prize-service";
 
 /** 景品の管理画面の状態と操作(一覧・選択・削除)。 */
-export function usePrizes(
-  prizeRepoArg?: PrizeRepository,
-  prizeServiceArg?: PrizeService
-) {
-  const prizeRepo = prizeRepoArg || container.resolve(PrizeRepository);
+export function usePrizes(prizeRepoArg?: JackpotRepository, prizeServiceArg?: PrizeService) {
+  const prizeRepo = prizeRepoArg || container.resolve(JackpotRepository);
   const prizeService = prizeServiceArg || container.resolve(PrizeService);
 
-  const prizes = ref<any[]>([]);
+  const prizes = ref<Prize[]>([]);
   const selectedPrizes = ref<string[]>([]);
 
-  const isAllSelected = computed({
-    get: () =>
-      prizes.value.length > 0 &&
-      selectedPrizes.value.length === prizes.value.length,
-    set: (val: boolean) => {
-      if (val) selectedPrizes.value = prizes.value.map((p) => p.id);
-      else selectedPrizes.value = [];
-    },
-  });
-
+  /** 景品を並び順で読み直す。 */
   const fetchPrizes = async () => {
     try {
-      const fetchedPrizes = await prizeRepo.getPrizes();
-      prizes.value = fetchedPrizes;
+      prizes.value = [...(await prizeRepo.getPrizes())].sort((a, b) => a.order - b.order);
     } catch (e) {
       console.error("Failed to fetch prizes", e);
       prizes.value = [];
     }
   };
 
-  const deletePrize = async (id: string) => {
-    await prizeService.deletePrize(id);
-    await fetchPrizes();
-  };
-
+  /** 景品を消す(書き込みは1回)。選択からも外す。 */
   const deletePrizes = async (ids: string[]) => {
-    if (!ids || !ids.length) return;
+    if (!ids.length) return;
     await prizeService.deletePrizes(ids);
-    await fetchPrizes();
-    selectedPrizes.value = [];
+    const gone = new Set(ids);
+    selectedPrizes.value = selectedPrizes.value.filter((id) => !gone.has(id));
   };
 
-  return {
-    prizes,
-    selectedPrizes,
-    isAllSelected,
-    fetchPrizes,
-    deletePrize,
-    deletePrizes,
-  };
+  return { prizes, selectedPrizes, fetchPrizes, deletePrizes };
 }

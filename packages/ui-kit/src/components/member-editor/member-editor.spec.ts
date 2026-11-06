@@ -157,95 +157,36 @@ describe('MemberEditor', () => {
 });
 
 describe('MemberEditor の CSV 書き出し・取込', () => {
-    const files = (el: HTMLInputElement, list: File[]) => {
-        Object.defineProperty(el, 'files', { value: list, configurable: true });
-        el.dispatchEvent(new Event('change'));
-    };
-    const preview = (apply = vi.fn().mockResolvedValue({ summary: '追加 1', details: ['所要時間 0.1秒'] })) => ({
-        ok: true as const,
-        rows: [
-            { line: 2, id: 'n1', name: 'New', status: 'add' as const },
-            { line: 3, id: '', name: '', status: 'error' as const, message: '名前が空です' },
-        ],
-        counts: { add: 1, update: 0, unchanged: 0, error: 1 },
-        apply,
-    });
-
     it('書き出し・取込の指定が無ければボタンを出さない', () => {
         const { w } = setup();
-        expect(w.find('[data-testid="member-export"]').exists()).toBe(false);
-        expect(w.find('[data-testid="member-import-open"]').exists()).toBe(false);
+        expect(w.find('[data-testid="table-export"]').exists()).toBe(false);
+        expect(w.find('[data-testid="table-import-open"]').exists()).toBe(false);
     });
 
-    it('CSVダウンロード: 「写真も含める」は写真の欄があるときだけ。チェックで includePhotos', async () => {
+    it('「写真も含める」は写真の欄があるときだけ。チェックで includeMedia', async () => {
         const onExport = vi.fn().mockResolvedValue(undefined);
         const { w } = setup({ onExport });
-        expect(w.find('[data-testid="member-export-photos"]').exists()).toBe(false);
-        await w.find('[data-testid="member-export"]').trigger('click');
-        expect(onExport).toHaveBeenLastCalledWith({ includePhotos: false });
+        expect(w.find('[data-testid="table-export-media"]').exists()).toBe(false);
+        await w.find('[data-testid="table-export"]').trigger('click');
+        expect(onExport).toHaveBeenLastCalledWith({ includeMedia: false });
 
         const withPhotos = setup({ onExport, onPickPhoto: vi.fn() }).w;
-        await withPhotos.find('[data-testid="member-export-photos"]').setValue(true);
-        await withPhotos.find('[data-testid="member-export"]').trigger('click');
-        expect(onExport).toHaveBeenLastCalledWith({ includePhotos: true });
+        await withPhotos.find('[data-testid="table-export-media"]').setValue(true);
+        await withPhotos.find('[data-testid="table-export"]').trigger('click');
+        expect(onExport).toHaveBeenLastCalledWith({ includeMedia: true });
     });
 
-    it('書き出しに失敗したらエラーを出す', async () => {
-        const { w } = setup({ onExport: vi.fn().mockRejectedValue(new Error('boom')) });
-        await w.find('[data-testid="member-export"]').trigger('click');
-        await flushPromises();
-        expect(document.body.textContent).toContain('書き出しに失敗しました: boom');
-    });
-
-    it('取込: ファイルを選ぶと行ごとの結果が出て、確定すると結果を表示する。エラー行があっても取り込める行があれば確定できる', async () => {
-        const apply = vi.fn().mockImplementation(async (onProgress: (m: string) => void) => {
-            onProgress('写真を送っています(1/1)');
-            return { summary: '追加 1 / 更新 0', details: ['所要時間 0.1秒'] };
-        });
-        const onPreviewImport = vi.fn().mockResolvedValue(preview(apply));
+    it('取込を開き、allowReplace のときだけ置き換えのチェックを出す。件数は members の数', async () => {
+        const onPreviewImport = vi.fn();
         const { w } = setup({ onPreviewImport });
-        await w.find('[data-testid="member-import-open"]').trigger('click');
+        expect(w.find('[data-testid="table-count"]').text()).toBe('1件');
+        await w.find('[data-testid="table-import-open"]').trigger('click');
         await flushPromises();
-        const confirm = () => dialogButtons()[1];
-        expect(confirm().disabled).toBe(true);
-
-        const image = new File(['x'], 'n1.png', { type: 'image/png' });
-        files(document.body.querySelector('[data-testid="member-import-table"]') as HTMLInputElement, [new File(['ID,名前'], 'm.csv')]);
-        files(document.body.querySelector('[data-testid="member-import-images"]') as HTMLInputElement, [image]);
+        expect(document.body.querySelector('[data-testid="table-import-table"]')).not.toBeNull();
+        expect(document.body.querySelector('[data-testid="table-import-replace"]')).toBeNull();
+        const replaceable = setup({ onPreviewImport, allowReplace: true });
+        await replaceable.w.find('[data-testid="table-import-open"]').trigger('click');
         await flushPromises();
-        expect(onPreviewImport).toHaveBeenLastCalledWith({ table: expect.objectContaining({ name: 'm.csv' }), images: [image] });
-        expect(document.body.querySelector('[data-testid="member-import-counts"]')?.textContent).toContain('追加 1 / 更新 0 / 変更なし 0 / エラー 1');
-        const rows = Array.from(document.body.querySelectorAll('[data-testid="member-import-row"]'));
-        expect(rows.map((r) => r.getAttribute('data-status'))).toEqual(['add', 'error']);
-        expect(rows[1].textContent).toContain('名前が空です');
-
-        expect(confirm().disabled).toBe(false);
-        confirm().click();
-        await flushPromises();
-        expect(apply).toHaveBeenCalledTimes(1);
-        expect(document.body.querySelector('[data-testid="member-import-result"]')?.textContent).toContain('追加 1 / 更新 0');
-        expect(document.body.querySelector('[data-testid="member-import-details"]')?.textContent).toContain('所要時間');
-    });
-
-    it('CSVが読めなければ理由を出して確定できない。確定に失敗したら理由を出し、もう一度押せる', async () => {
-        const onPreviewImport = vi.fn().mockResolvedValueOnce({ ok: false, errors: ['ヘッダー行に ID の列がありません'] });
-        const { w } = setup({ onPreviewImport });
-        await w.find('[data-testid="member-import-open"]').trigger('click');
-        await flushPromises();
-        files(document.body.querySelector('[data-testid="member-import-table"]') as HTMLInputElement, [new File(['x'], 'bad.csv')]);
-        await flushPromises();
-        expect(document.body.querySelector('[data-testid="member-import-errors"]')?.textContent).toContain('ID の列がありません');
-        expect(dialogButtons()[1].disabled).toBe(true);
-
-        const apply = vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({ summary: 'ok', details: [] });
-        onPreviewImport.mockResolvedValue(preview(apply));
-        files(document.body.querySelector('[data-testid="member-import-table"]') as HTMLInputElement, [new File(['x'], 'good.csv')]);
-        await flushPromises();
-        dialogButtons()[1].click();
-        await flushPromises();
-        expect(document.body.querySelector('[data-testid="member-import-error"]')?.textContent).toContain('network');
-        dialogButtons()[1].click();
-        await flushPromises();
-        expect(document.body.querySelector('[data-testid="member-import-result"]')?.textContent).toContain('ok');
+        expect(document.body.querySelector('[data-testid="table-import-replace"]')).not.toBeNull();
     });
 });

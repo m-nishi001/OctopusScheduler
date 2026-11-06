@@ -30,7 +30,7 @@ test.describe("シード済みコンテンツ", () => {
     await dev.context.close();
   });
 
-  test("ジャックポット管理を開くと、景品・アセット・画面設定が同期される", async ({ browser }) => {
+  test("ジャックポット管理を開くと、景品・素材・画面設定が同期される", async ({ browser }) => {
     test.setTimeout(180_000);
     const dev = await newDevice(browser, { signedIn: true });
     const page = dev.page;
@@ -41,10 +41,10 @@ test.describe("シード済みコンテンツ", () => {
     }
     if (SHOTS) await page.screenshot({ path: join(SHOTS, "jackpot-prizes.png") });
 
-    // アセット(画像・音)が取り込まれている
-    await page.goto("/#/execute/jackpot-admin/assets");
-    await expect(page.getByText("seed-prize-1.png").first()).toBeVisible({ timeout: 90_000 });
-    if (SHOTS) await page.screenshot({ path: join(SHOTS, "jackpot-assets.png") });
+    // 素材(画像・音)が取り込まれ、画面設定が名前で参照している
+    await page.goto("/#/execute/jackpot-admin/screens/opening");
+    await expect(page.getByTestId("media-name").first()).toHaveText("opening.wav", { timeout: 90_000 });
+    if (SHOTS) await page.screenshot({ path: join(SHOTS, "jackpot-screen-opening.png") });
 
     // オープニング / エンディングが空でなく表示される
     await page.goto("/#/execute/jackpot-opening");

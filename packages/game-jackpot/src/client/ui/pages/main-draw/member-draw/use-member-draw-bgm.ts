@@ -1,5 +1,5 @@
 import { container } from 'tsyringe';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { JackpotRepository } from '@model/jackpot-repository';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { useAudio } from '@octopus/composables/use-audio';
 
@@ -9,7 +9,7 @@ import { useAudio } from '@octopus/composables/use-audio';
  * アニメーション本体(GSAPのtrack操作)とは独立した関心事のため分離した。
  */
 export function useMemberDrawBgm() {
-  const assetService = container.resolve(AssetDataService);
+  const repo = container.resolve(JackpotRepository);
   const screenSettingsService = container.resolve(ScreenSettingsService);
 
   const { load, play, stop } = useAudio();
@@ -18,13 +18,12 @@ export function useMemberDrawBgm() {
     try {
       const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
       if (!cfg || !cfg.memberLotteryBgms || cfg.memberLotteryBgms.length === 0) return;
-      const bgmIds: string[] = cfg.memberLotteryBgms.filter((id: string) => id && id.trim());
-      if (bgmIds.length === 0) return;
-      const randomId = bgmIds[Math.floor(Math.random() * bgmIds.length)];
-      const asset = await assetService.getAssetDataById(randomId);
-      if (asset && asset.blob) {
+      const names: string[] = cfg.memberLotteryBgms.filter((n: string) => n && n.trim());
+      if (names.length === 0) return;
+      const blob = await repo.blobOf(names[Math.floor(Math.random() * names.length)]);
+      if (blob) {
         await stop();
-        await load(asset.blob);
+        await load(blob);
         await play({ isRepeat: true });
       }
     } catch (e) {

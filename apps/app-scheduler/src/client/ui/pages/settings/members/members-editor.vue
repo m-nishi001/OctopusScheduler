@@ -14,17 +14,12 @@
             <UiButton v-if="selectedIds.length" variant="danger" icon="delete" :loading="removing" @click="removeSelected">
                 選択を削除({{ selectedIds.length }})
             </UiButton>
-            <UiButton icon="download" :loading="exporting" data-testid="member-export" @click="exportCsv">CSVダウンロード</UiButton>
-            <label class="members-editor__export-option">
-                <input v-model="includePhotos" type="checkbox" data-testid="member-export-photos" />
-                写真も含める(ZIP)
-            </label>
-            <UiButton icon="upload" data-testid="member-import-open" @click="importOpen = true">CSVから取り込む</UiButton>
             <UiButton :disabled="issuing || withoutKey.length === 0" :loading="issuing" data-testid="member-issue-missing"
                 @click="issueMissing">
                 未発行の参加者に受付QRを発行({{ withoutKey.length }}人)
             </UiButton>
-            <span class="members-editor__count">{{ members.length }}件</span>
+            <TableIoToolbar :count="members.length" :on-export="roster.onExport" media-label="写真も含める(ZIP)"
+                @import="importOpen = true" />
         </div>
 
         <DataTable :columns="columns" :rows="members" row-key="id" selectable v-model:selected="selectedIds"
@@ -52,7 +47,8 @@
             </template>
         </DataTable>
 
-        <MemberImportDialog v-model="importOpen" :on-preview="previewImport" />
+        <TableImportDialog v-model="importOpen" :on-preview="roster.onPreviewImport" allow-replace media-label="画像フォルダ"
+            media-hint="CSVの「写真」列のファイル名と同じ画像が入ったフォルダ。ZIPなら不要です" />
 
         <UiDialog v-model="dialogOpen" :title="editing ? 'メンバー編集' : 'メンバー追加'" size="sm" :persistent="saving"
             confirm-label="保存" :loading="saving" :confirm-disabled="!canSave" @confirm="save">
@@ -100,14 +96,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { container } from 'tsyringe';
-import { DataTable, MemberImportDialog, UiButton, UiDialog, UiField, toast, useConfirm } from '@octopus/ui-kit';
-import type { DataTableColumn, MemberImportInput, MemberImportPreview } from '@octopus/ui-kit';
+import { DataTable, TableImportDialog, TableIoToolbar, UiButton, UiDialog, UiField, toast, useConfirm } from '@octopus/ui-kit';
+import type { DataTableColumn } from '@octopus/ui-kit';
 import {
     AccountsRepository,
     MemberPhotoCache,
-    exportRoster,
     preparePhoto,
-    previewRosterImport,
+    rosterTableIo,
     uploadMemberPhotos,
 } from '@octopus/accounts';
 import type { Member, RosterUsage } from '@octopus/accounts';
@@ -352,55 +347,14 @@ const removeOne = (row: Member) => removeIds([row.id], `「${row.name}」を削�
 const removeSelected = () => removeIds([...selectedIds.value], `選択した${selectedIds.value.length}件を削除しますか?`);
 
 // ---- CSV ----
-const includePhotos = ref(false);
-const exporting = ref(false);
 const importOpen = ref(false);
-
-/** いまの名簿を CSV(写真も含めるときは ZIP)にしてダウンロードする。取込と同じ書式。 */
-async function exportCsv() {
-    if (exporting.value) return;
-    exporting.value = true;
-    try {
-        const out = await exportRoster(await repo.listMembers(), { includePhotos: includePhotos.value }, photos);
-        const url = URL.createObjectURL(new Blob([out.bytes as BlobPart], { type: out.mime }));
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = out.filename;
-        link.click();
-        URL.revokeObjectURL(url);
-        if (out.missingPhotos > 0) toast.error(`${out.missingPhotos}人の写真を取得できず、含めていません`);
-    } catch (e) {
-        toast.error(`書き出しに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-        exporting.value = false;
-    }
-}
-
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}秒`;
-
-/** 選んだ CSV・画像を読んでプレビューを作る。確定すると、写真を並列に送ってから名簿を1回だけ書く。 */
-async function previewImport(input: MemberImportInput): Promise<MemberImportPreview> {
-    const preview = await previewRosterImport(input, { repo, photoCache: photos });
-    if (!preview.ok) return preview;
-    return {
-        ok: true,
-        rows: preview.plan.rows,
-        counts: preview.plan.counts,
-        apply: async (onProgress) => {
-            const s = await preview.apply(onProgress);
-            await load();
-            const skipped = s.failedRows ? `、画像を処理できず取り込めなかった行 ${s.failedRows}` : '';
-            return {
-                summary: `追加 ${s.added} / 更新 ${s.updated} / 変更なし ${s.unchanged} / エラーで除外 ${s.errors}${skipped}`,
-                details: [
-                    `写真: 送信 ${s.uploaded}枚 / サーバーに既にあった ${s.alreadyOnServer}枚`,
-                    `所要時間 ${seconds(s.totalMs)}(縮小 ${seconds(s.prepareMs)} / 送信 ${seconds(s.uploadMs)})`,
-                    `同時送信の最大数 ${s.maxConcurrentUploads} / 回数制限(429)で待った回数 ${s.rateLimited}`,
-                ],
-            };
-        },
-    };
-}
+const roster = rosterTableIo({
+    repo,
+    photos,
+    currentUserId: () => currentMember.value?.id,
+    afterImport: load,
+    warn: (message) => toast.error(message),
+});
 </script>
 
 <style scoped>
@@ -438,18 +392,7 @@ async function previewImport(input: MemberImportInput): Promise<MemberImportPrev
     gap: var(--ui-space-2, 8px);
 }
 
-.members-editor__export-option {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--ui-space-1, 4px);
-    font-size: var(--ui-font-sm, 0.875rem);
-}
 
-.members-editor__count {
-    margin-left: auto;
-    color: var(--ui-text-muted, #cfd6dd);
-    font-size: var(--ui-font-sm, 0.875rem);
-}
 
 .members-editor__row-actions {
     display: flex;

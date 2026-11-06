@@ -23,8 +23,8 @@ export type QuizGameFunctionName =
   `${typeof QUIZ_GAME_PREFIX}_${QuizGameEndpointName}`;
 
 /**
- * 一覧(レコード)に載せるクイズ1件。画像・音声は中身を持たず、内容のハッシュ(`hashBlob`)で参照する。
- * 一覧が正で、ハッシュのファイルは一覧から参照されている間だけサーバーに残る。
+ * 一覧(レコード)に載せるクイズ1件。画像・音声は中身を持たず、素材の名前(ファイル名)で参照する。
+ * 名前から中身(ハッシュ)への対応は、レコードの `media`(索引)にある。
  */
 export interface QuizRecordEntry {
   id: string;
@@ -40,6 +40,29 @@ export interface QuizRecordEntry {
     prizeName: string;
     prizeBgm: string | null;
   };
+}
+
+/** 素材1つの情報。ハッシュは `hashBlob` の値(ファイルそのものの内容)。 */
+export interface QuizMediaInfo {
+  hash: string;
+  mime: string;
+  size: number;
+}
+
+/**
+ * 同期する一覧の1件。`media` は「クイズが参照している名前 → 素材」の索引で、保存のたびに `quizzes` から作り直す
+ * (状態として別に持たない)。同じ名前は同じ素材として1つだけ持つ。
+ */
+export interface QuizRecord {
+  quizzes: QuizRecordEntry[];
+  media: Record<string, QuizMediaInfo>;
+}
+
+/** クイズ1件が参照している素材の名前(重複・空は含めない)。 */
+export function quizMediaNames(entry: QuizRecordEntry): string[] {
+  const s = entry.settings;
+  const names = [entry.bgm, s?.correctBgm, s?.prizeImage, s?.prizeBgm, ...entry.options.map((o) => o.image)];
+  return [...new Set(names.filter((n): n is string => !!n))];
 }
 
 /** 一覧のサーバー上の名前。 */
@@ -62,17 +85,11 @@ export interface SaveRecordArgs {
   json: string;
 }
 
-/** 一覧が参照するハッシュ(画像・音声)。一覧の形が違っても例外にしない(その場合は何も参照していない)。 */
+/** 一覧が参照するハッシュ(画像・音声)は、索引 `media` の値。一覧の形が違っても例外にしない(その場合は何も参照していない)。 */
 export function quizRecordHashes(data: unknown): string[] {
-  if (!Array.isArray(data)) return [];
-  const hashes: string[] = [];
-  for (const entry of data as Partial<QuizRecordEntry>[]) {
-    for (const o of entry?.options ?? []) if (o?.image) hashes.push(o.image);
-    if (entry?.bgm) hashes.push(entry.bgm);
-    const s = entry?.settings;
-    for (const h of [s?.correctBgm, s?.prizeImage, s?.prizeBgm]) if (h) hashes.push(h);
-  }
-  return hashes;
+  const media = (data as Partial<QuizRecord> | null)?.media;
+  if (!media || typeof media !== "object") return [];
+  return Object.values(media).flatMap((m) => (typeof m?.hash === "string" ? [m.hash] : []));
 }
 
 /**

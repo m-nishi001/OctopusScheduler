@@ -2,11 +2,12 @@
     <div class="event-list-editor">
         <UiToolbar>
             <UiButton variant="primary" icon="add" :disabled="loading" @click.prevent="onAdd">追加</UiButton>
-            <UiButton icon="sync" :loading="loading" @click.prevent="onReload">再読込</UiButton>
+            <UiButton v-if="selectedEvents.length" variant="danger" icon="delete" :loading="deleting"
+                @click.prevent="onDeleteSelected">選択を削除({{ selectedEvents.length }})</UiButton>
+            <TableIoToolbar :count="events.length" :on-export="eventIo.onExport" media-label="素材も含める(ZIP)"
+                @import="importOpen = true" />
             <UiButton icon="play" :disabled="!selectedEvents.length" :loading="executing"
                 @click.prevent="onExecute">実行</UiButton>
-            <UiButton variant="danger" icon="delete" :disabled="!selectedEvents.length" :loading="deleting"
-                @click.prevent="onDeleteSelected">選択削除</UiButton>
         </UiToolbar>
 
         <DataTable :columns="columns" :rows="rows" row-key="id" selectable v-model:selected="selectedEvents"
@@ -21,6 +22,9 @@
             </template>
         </DataTable>
 
+        <TableImportDialog v-model="importOpen" :on-preview="eventIo.onPreviewImport" allow-replace media-label="素材フォルダ"
+            media-hint="CSVの「素材」列のファイル名と同じファイルが入ったフォルダ。ZIPなら不要です。置き換えでも素材は削除しません(アセットタブで管理)" />
+
         <EventTypeSelectionDialog v-if="showTypeSelection" @select="onTypeSelected"
             @close="showTypeSelection = false" />
         <ScheduledEventDialog v-if="dialogType" :type="dialogType" :event="editingEvent" @saved="onDialogSaved"
@@ -30,17 +34,18 @@
 </template>
 
 <script setup lang="ts">
-import { DataTable, UiButton, UiToolbar, toast, useConfirm } from '@octopus/ui-kit';
+import { DataTable, TableImportDialog, TableIoToolbar, UiButton, UiToolbar, toast, useConfirm } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { executeAppEvent, type AppEvent, type AppEventType } from '../../../../control/app-event/app-event';
+import { AssetService } from '../../../../control/asset/asset-service';
+import { eventTableIo } from '../../../../control/event-table/event-table-io';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ScheduledEventDialog from './dialogs/scheduled-event-dialog.vue';
 
 const { confirmDelete } = useConfirm();
-// persistence moved into dialog components
 
 const events = ref<AppEvent[]>([]);
 const loading = ref(false);
@@ -54,6 +59,15 @@ const dialogType = ref<AppEventType | null>(null);
 const editingEvent = ref<AppEvent | null>(null);
 
 const scheduleEventService = container.resolve(AppEventService);
+const importOpen = ref(false);
+
+// CSV の書き出し・取込。取り込んだら一覧を読み直す。
+const eventIo = eventTableIo({
+    assets: container.resolve(AssetService),
+    events: scheduleEventService,
+    afterImport: getAllScheduleEvents,
+    warn: (message) => toast.error(message),
+});
 
 const columns: DataTableColumn[] = [
     { key: 'name', label: 'イベント名', sortable: true },
@@ -142,11 +156,6 @@ function closeDialogs() {
 async function onDialogSaved() {
     await getAllScheduleEvents();
     closeDialogs();
-}
-
-async function onReload() {
-    // Reload local data only (no automatic GAS sync)
-    await getAllScheduleEvents();
 }
 
 async function onExecute() {

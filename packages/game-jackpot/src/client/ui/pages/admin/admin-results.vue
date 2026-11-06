@@ -53,7 +53,7 @@
         <DataTable :columns="prizeColumns" :rows="prizeStats" row-key="id" empty-text="景品当選状況はありません">
             <template #cell-image="{ row }">
                 <div class="prize-preview">
-                    <img v-if="row.imageAssetId && imageUrls.get(row.imageAssetId)" :src="imageUrls.get(row.imageAssetId)!" alt="image"
+                    <img v-if="mediaUrls.urlOf(row.image)" :src="mediaUrls.urlOf(row.image)" alt="image"
                         class="preview-img" />
                     <span v-else>画像なし</span>
                 </div>
@@ -73,7 +73,7 @@
 <script setup lang="ts">
 import { DataTable, UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { MemberPhotoCache } from '@octopus/accounts';
 import { HostAgent, ISessionHubApiToken } from '@octopus/session-hub';
@@ -81,8 +81,8 @@ import type { JackpotState, SessionHubApi, SessionSummary } from '@octopus/sessi
 import type { Prize } from '../../../model/prize/prize';
 import type { MemberDto } from '@control/member/dto/member-dto';
 import { MemberRepository } from '@model/member/member-repository';
-import { PrizeRepository } from '@model/prize/prize-repository';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { JackpotRepository } from '@model/jackpot-repository';
+import { useMediaUrls } from '@ui/composables/use-media-urls';
 import { DrawStoreProvider } from '@control/draw/draw-store-provider';
 
 /** 結果の保存先の選択肢「リハーサル」の値。 */
@@ -101,8 +101,8 @@ interface Row {
 }
 
 const memberRepo = container.resolve(MemberRepository);
-const prizeRepo = container.resolve(PrizeRepository);
-const assetService = container.resolve(AssetDataService);
+const prizeRepo = container.resolve(JackpotRepository);
+const mediaUrls = useMediaUrls(prizeRepo);
 const drawStores = container.resolve(DrawStoreProvider);
 const hubApi = (): SessionHubApi | null => (container.isRegistered(ISessionHubApiToken) ? container.resolve<SessionHubApi>(ISessionHubApiToken) : null);
 const hostAgent = (): HostAgent | null => (container.isRegistered(HostAgent) ? container.resolve(HostAgent) : null);
@@ -115,7 +115,6 @@ const prizes = ref<Prize[]>([]);
 const members = ref<MemberDto[]>([]);
 const showResetModal = ref(false);
 const errorMessage = ref<string | null>(null);
-const imageUrls = ref(new Map<string, string>());
 // メンバーの写真は共通の名簿の写真キャッシュから
 const photoCache = container.resolve(MemberPhotoCache);
 const photoTick = ref(0);
@@ -168,18 +167,6 @@ const prizeStats = computed(() =>
         return { ...prize, wins, remaining: wins > 0 ? 0 : 1, reserved: reservedPrizeIds.value.includes(prize.id) };
     })
 );
-
-const loadImage = async (assetId?: string) => {
-    if (!assetId || imageUrls.value.has(assetId)) return;
-    try {
-        const asset = await assetService.getAssetDataById(assetId);
-        if (asset?.blob) {
-            imageUrls.value.set(assetId, URL.createObjectURL(asset.blob));
-        }
-    } catch (error) {
-        console.error('Failed to load image:', error);
-    }
-};
 
 const openResetModal = () => {
     showResetModal.value = true;
@@ -250,21 +237,10 @@ onMounted(async () => {
     await fetchData();
     await Promise.all([
         photoCache.ensure(members.value.map(m => m.photo)).then(() => photoTick.value++),
-        ...prizes.value.map(p => loadImage(p.imageAssetId)),
+        mediaUrls.load(prizes.value.map(p => p.image)),
     ]);
 });
 
-onUnmounted(() => {
-    // Clean up object URLs to prevent memory leaks
-    for (const objectUrl of imageUrls.value.values()) {
-        try {
-            URL.revokeObjectURL(objectUrl);
-        } catch (e) {
-            // Ignore errors
-        }
-    }
-    imageUrls.value.clear();
-});
 </script>
 
 <style scoped>

@@ -1,6 +1,6 @@
 import { inject, injectable } from "tsyringe";
 import { IAccountsApiToken } from "../../server/accounts-api-contract";
-import type { LoginResult, Member, AccountsApi, RosterUsage } from "../../server/accounts-api-contract";
+import type { ApplyRosterArgs, ApplyRosterResult, LoginResult, Member, AccountsApi, RosterUsage } from "../../server/accounts-api-contract";
 
 /** アカウント・名簿の API(ログイン・ログアウト・メンバーの一覧と変更・ログインキーの発行)への窓口。 */
 @injectable()
@@ -34,8 +34,8 @@ export class AccountsRepository {
     return this.accountsApi.deleteMember({ id });
   }
 
-  async replaceAllMembers(members: Member[]): Promise<{ replaced: number }> {
-    return this.accountsApi.replaceAllMembers({ members });
+  async applyRoster(args: ApplyRosterArgs): Promise<ApplyRosterResult> {
+    return this.accountsApi.applyRoster(args);
   }
 
   /** 顔写真を保存する(管理者のみ)。同じハッシュなら上書きなので、送り直しても安全。 */

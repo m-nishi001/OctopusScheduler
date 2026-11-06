@@ -4,11 +4,11 @@ import type { LoginResult, Member, RosterUsage } from "./accounts-api-contract";
 import { deleteMemberPhotos } from "./member-photos";
 import {
   addMemberToRoster,
+  applyRosterChange,
   deleteMemberFromRoster,
   ensureAdminInRoster,
   toPublicMember,
   updateMemberInRoster,
-  upsertMembers,
 } from "./roster-domain";
 import type { MemberInput } from "./roster-domain";
 
@@ -170,27 +170,36 @@ export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promi
     return change;
   });
   await discardPhotos(deps, orphanPhotos);
+  await purgeMemberData(deps, id);
+}
+
+/** 名簿から外れたメンバーの、セッション・パスワード・受付QRのキーを消す。名簿のロックの外で行う。 */
+async function purgeMemberData(deps: AccountsUseCaseDeps, id: string): Promise<void> {
   await revokeMemberSessions(deps, id);
   await deps.storage.deleteScalar(CREDENTIAL_KEY_PREFIX + id);
   await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + id);
 }
 
 /**
- * マスタへ id ベースでupsertする(bulk-syncのような一括反映用)。
- * 既存メンバーのうち入力に含まれないものは削除しない
- * (マスタは他モジュールとも共有されているため、一括置換で消してはいけない)。
+ * CSV 取込の確定。追加・更新(id ベースの upsert)と削除を、名簿のロックの中で1回だけ書く。
+ * 管理者が `deleteIds` に含まれていれば、名簿を変えずに全体を拒否する。
+ * 削除したメンバーの写真・セッション・パスワード・受付QRのキーは、書き込みのあとに片づける。
  */
-export async function replaceAllMembers(
+export async function applyRoster(
   deps: AccountsUseCaseDeps,
-  members: MemberInput[]
-): Promise<{ replaced: number }> {
-  const { orphanPhotos } = await withLock(deps, ROSTER_LOCK_KEY, async () => {
-    const change = upsertMembers(await readMembers(deps.storage), members, deps.generateId);
+  input: { upserts: MemberInput[]; deleteIds: string[] }
+): Promise<{ upserted: number; deleted: number }> {
+  const deleteIds = [...new Set(input.deleteIds)];
+  const { removed, orphanPhotos } = await withLock(deps, ROSTER_LOCK_KEY, async () => {
+    const roster = await readMembers(deps.storage);
+    const change = applyRosterChange(roster, { upserts: input.upserts, deleteIds }, deps.generateId);
     await writeMembers(deps.storage, change.next);
-    return change;
+    const existing = new Set(roster.map((m) => m.id));
+    return { removed: deleteIds.filter((id) => existing.has(id)), orphanPhotos: change.orphanPhotos };
   });
   await discardPhotos(deps, orphanPhotos);
-  return { replaced: members.length };
+  await Promise.all(removed.map((id) => purgeMemberData(deps, id)));
+  return { upserted: input.upserts.length, deleted: removed.length };
 }
 
 async function readCredential(storage: IKeyValueStorage, id: string): Promise<StoredCredential | null> {

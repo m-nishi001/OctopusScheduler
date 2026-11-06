@@ -9,7 +9,7 @@ import {
   listMembers,
   login,
   logout,
-  replaceAllMembers,
+  applyRoster,
   SESSION_TTL_MS,
   setPassword,
   updateMember,
@@ -144,13 +144,16 @@ describe("accounts isAdmin handling", () => {
     });
   });
 
-  it("replaceAllMembers neither grants nor revokes isAdmin", async () => {
+  it("applyRoster neither grants nor revokes isAdmin", async () => {
     const deps = createDeps();
     await addMember(deps, { id: "admin", name: "管理者", isAdmin: true });
-    await replaceAllMembers(deps, [
-      { id: "admin", name: "管理者(改)" },
-      { id: "u1", name: "太郎", isAdmin: true },
-    ]);
+    await applyRoster(deps, {
+      upserts: [
+        { id: "admin", name: "管理者(改)" },
+        { id: "u1", name: "太郎", isAdmin: true } as { id: string; name: string },
+      ],
+      deleteIds: [],
+    });
     expect(await listAccounts(deps)).toEqual([
       { id: "admin", name: "管理者(改)", isAdmin: true },
       { id: "u1", name: "太郎" },

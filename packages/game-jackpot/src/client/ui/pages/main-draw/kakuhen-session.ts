@@ -52,16 +52,16 @@ export class KakuhenSession {
         ...p,
         id: `${p.id}__k1`,
         originalPrizeId: p.id,
-        winningImage1AssetId: p.winningImage1AssetId || p.imageAssetId,
-        winningImage2AssetId: undefined,
+        winningImage1: p.winningImage1 || p.image,
+        winningImage2: undefined,
       };
       this.final = {
         ...p,
         id: `${p.id}__k2`,
-        imageAssetId: p.image2AssetId,
+        image: p.image2,
         originalPrizeId: p.id,
-        winningImage1AssetId: p.winningImage2AssetId || p.image2AssetId,
-        winningImage2AssetId: undefined,
+        winningImage1: p.winningImage2 || p.image2,
+        winningImage2: undefined,
       };
       shown.push(this.dummy, this.final);
     }
@@ -80,13 +80,13 @@ export class KakuhenSession {
     } catch (e) {
       console.warn("[Kakuhen] failed to start the dummy spin", e);
     }
-    await preloadBgm(this.dummy?.bgm1AssetId, ctx);
+    await preloadBgm(this.dummy?.bgm1, ctx);
   }
 
   async stopDummyDraw(): Promise<void> {
     const anim = this.ctx.prizeAnim.value;
     if (!anim?.stopSpin) return;
-    await playBgm(this.dummy?.bgm1AssetId, this.ctx);
+    await playBgm(this.dummy?.bgm1, this.ctx);
     await anim.stopSpin(KAKUHEN_TIMINGS.DUMMY_SPIN_DOWN_DURATION_MS / 1000, this.dummy?.id || null, 1);
   }
 
@@ -129,7 +129,7 @@ export class KakuhenSession {
 
   async startFinalDraw(): Promise<void> {
     const { ctx } = this;
-    await preloadBgm(this.final?.bgm2AssetId, ctx);
+    await preloadBgm(this.final?.bgm2, ctx);
     await sleep(KAKUHEN_TIMINGS.FINAL_DRAW_PRE_SPIN_BUFFER_MS);
     try {
       const anim = ctx.prizeAnim.value;
@@ -148,7 +148,7 @@ export class KakuhenSession {
     if (!final) throw new DrawStateError("確変の本抽選の景品がありません(ダミー抽選が完了していません)");
     const anim = ctx.prizeAnim.value;
 
-    await playBgm(final.bgm2AssetId, ctx);
+    await playBgm(final.bgm2, ctx);
     if (anim?.stopSpin) {
       const items = await this.syncAnimationItems();
       const durationSec = KAKUHEN_TIMINGS.FINAL_SPIN_DOWN_DURATION_MS / 1000;
@@ -195,9 +195,9 @@ export class KakuhenSession {
     if (winner && ctx.result.value) {
       ctx.result.value.wonPrize = {
         ...winner,
-        imageAssetId: undefined,
-        winningImage1AssetId: undefined,
-        winningImage2AssetId: winner.winningImage2AssetId,
+        image: undefined,
+        winningImage1: undefined,
+        winningImage2: winner.winningImage2,
       } as PrizeDto;
     }
     this.originalPrizes = null;

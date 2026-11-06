@@ -2,7 +2,7 @@ import { container, inject, singleton } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
 import { getJackpotScope, type JackpotScope } from "../../model/jackpot-session";
 import { MemberRepository } from "../../model/member/member-repository";
-import { PrizeRepository } from "../../model/prize/prize-repository";
+import { JackpotRepository } from "../../model/jackpot-repository";
 import type { DrawStore, DrawStoreSource } from "./draw-store";
 import { RehearsalDrawStore } from "./rehearsal-draw-store";
 import { SessionDrawStore } from "./session-draw-store";
@@ -20,7 +20,7 @@ export class DrawStoreProvider implements DrawStoreSource {
 
   constructor(
     @inject(MemberRepository) private readonly members: MemberRepository,
-    @inject(PrizeRepository) private readonly prizes: PrizeRepository
+    @inject(JackpotRepository) private readonly prizes: JackpotRepository
   ) {}
 
   current(): DrawStore {

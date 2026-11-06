@@ -30,7 +30,7 @@ function makeDeps(options: { settings?: unknown; blobs?: Record<string, Blob | n
   const releases: Array<() => void> = [];
   const deps: MediaDeps = {
     fetchSetting: async () => options.settings ?? null,
-    getAssetBlob: async (id) => {
+    blobOf: async (id) => {
       if (options.failFor?.includes(id)) throw new Error("boom");
       if (options.hold) await new Promise<void>((resolve) => releases.push(resolve));
       return blobs[id] ?? null;
@@ -135,10 +135,10 @@ describe("useScreenBgm", () => {
 });
 
 describe("useScreenAssetUrls", () => {
-  it("assetId を持つコンテンツに表示用の URL を付ける。読めないものがあっても残りは続ける", async () => {
+  it("media を持つコンテンツに表示用の URL を付ける。読めないものがあっても残りは続ける", async () => {
     const env = makeDeps({ blobs: { a: blob("1"), c: blob("333") }, failFor: ["bad"] });
     const { result: urls } = mountWith(() => useScreenAssetUrls(env.deps));
-    const contents: Array<{ assetId?: string; assetUrl?: string }> = [{ assetId: "a" }, { assetId: "bad" }, { assetId: "none" }, {}, { assetId: "c" }];
+    const contents: Array<{ media?: string; assetUrl?: string }> = [{ media: "a" }, { media: "bad" }, { media: "none" }, {}, { media: "c" }];
     await urls.attach(contents);
 
     expect(contents[0].assetUrl).toBe("blob:0:1");
@@ -151,7 +151,7 @@ describe("useScreenAssetUrls", () => {
   it("画面を離れると、作った URL をすべて破棄する", async () => {
     const env = makeDeps({ blobs: { a: blob("1"), b: blob("22") } });
     const mounted = mountWith(() => useScreenAssetUrls(env.deps));
-    await mounted.result.attach([{ assetId: "a" }, { assetId: "b" }]);
+    await mounted.result.attach([{ media: "a" }, { media: "b" }]);
     expect(env.revoked).toEqual([]);
 
     mounted.unmount();
@@ -161,7 +161,7 @@ describe("useScreenAssetUrls", () => {
   it("読み込み中に画面を離れたら、続きは読まず、新しい URL を作らない", async () => {
     const env = makeDeps({ blobs: { a: blob("1"), b: blob("22") }, hold: true });
     const mounted = mountWith(() => useScreenAssetUrls(env.deps));
-    const attaching = mounted.result.attach([{ assetId: "a" }, { assetId: "b" }]);
+    const attaching = mounted.result.attach([{ media: "a" }, { media: "b" }]);
     mounted.unmount();
     env.releaseAll();
     await attaching;
@@ -171,11 +171,11 @@ describe("useScreenAssetUrls", () => {
 });
 
 describe("useScreenMedia", () => {
-  const options = { screenName: "opening", settingName: "opening-screen-settings", fallback: () => ({ bgmAssetId: "", contents: [] as Array<{ assetId?: string; assetUrl?: string }> }) };
+  const options = { screenName: "opening", settingName: "opening-screen-settings", fallback: () => ({ bgm: "", contents: [] as Array<{ media?: string; assetUrl?: string }> }) };
 
   it("設定・BGM・画像の準備ができてから config を出し、BGM を鳴らす（画面が出た時点で画像が揃っている）", async () => {
     const env = makeDeps({
-      settings: { bgmAssetId: "bgm1", contents: [{ assetId: "img1" }, { type: "text" }] },
+      settings: { bgm: "bgm1", contents: [{ media: "img1" }, { type: "text" }] },
       blobs: { bgm1: blob("abc"), img1: blob("xy") },
     });
     const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
@@ -191,7 +191,7 @@ describe("useScreenMedia", () => {
     const env = makeDeps({ settings: null });
     const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
     await flush();
-    expect(media.config.value).toEqual({ bgmAssetId: "", contents: [] });
+    expect(media.config.value).toEqual({ bgm: "", contents: [] });
     expect(media.bgm.value).toBeNull();
   });
 
@@ -203,13 +203,13 @@ describe("useScreenMedia", () => {
     };
     const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
     await flush();
-    expect(media.config.value).toEqual({ bgmAssetId: "", contents: [] });
+    expect(media.config.value).toEqual({ bgm: "", contents: [] });
     vi.restoreAllMocks();
   });
 
   it("準備中に画面を離れたら、config も BGM も出さず、作った URL を破棄する", async () => {
     const env = makeDeps({
-      settings: { bgmAssetId: "bgm1", contents: [{ assetId: "img1" }] },
+      settings: { bgm: "bgm1", contents: [{ media: "img1" }] },
       blobs: { bgm1: blob("abc"), img1: blob("xy") },
       hold: true,
     });
@@ -228,7 +228,7 @@ describe("useScreenMedia", () => {
 
   it("画面を離れると、BGM を止めて URL を破棄する", async () => {
     const env = makeDeps({
-      settings: { bgmAssetId: "bgm1", contents: [{ assetId: "img1" }] },
+      settings: { bgm: "bgm1", contents: [{ media: "img1" }] },
       blobs: { bgm1: blob("abc"), img1: blob("xy") },
     });
     const mounted = mountWith(() => useScreenMedia(options, env.deps));

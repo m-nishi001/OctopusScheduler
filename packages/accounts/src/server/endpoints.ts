@@ -33,7 +33,7 @@ import type {
   MemberPhotoHashesArgs,
   PutMemberPhotoArgs,
   AccountsEndpointName,
-  ReplaceAllMembersArgs,
+  ApplyRosterArgs,
   RevokeLoginKeyArgs,
   SetPasswordArgs,
   UpdateMemberArgs,
@@ -54,7 +54,7 @@ import {
   login,
   loginWithKey,
   logout,
-  replaceAllMembers,
+  applyRoster,
   revokeLoginKey,
   setPassword,
   updateMember,
@@ -77,7 +77,7 @@ declare let _accounts_listMembers: (args: ListMembersArgs) => Promise<string>;
 declare let _accounts_addMember: (args: AddMemberArgs) => Promise<string>;
 declare let _accounts_updateMember: (args: UpdateMemberArgs) => Promise<string>;
 declare let _accounts_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
-declare let _accounts_replaceAllMembers: (args: ReplaceAllMembersArgs) => Promise<string>;
+declare let _accounts_applyRoster: (args: ApplyRosterArgs) => Promise<string>;
 declare let _accounts_putMemberPhoto: (args: PutMemberPhotoArgs) => Promise<string>;
 declare let _accounts_existsMemberPhotos: (args: MemberPhotoHashesArgs) => Promise<string>;
 declare let _accounts_getMemberPhotos: (args: MemberPhotoHashesArgs) => Promise<string>;
@@ -115,8 +115,8 @@ _accounts_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
   });
 };
 
-_accounts_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promise<string> => {
-  return respond(() => replaceAllMembers(resolveDeps(), args.members));
+_accounts_applyRoster = async (args: ApplyRosterArgs): Promise<string> => {
+  return respond(() => applyRoster(resolveDeps(), args));
 };
 
 _accounts_putMemberPhoto = async (args: PutMemberPhotoArgs): Promise<string> => {
@@ -190,7 +190,7 @@ _accounts_getRosterUsage = secure("admin", _accounts_getRosterUsage);
 _accounts_addMember = secure("admin", _accounts_addMember);
 _accounts_updateMember = secure("admin", _accounts_updateMember);
 _accounts_deleteMember = secure("admin", _accounts_deleteMember);
-_accounts_replaceAllMembers = secure("admin", _accounts_replaceAllMembers);
+_accounts_applyRoster = secure("admin", _accounts_applyRoster);
 // 写真は書き込み・存在確認が管理者のみ。読み取りはログイン済みなら参加者も(エントリー画面などで顔を出すため)。
 _accounts_putMemberPhoto = secure("admin", _accounts_putMemberPhoto);
 _accounts_existsMemberPhotos = secure("admin", _accounts_existsMemberPhotos);
@@ -212,7 +212,7 @@ export const ACCOUNTS_HANDLERS: Record<AccountsEndpointName, (args: any) => Prom
   addMember: _accounts_addMember,
   updateMember: _accounts_updateMember,
   deleteMember: _accounts_deleteMember,
-  replaceAllMembers: _accounts_replaceAllMembers,
+  applyRoster: _accounts_applyRoster,
   putMemberPhoto: _accounts_putMemberPhoto,
   existsMemberPhotos: _accounts_existsMemberPhotos,
   getMemberPhotos: _accounts_getMemberPhotos,

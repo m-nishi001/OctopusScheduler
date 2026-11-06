@@ -1,4 +1,4 @@
-import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedRecord, test } from "./fixtures";
+import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedJackpot, test } from "./fixtures";
 import { captureTimeline, expectAnimating } from "./helpers/motion";
 import type { Page } from "@playwright/test";
 import { expectNoGapUnderReels, expectSlotFitsEverySize, expectSlotLarge, observeSlotStop, sampleRepeatedRows, stoppedWinRows } from "./helpers/slot";
@@ -43,7 +43,7 @@ for (const kind of ["roulette", "slot"] as const) {
       weight: 10,
       animation: kind,
     }));
-    await seedRecord(host.page, "jackpot-game", "PrizeData", prizes);
+    await seedJackpot(host.page, { prizes });
 
     // 抽選の対象は既定で「参加者全員(自動)」: ポータルから入室した人を1人用意する
     const guest = await joinPortalAs(browser, request, sessionId, MEMBER.id, memberKey);

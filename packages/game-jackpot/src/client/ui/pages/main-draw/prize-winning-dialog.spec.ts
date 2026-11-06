@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { describe, it, expect, beforeAll } from "vitest";
 import { container } from "tsyringe";
-import { AssetDataService } from "@control/asset/asset-data-service";
+import { JackpotRepository } from "@model/jackpot-repository";
 import { mount } from "@vue/test-utils";
 import PrizeWinningDialog from "./prize-winning-dialog.vue";
 
@@ -13,7 +13,7 @@ const mountDialog = (prize: Record<string, unknown>) =>
 
 describe("prize-winning-dialog", () => {
   beforeAll(() => {
-    container.registerInstance(AssetDataService, { getAssetDataById: async () => null } as any);
+    container.registerInstance(JackpotRepository, { blobOf: async () => null } as any);
   });
 
   /** 画像が未設定の賞品でも、当たった賞品名が必ず表示されること(黒い画面+見出しだけにならない)。 */

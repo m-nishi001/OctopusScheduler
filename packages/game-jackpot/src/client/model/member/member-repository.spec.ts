@@ -31,7 +31,7 @@ function createMockDirectory(initial: DirectoryMember[] = []) {
       return members[index];
     }),
     deleteMember: vi.fn(async () => undefined),
-    replaceAllMembers: vi.fn(async () => ({ replaced: 0 })),
+    applyRoster: vi.fn(async () => ({ upserted: 0, deleted: 0 })),
   };
 }
 

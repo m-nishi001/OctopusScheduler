@@ -1,4 +1,4 @@
-import { adminRpc, createSession, expect, newDevice, nextButton, route, seedRecord, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, route, seedJackpot, test } from "./fixtures";
 
 /**
  * 抽選に失敗したとき(ここでは、ポータルから参加した人が1人もいない)に、ホストの画面が固まらないこと。
@@ -31,10 +31,12 @@ test("参加者がいなくて抽選に失敗しても、ホストは固まら�
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toBeVisible();
 
-  await seedRecord(host.page, "jackpot-game", "PrizeData", [
-    { id: "jp-fail-prize-1", name: "特賞", order: 1, weight: 10, animation: "roulette" },
-    { id: "jp-fail-prize-2", name: "一等", order: 2, weight: 10, animation: "roulette" },
-  ]);
+  await seedJackpot(host.page, {
+    prizes: [
+      { id: "jp-fail-prize-1", name: "特賞", order: 1, weight: 10, animation: "roulette" },
+      { id: "jp-fail-prize-2", name: "一等", order: 2, weight: 10, animation: "roulette" },
+    ],
+  });
 
   // ジャックポットを始める(参加者は誰もポータルに入っていない。抽選の対象は参加者全員(自動)なので、オープニングの次は説明) → 抽選画面
   await admin.page.getByTestId("start-jackpot").click();

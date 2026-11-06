@@ -14,17 +14,17 @@ const cache = (urls: Record<string, string>) => ({ ensure: async () => undefined
 
 describe("exportRoster", () => {
   it("CSV のみ: 写真の列は空", async () => {
-    const out = await exportRoster(members, { includePhotos: false }, cache({}));
+    const out = await exportRoster(members, { includeMedia: false }, cache({}));
     expect(out.filename).toBe("members.csv");
     expect(new TextDecoder().decode(out.bytes)).toContain("a,アリス,\r\n");
   });
 
-  it("写真つき: ZIP に members.csv と photos/<id>.<拡張子>。取得できない写真は数える", async () => {
-    const out = await exportRoster(members, { includePhotos: true }, cache({ "0123456789abcdef": toUrl("PIC", "image/webp") }));
+  it("写真つき: ZIP に members.csv と media/<id>.<拡張子>。取得できない写真は数える", async () => {
+    const out = await exportRoster(members, { includeMedia: true }, cache({ "0123456789abcdef": toUrl("PIC", "image/webp") }));
     expect(out).toMatchObject({ filename: "members.zip", missingPhotos: 1 });
     const files = unzipSync(out.bytes);
-    expect(Object.keys(files).sort()).toEqual(["members.csv", "photos/a.webp"]);
-    expect(new TextDecoder().decode(files["photos/a.webp"])).toBe("PIC");
+    expect(Object.keys(files).sort()).toEqual(["media/a.webp", "members.csv"]);
+    expect(new TextDecoder().decode(files["media/a.webp"])).toBe("PIC");
     expect(new TextDecoder().decode(files["members.csv"])).toContain("a,アリス,a.webp");
   });
 
@@ -34,13 +34,13 @@ describe("exportRoster", () => {
     const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
     const hash = Array.from(digest.slice(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
     const roster: Member[] = [{ id: "a", name: "アリス", photo: hash }, { id: "b", name: "ボブ" }];
-    const out = await exportRoster(roster, { includePhotos: true }, cache({ [hash]: toUrl("PIC", "image/webp") }));
+    const out = await exportRoster(roster, { includeMedia: true }, cache({ [hash]: toUrl("PIC", "image/webp") }));
     const preview = await previewRosterImport(
-      { table: new File([out.bytes as BlobPart], out.filename), images: [] },
-      { repo: { listMembers: async () => roster, existsMemberPhotos: async () => [], putMemberPhoto: async () => undefined, replaceAllMembers: async () => ({ replaced: 0 }) } }
+      { table: new File([out.bytes as BlobPart], out.filename), media: [], mode: "replace" },
+      { repo: { listMembers: async () => roster, existsMemberPhotos: async () => [], putMemberPhoto: async () => undefined, applyRoster: async () => ({ upserted: 0, deleted: 0 }) } }
     );
     if (!preview.ok) throw new Error(preview.errors.join());
-    expect(preview.plan.counts).toEqual({ add: 0, update: 0, unchanged: 2, error: 0 });
+    expect(preview.plan.counts).toEqual({ add: 0, update: 0, unchanged: 2, delete: 0, error: 0 });
   });
 });
 

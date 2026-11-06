@@ -17,7 +17,7 @@ test.describe("クイズ管理の正解", () => {
     const { page } = d;
     const title = `e2e正解-${Date.now()}`;
     await page.goto("/#/quiz-admin");
-    await page.getByRole("button", { name: "新規クイズ追加" }).click();
+    await page.getByRole("button", { name: "追加", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "クイズ追加" });
     await dialog.locator("input[type=text]").first().fill(title);
     await dialog.locator("textarea").fill("正解はどれ?");

@@ -14,7 +14,7 @@
 						<div class="inner-frame">
 							<div class="slide-container">
 								<transition name="slide-transition" mode="out-in">
-									<div v-if="currentSlide" :key="currentSlide && (currentSlide.id || slideIndex)"
+									<div v-if="currentSlide" :key="slideIndex"
 										class="slide-content">
 										<template v-if="currentSlide.type === 'text'">
 											<div v-if="isHtml(getContent(currentSlide))" class="slide-html"
@@ -24,9 +24,6 @@
 										</template>
 										<template v-if="currentSlide.type === 'image'">
 											<img :src="currentSlide.assetUrl" class="slide-image" />
-										</template>
-										<template v-if="currentSlide.type === 'modal'">
-											<div class="slide-modal">{{ currentSlide.content }}</div>
 										</template>
 										<template v-if="currentSlide.type === 'html'">
 											<div class="slide-html" v-html="getContent(currentSlide)"></div>
@@ -42,7 +39,7 @@
 			<div v-if="slideIndex !== -1">
 				<div class="navigation-hint">
 					<div class="progress-dots">
-						<span v-for="(element, index) in elements" :key="element.id" class="dot"
+						<span v-for="(_, index) in elements" :key="index" class="dot"
 							:class="{ active: index === slideIndex }"></span>
 					</div>
 				</div>
@@ -59,8 +56,7 @@ import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { useJackpotHost } from '../../composables/use-jackpot-host';
 import { buildJackpotDescriptionState } from '@model/jackpot-host-state';
-import type { ScreenElement } from '@model/screen-config/description-screen-setting';
-import { DescriptionScreenSetting } from '@model/screen-config/description-screen-setting';
+import type { OpeningContent } from '@model/screen-config/opening-screen-setting';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { container } from 'tsyringe';
 export default {
@@ -70,13 +66,13 @@ export default {
 		const router = useRouter();
 		const session = useJackpotSession();
 
-		const screenConfig = ref<DescriptionScreenSetting | null>(null);
+		const screenConfig = ref<{ bgm: string; contents: OpeningContent[] } | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
 
 		const slideIndex = ref(-1);
-		const currentSlide = ref<ScreenElement | null>(null);
+		const currentSlide = ref<OpeningContent | null>(null);
 
-		const elements = ref<ScreenElement[]>([]);
+		const elements = ref<OpeningContent[]>([]);
 
 
 
@@ -92,20 +88,18 @@ export default {
 
 			if (cfg) {
 
-				const bgmId = (cfg as any).descriptionBgm || (cfg as any).bgmAssetId || '';
-				const elems = (cfg as any).screenElements || (cfg as any).contents || [];
-				screenConfig.value = new DescriptionScreenSetting(bgmId, elems as ScreenElement[]);
+				screenConfig.value = { bgm: cfg.bgm || '', contents: cfg.contents || [] };
 			} else {
 				screenConfig.value = null;
 			}
 
-			elements.value = screenConfig.value?.screenElements || [];
+			elements.value = screenConfig.value?.contents || [];
 			// スライドの枚数が決まってから管理端末へ公開する(読み込み中に「枚数0」を見せない)
 			ready.value = true;
 
 
 			await assetUrls.attach(elements.value);
-			await bgm.load(screenConfig.value?.descriptionBgm);
+			await bgm.load(screenConfig.value?.bgm);
 			bgm.play();
 		});
 
