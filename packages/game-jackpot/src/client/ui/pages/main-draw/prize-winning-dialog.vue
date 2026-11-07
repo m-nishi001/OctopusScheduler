@@ -67,7 +67,8 @@ export default defineComponent({
             }
             // 当選画像1が無ければ、ルーレットの画像を使う
             imageUrl1.value = await urlOf(props.prize.winningImage1 || props.prize.image);
-            imageUrl2.value = await urlOf(props.prize.winningImage2);
+            // 確変対応OFFの景品の当選画像2は使わない(値は残してあるだけ)
+            imageUrl2.value = props.prize.kakuhen === false ? '' : await urlOf(props.prize.winningImage2);
         };
 
         watch(

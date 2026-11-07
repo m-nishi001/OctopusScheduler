@@ -31,6 +31,24 @@ test.describe("ジャックポットの管理画面の設定", () => {
     await dev.context.close();
   });
 
+  test("確変対応ありの景品の数を表示し、回を指定した数がそれと違うと警告を出す(おまかせでは警告なし)", async ({ browser }) => {
+    const dev = await newDevice(browser, { signedIn: true });
+    const page = dev.page;
+    await page.goto("/#/execute/jackpot-admin/screens/draw");
+    await expect(page.getByTestId("kakuhen-summary")).toContainText("確変対応ありの景品");
+    await expect(page.getByTestId("kakuhen-warning")).toBeHidden();
+
+    await page.getByTestId("kakuhen-mode").selectOption("fixed");
+    // 景品数より十分多い回数を指定すると、確変対応ありの景品の数と必ず合わない
+    await page.getByTestId("kakuhen-timings").fill(Array.from({ length: 80 }, (_, i) => i + 1).join(", "));
+    await expect(page.getByTestId("kakuhen-warning")).toBeVisible();
+    await expect(page.getByTestId("kakuhen-warning")).toContainText("確変にする回（80回）");
+
+    await page.getByTestId("kakuhen-mode").selectOption("auto");
+    await expect(page.getByTestId("kakuhen-warning")).toBeHidden();
+    await dev.context.close();
+  });
+
   test("景品抽選が止まるまでの時間(初期値4秒)を変えて保存でき、開き直しても残る。範囲外は収められる", async ({ browser }) => {
     const dev = await newDevice(browser, { signedIn: true });
     const page = dev.page;

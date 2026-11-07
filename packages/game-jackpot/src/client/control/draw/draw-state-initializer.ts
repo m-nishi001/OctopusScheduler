@@ -1,11 +1,12 @@
 import { injectable, inject } from "tsyringe";
 import { PrizeReservationService } from "../../model/draw/prize-reservation-service";
 import type { Prize } from "../../model/prize/prize";
+import { isKakuhenPrize } from "../../model/prize/prize-kakuhen";
 import { AUTO_KAKUHEN_PLAN } from "../../model/draw/kakuhen-plan";
 import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
 import type { DrawPlan, DrawStore } from "./draw-store";
 
-/** 抽選の準備。確変にする回を決め、その数だけ景品を取り置いて、抽選の保存先に確変の予定として残す。 */
+/** 抽選の準備。確変対応ONの景品を取り置き、その数だけ確変にする回を決めて、抽選の保存先に確変の予定として残す。 */
 @injectable()
 export class DrawStateInitializer {
   constructor(
@@ -22,8 +23,10 @@ export class DrawStateInitializer {
     const existing = await store.plan();
     if (existing) return existing;
 
-    const kakuhenTimings = this.prizeReservationService.calculateKakuhenTimings(prizes.length, plan);
-    const reservedPrizeIds = this.prizeReservationService.reservePrizes(kakuhenTimings.length, prizes).map((p) => p.id);
+    // 確変の回に当てる景品は、確変対応ONで未当選のものだけ。取り置くので、通常の抽選では当たらない(OFFの景品だけが当たる)
+    const won = new Set((await store.results()).map((r) => r.wonPrize?.id).filter(Boolean));
+    const reservedPrizeIds = prizes.filter((p) => isKakuhenPrize(p) && !won.has(p.id)).map((p) => p.id);
+    const kakuhenTimings = this.prizeReservationService.calculateKakuhenTimings(prizes.length, plan, reservedPrizeIds.length);
     return store.ensurePlan(kakuhenTimings, reservedPrizeIds);
   }
 }

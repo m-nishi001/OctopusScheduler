@@ -121,7 +121,7 @@ test.describe("景品の CSV 取込・書き出し", () => {
     const csvFile = await csvDownload;
     expect(csvFile.suggestedFilename()).toBe("prizes.csv");
     const csvText = readFileSync(await csvFile.path(), "utf-8");
-    expect(csvText.startsWith("﻿ID,名前,景品ランク,アニメーション,画像1,画像2,当選画像1,当選画像2,BGM1,BGM2")).toBe(true);
+    expect(csvText.startsWith("﻿ID,名前,景品ランク,アニメーション,確変対応,画像1,画像2,当選画像1,当選画像2,BGM1,BGM2")).toBe(true);
     expect(csvText).toContain(`${idOf(1)},${nameOf(1)},4,スロット,${SHARED_IMAGE},`);
 
     await admin.page.getByTestId("table-export-media").check();

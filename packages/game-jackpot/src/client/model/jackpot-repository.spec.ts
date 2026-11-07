@@ -90,7 +90,7 @@ describe("JackpotRepository", () => {
       await seedLegacy();
       const record = await repo.readRecord();
       expect(record.schemaVersion).toBe(1);
-      expect(record.prizes).toEqual([{ id: "p1", name: "A", order: 1, rank: 3 }]);
+      expect(record.prizes).toEqual([{ id: "p1", name: "A", order: 1, rank: 3, kakuhen: false }]);
       const stored = await store().get<{ updatedAt: number; data: unknown }>("record");
       expect(stored!.data).toEqual({ schemaVersion: 1, prizes: [{ id: "p1", name: "A", order: 1, rank: 3 }], screens: [], media: {} });
       expect(stored!.updatedAt).toBeGreaterThan(10);
@@ -103,6 +103,28 @@ describe("JackpotRepository", () => {
       const before = await store().get<{ updatedAt: number }>("record");
       expect((await repo.getPrizes())[0].rank).toBe(5);
       expect((await store().get<{ updatedAt: number }>("record"))!.updatedAt).toBe(before!.updatedAt);
+    });
+
+    it("確変対応(kakuhen)が無い古い景品は、読むときに2枚目の素材の有無から補う。保存済みの内容と素材は変えず、何度読んでも同じ", async () => {
+      await store().save("record", {
+        updatedAt: 10,
+        data: {
+          schemaVersion: 1,
+          prizes: [
+            { id: "on", name: "A", order: 1, rank: 3, image2: "x.png" },
+            { id: "off", name: "B", order: 2, rank: 3 },
+            { id: "set", name: "C", order: 3, rank: 3, kakuhen: false, bgm2: "keep.mp3" },
+          ],
+          screens: [],
+          media: {},
+        },
+      });
+      const first = (await repo.getPrizes()).map((p) => [p.id, p.kakuhen, p.image2 ?? p.bgm2 ?? null]);
+      expect(first).toEqual([["on", true, "x.png"], ["off", false, null], ["set", false, "keep.mp3"]]);
+      expect((await repo.getPrizes()).map((p) => p.kakuhen)).toEqual([true, false, false]);
+      const stored = await store().get<{ updatedAt: number; data: { prizes: Array<{ kakuhen?: boolean }> } }>("record");
+      expect(stored!.updatedAt).toBe(10);
+      expect(stored!.data.prizes[0].kakuhen).toBeUndefined();
     });
 
     it("何も保存されていない端末は、空のレコードを返すだけで書かない。以後の保存には版が付く", async () => {

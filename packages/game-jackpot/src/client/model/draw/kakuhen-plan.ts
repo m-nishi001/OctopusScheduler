@@ -1,7 +1,7 @@
 /**
  * 確変（予約した景品を当てる回）をどの回で起こすかの計画。管理画面の「本抽選画面設定」で決める。
  *
- *   - auto : おまかせ。景品の数の真ん中あたりで続けて2回（{@link PrizeReservationService.calculateKakuhenTimings}）。
+ *   - auto : おまかせ。景品の数の真ん中あたりで、確変対応ONの景品の数だけ続けて確変にする（{@link PrizeReservationService.calculateKakuhenTimings}）。
  *   - fixed: 指定した回で起こす。「何回目の抽選か」を1始まりで並べる（例: 3,7）。空なら確変なし。
  *
  * 計画は、その本番の抽選を始めるときに一度だけ確定する（確変の回の状態として保存される）。
@@ -41,11 +41,20 @@ export function parseTimingsText(text: string): number[] {
 
 /**
  * 景品が `totalPrizes` 件のとき、確変にできる回に絞る。1〜`totalPrizes` の整数で、重複なし・小さい順。
- * 確変は予約した景品を使うので、通常の抽選用に最低1件は残す（最大で `totalPrizes - 1` 回）。
  */
 export function usableKakuhenTimings(timings: readonly number[], totalPrizes: number): number[] {
-  const usable = Array.from(new Set(timings.filter((t) => isPositiveInteger(t) && t <= totalPrizes))).sort((a, b) => a - b);
-  return usable.slice(0, Math.max(0, totalPrizes - 1));
+  return Array.from(new Set(timings.filter((t) => isPositiveInteger(t) && t <= totalPrizes))).sort((a, b) => a - b);
+}
+
+/**
+ * 確変にする回数と、確変対応ONの景品の数が合っていないときの警告文（合っていれば null）。
+ * 確変の回では確変対応ONの景品だけが当たるので、回数と景品数は同じにするのが前提。
+ */
+export function kakuhenCountWarning(kakuhenTurns: number, kakuhenPrizes: number): string | null {
+  if (kakuhenTurns === kakuhenPrizes) return null;
+  return kakuhenTurns > kakuhenPrizes
+    ? `確変にする回（${kakuhenTurns}回）が、確変対応ありの景品（${kakuhenPrizes}件）より多いです。足りない回は通常の演出になります。`
+    : `確変にする回（${kakuhenTurns}回）が、確変対応ありの景品（${kakuhenPrizes}件）より少ないです。余った景品は、通常の抽選の最後に通常の演出で当たります。`;
 }
 
 function isPositiveInteger(value: unknown): value is number {
