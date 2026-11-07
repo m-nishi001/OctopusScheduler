@@ -301,7 +301,7 @@ test.describe("メンバーの CSV 取込・書き出し", () => {
     const file = await download;
     expect(file.suggestedFilename()).toBe("jackpot-members.csv");
     const text = readFileSync(await file.path(), "utf-8");
-    expect(text.startsWith("﻿ID,名前,写真,ランク,当選しやすさ")).toBe(true);
+    expect(text.startsWith("﻿ID,名前,ランク,当選しやすさ")).toBe(true);
     await admin.page.getByTestId("table-import-open").click();
     await admin.page.getByTestId("table-import-table").setInputFiles(table(text, "jackpot-members.csv"));
     await expect(admin.page.getByTestId("table-import-counts")).toContainText(`追加 0 / 更新 0 / 変更なし ${total} / エラー 0`);

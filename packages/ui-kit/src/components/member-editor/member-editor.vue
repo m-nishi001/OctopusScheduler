@@ -25,7 +25,7 @@
         </DataTable>
 
         <TableImportDialog v-if="onPreviewImport" v-model="importOpen" :on-preview="onPreviewImport" :allow-replace="allowReplace"
-            media-label="画像フォルダ" media-hint="CSVの「写真」列のファイル名と同じ画像が入ったフォルダ。ZIPなら不要です" />
+            :csv-only="!photoEnabled" media-label="画像フォルダ" media-hint="CSVの「写真」列のファイル名と同じ画像が入ったフォルダ。ZIPなら不要です" />
 
         <UiDialog v-model="dialogOpen" :title="editing ? 'メンバー編集' : 'メンバー追加'" size="sm" :persistent="saving"
             confirm-label="保存" :loading="saving" :confirm-disabled="!canSave" @confirm="save">
