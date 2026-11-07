@@ -56,10 +56,14 @@ packages/
 
 アセットや JSON は、環境を問わず `<module>/<kind>/<name>` のルート相対パスで保存します（例: `octopus-scheduler/assets/1_a.png`、`quiz-game/json/quiz-list.json`）。パスの組み立ては `packages/infrastructures/src/compositions/storage-paths.ts` に集約され、各環境のアダプタが実体に対応付けます。
 
-| 環境 | 単純な値（名簿・設定など） | ファイル・JSON |
+| 種類 | GAS | Cloudflare |
 | --- | --- | --- |
-| GAS | スクリプト プロパティ | Drive（ルートフォルダ配下） |
-| Cloudflare | R2（専用の名前空間） | R2 |
+| 単純な値（名簿・設定など） | スクリプト プロパティ | R2（`__scalars__/` プレフィックスの下） |
+| ファイル・JSON | Drive（ルートフォルダ配下） | R2（バケット直下の `<module>/<kind>/<name>`） |
+| キャッシュ・ロック | CacheService・ScriptLock | D1（`cache_entries`・`locks` テーブル） |
+| セッションルーム（当日の進行） | スクリプト プロパティ（KV） | Durable Object（`SESSION_ROOM`。1 セッション 1 つ） |
+
+図解は [manual/architecture.html](manual/architecture.html) を参照してください。
 
 ## 同期（sync-engine）
 
