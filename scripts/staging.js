@@ -9,7 +9,8 @@
  * 認証は wrangler の通常の方法(`wrangler login` または CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID)。
  * 本番と同じアカウントの無料枠を共有するため、普段は撤去しておき、実機確認のときだけ立てる。
  * 生成する wrangler.staging.toml(リソースIDを含む)と投入したパスワードはコミットしない(gitignore 済み)。
- * 事前に `npm run build` が必要。
+ * 事前に `npm run build` が必要。dist が現在のソース(HEAD と未コミット差分)のビルドでなければ up は拒否する
+ * (git pull では gitignore 済みの dist は作り直されないため。刻印は dist/cloudflare/build-info.json、scripts/lib/dist-stamp.js)。
  *
  * 注意: R2 バケットが空でないと削除できない(wrangler に一覧・一括削除が無い)。そのため撤去時は、AWS CLI の
  * profile r2(S3 互換 API。docs/dev-environment.md)でバケットを空にしてから削除する。profile が無いときの保険として、
@@ -24,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import { setup } from "./setup-cloudflare.js";
 import { teardown } from "./teardown-cloudflare.js";
 import { qrLoginUrl } from "./dev-stack.js";
+import { assertDistFresh, currentFingerprint } from "./lib/dist-stamp.js";
 import { emptyBucket } from "./lib/r2-s3.js";
 import { runWrangler, runWranglerAsync } from "./lib/wrangler.js";
 import { ensurePortalSession, seedDemoResults } from "./seed-session.js";
@@ -206,9 +208,7 @@ async function up({ withResults, noSeed }) {
   const startedAt = Date.now();
   const timings = [];
   assertNotProduction(STAGING);
-  if (!existsSync(join(ROOT, "dist/cloudflare/worker.js"))) {
-    throw new Error("dist/cloudflare/worker.js がありません。先に npm run build を実行してください。");
-  }
+  assertDistFresh({ distDir: join(ROOT, "dist"), fingerprint: currentFingerprint(ROOT) });
   const tomlPath = join(ROOT, TOML_NAME);
   const result = setup({
     run: wranglerRun,

@@ -28,6 +28,7 @@ import {
 } from "fs";
 import { resolve, join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
+import { currentFingerprint, writeDistStamp } from "./lib/dist-stamp.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -121,6 +122,9 @@ function collectCloudflareDist(srcDistDir, destSubDir, label) {
   return copied;
 }
 
+// ビルド結果が「どのソースのものか」を最後に刻印するため、先にソースの指紋を取っておく(詳細は lib/dist-stamp.js)
+const sourceFingerprint = currentFingerprint(rootDir);
+
 // distディレクトリを初期化
 if (existsSync(distDir)) {
   rmSync(distDir, { recursive: true, force: true });
@@ -154,3 +158,8 @@ const cloudflareAssetsCount = collectCloudflareDist(
 console.log(
   `dist/cloudflare に成果物を集約しました。 (worker: ${cloudflareWorkerCount} files, assets: ${cloudflareAssetsCount} files)`
 );
+
+// --- 刻印 ---
+// dist/cloudflare/build-info.json(assets/ の外なので公開されない)。staging:up / dev:stack がこれで古い dist を弾く。
+writeDistStamp(distDir, sourceFingerprint);
+console.log(`ビルド記録を書きました。 (${sourceFingerprint.sha.slice(0, 8)}${sourceFingerprint.diffHash ? ", 未コミット変更あり" : ""})`);

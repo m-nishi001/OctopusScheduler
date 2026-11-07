@@ -98,7 +98,7 @@ npm run staging:down    # Worker / D1 / R2 を削除
 
 | 症状 | 原因と対処 |
 | --- | --- |
-| `dist/cloudflare/worker.js がありません` | `npm run build` を先に実行 |
+| `dist/cloudflare/worker.js がありません` / `dist は xxxx からビルドされていますが…` | `npm run build` を実行(`staging:up` と `dev:stack` は、dist が現在のソース=HEAD と未コミット差分のビルドでないと拒否する。`git pull` 後は必ず再ビルド。依存が変わったら先に `npm ci`)。未追跡の新規ファイルは判定に含まれない |
 | ビルドが他パッケージの古い内容で通る/落ちる | worktree で `npm ci` していない、またはキャッシュ。`npm run build:force` |
 | `wrangler dev` が起動しない/固まる | Wrangler 3 系を使っていないか。ポートが他セッションと衝突していないか(`--port` を変える) |
 | 想定外のポートのアプリが開く | そのポートは別セッションの wrangler。cwd を確認して自分用ポートに変える |
