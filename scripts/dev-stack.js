@@ -7,7 +7,7 @@
  *   3. wrangler dev を前面で起動し、URL とログイン情報を表示する。Ctrl-C で停止する
  *
  * 状態は worktree ごとの `.wrangler/dev-stack/`(gitignore 済み)に残るので、再起動してもデータが続く。
- * 作り直したいときは `--reset`。事前に `npm run build` が必要(dist/cloudflare/worker.js を使う)。
+ * 作り直したいときは `--reset`。事前に `npm run build` が必要(dist/cloudflare/worker.js を使う)。dist が現在のソースのビルドでなければ起動を拒否する。
  *
  * 使い方: node scripts/dev-stack.js [--port 8800] [--count 20] [--reset]
  * 他のセッションの wrangler と衝突しないよう、既定ポートは空きポートから選ぶ。
@@ -18,6 +18,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freePort, renderLocalToml, waitForReady, wrangler } from "./e2e-local.js";
 import { wranglerCommand } from "./lib/wrangler.js";
+import { assertDistFresh, currentFingerprint } from "./lib/dist-stamp.js";
 import { ensurePortalSession, seedDemoResults } from "./seed-session.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -75,9 +76,7 @@ export function renderBanner({ base, seed, urlsFile, session, withResults = fals
 
 export async function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
-  if (!existsSync(join(ROOT, "dist/cloudflare/worker.js"))) {
-    throw new Error("dist/cloudflare/worker.js がありません。先に npm run build を実行してください。");
-  }
+  assertDistFresh({ distDir: join(ROOT, "dist"), fingerprint: currentFingerprint(ROOT) });
   const paths = stackPaths(ROOT);
   if (args.reset) rmSync(paths.dir, { recursive: true, force: true });
   mkdirSync(paths.dir, { recursive: true });
