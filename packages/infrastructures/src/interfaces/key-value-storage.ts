@@ -52,6 +52,9 @@ export interface IKeyValueStorage {
   /** 単純な文字列値を削除する(無ければ何もしない)。 */
   deleteScalar(key: string): Promise<void>;
 
+  /** 単純な文字列値を複数まとめて削除する(無いものは無視)。複数キー削除に対応する保存先では1往復にまとめる。 */
+  deleteScalars(keys: string[]): Promise<void>;
+
   /** prefix から始まる単純な文字列値をすべて削除する(終わったセッションの掃除用)。削除した件数を返す。 */
   deleteScalarsByPrefix(prefix: string): Promise<number>;
 
@@ -75,6 +78,9 @@ export interface IKeyValueStorage {
 
   /** key を削除し、削除前のメタデータを返す。存在しない場合は null。 */
   delete(key: string): Promise<StoredItemMeta | null>;
+
+  /** 複数の key をまとめて削除する(無いものは無視)。メタデータは返さない。 */
+  deleteMany(keys: string[]): Promise<void>;
 }
 
 export const IKeyValueStorageToken = Symbol("IKeyValueStorage");

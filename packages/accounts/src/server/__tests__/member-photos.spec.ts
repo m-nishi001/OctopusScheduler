@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import {
   deleteMemberPhotos,
@@ -58,6 +58,30 @@ describe("member-photos: 保存と取得", () => {
     await putMemberPhoto(d, { hash: A, dataUrl: dataUrl() });
     await deleteMemberPhotos(d, [A, B]);
     expect((await existsMemberPhotos(d, [A])).existing).toEqual([]);
+  });
+});
+
+describe("member-photos: 削除のバッチ化", () => {
+  it("複数枚の削除は、一覧1回+複数キー削除1回で行い、1件ずつ delete しない", async () => {
+    const d = deps();
+    const C = "cccccccccccccccc";
+    for (const h of [A, B, C]) await putMemberPhoto(d, { hash: h, dataUrl: dataUrl() });
+    const list = vi.spyOn(d.storage, "listByPrefix");
+    const many = vi.spyOn(d.storage, "deleteMany");
+    const single = vi.spyOn(d.storage, "delete");
+    await deleteMemberPhotos(d, [A, B, "dddddddddddddddd"]);
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(many).toHaveBeenCalledTimes(1);
+    expect(single).not.toHaveBeenCalled();
+    expect((await existsMemberPhotos(d, [A, B, C])).existing).toEqual([C]);
+  });
+
+  it("消すものが無ければ複数キー削除を呼ばない", async () => {
+    const d = deps();
+    const many = vi.spyOn(d.storage, "deleteMany");
+    await deleteMemberPhotos(d, [A]);
+    await deleteMemberPhotos(d, []);
+    expect(many).not.toHaveBeenCalled();
   });
 });
 

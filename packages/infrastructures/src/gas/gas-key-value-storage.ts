@@ -63,6 +63,15 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     PropertiesService.getScriptProperties().deleteProperty(key);
   }
 
+  async deleteScalars(keys: string[]): Promise<void> {
+    const properties = PropertiesService.getScriptProperties();
+    for (const key of keys) properties.deleteProperty(key);
+  }
+
+  async deleteMany(keys: string[]): Promise<void> {
+    for (const key of keys) await this.delete(key);
+  }
+
   async deleteScalarsByPrefix(prefix: string): Promise<number> {
     const properties = PropertiesService.getScriptProperties();
     const keys = properties.getKeys().filter((key) => key.startsWith(prefix));

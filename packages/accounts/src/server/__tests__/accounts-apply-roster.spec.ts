@@ -65,6 +65,21 @@ describe("applyRoster", () => {
     expect(await deps.storage.get("accounts-member-sessions/u1")).toBeNull();
   });
 
+  it("複数メンバーの一括削除で、全員の写真・セッション・資格情報のキーをまとめて片づける", async () => {
+    const { deps, token } = await setup();
+    await setPassword(deps, { id: "u2", password: "password-2" });
+    await setPassword(deps, { id: "u3", password: "password-3" });
+    const result = await applyRoster(deps, { upserts: [], deleteIds: ["u1", "u2", "u3", "u1"] });
+    expect(result).toEqual({ upserted: 0, deleted: 3 });
+    expect((await listMembers(deps)).map((m) => m.id)).toEqual(["root"]);
+    expect(await existsMemberPhotos(deps, [A, B])).toEqual({ existing: [] });
+    expect(await getSession(deps, token)).toBeNull();
+    for (const id of ["u1", "u2", "u3"]) {
+      expect(await deps.storage.get(`accounts-credential/${id}`)).toBeNull();
+      expect(await deps.storage.get(`accounts-login-key/${id}`)).toBeNull();
+    }
+  });
+
   it("管理者を deleteIds に含めると、全体を拒否して名簿を変えない", async () => {
     const { deps } = await setup();
     const before = await listAccounts(deps);

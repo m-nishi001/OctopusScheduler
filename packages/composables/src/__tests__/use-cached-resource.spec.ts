@@ -115,4 +115,32 @@ describe("useCachedCollection", () => {
     await c.remove(["a"]);
     expect(c.items.value.map((x) => x.id)).toEqual(["gen"]);
   });
+
+  it("removeMany があれば複数件の削除を1回で呼び、失敗時は全体を戻す", async () => {
+    const { storage } = memoryStorage();
+    const remove = vi.fn().mockResolvedValue(undefined);
+    const removeMany = vi.fn().mockRejectedValueOnce(new Error("ng")).mockResolvedValue(undefined);
+    const c = useCachedCollection<{ id: string; name: string }>({
+      key: "m2",
+      list: async () => [
+        { id: "a", name: "A" },
+        { id: "b", name: "B" },
+        { id: "c", name: "C" },
+      ],
+      add: async (i) => ({ id: i.id ?? "gen", name: i.name }),
+      update: async () => undefined,
+      remove,
+      removeMany,
+      storage,
+    });
+    await c.load();
+
+    await expect(c.remove(["a", "b"])).rejects.toThrow("ng");
+    expect(c.items.value.map((x) => x.id)).toEqual(["a", "b", "c"]);
+    await c.remove(["a", "b"]);
+    expect(c.items.value.map((x) => x.id)).toEqual(["c"]);
+    expect(removeMany).toHaveBeenCalledTimes(2);
+    expect(removeMany).toHaveBeenLastCalledWith(["a", "b"]);
+    expect(remove).not.toHaveBeenCalled();
+  });
 });
