@@ -11,7 +11,7 @@ import { adminRpc, expect, newDevice, test } from "./fixtures";
  * 景品: 10件が同じ画像と BGM を共有する CSV と素材フォルダを取り込む。同じ素材は1回だけ送られ、書き出した ZIP にも1つだけ入る。
  *   書き出したものをそのまま取り込み直すと全行「変更なし」。置き換えで消えた景品の素材はサーバーからも消える(景品と画面設定が共有する素材は残る)。
  * クイズと同じファイル名でも別々に保存される(モジュールをまたいで共有しない)。
- * メンバー: ID をキーにランク・当選しやすさを設定し、名簿にいない ID は名前があれば名簿に追加する(名簿の人は削除しない)。
+ * メンバー: ID をキーに当選しやすさ(メンバー抽選、1〜10)を設定し、名簿にいない ID は名前があれば名簿に追加する(名簿の人は削除しない)。
  * 画像・音声はテストの中で生成する(公開リポジトリのため)。
  */
 
@@ -33,9 +33,9 @@ function mediaDir(tune: Parameters<typeof makeWav>[0], color = "#3b82f6"): strin
   return dir;
 }
 
-const header = "ID,名前,当選確率の重み,アニメーション,画像1,BGM1";
+const header = "ID,名前,景品ランク,アニメーション,画像1,BGM1";
 const csvOf = () =>
-  [header, ...Array.from({ length: COUNT }, (_, i) => `${idOf(i + 1)},${nameOf(i + 1)},20,スロット,${SHARED_IMAGE},${SHARED_BGM}`)].join("\r\n") + "\r\n";
+  [header, ...Array.from({ length: COUNT }, (_, i) => `${idOf(i + 1)},${nameOf(i + 1)},4,スロット,${SHARED_IMAGE},${SHARED_BGM}`)].join("\r\n") + "\r\n";
 const table = (text: string, name = "prizes.csv") => ({ name, mimeType: "text/csv", buffer: Buffer.from(text, "utf-8") });
 
 type Media = { [name: string]: { hash: string } };
@@ -81,12 +81,12 @@ test.describe("景品の CSV 取込・書き出し", () => {
     const rpc = watchRpc(admin.page);
     await openPrizeList(admin.page, request);
 
-    // 重みが範囲外の行はエラー(取り込めない)
+    // 景品ランクが範囲外の行はエラー(取り込めない)
     await admin.page.getByTestId("table-import-open").click();
     await admin.page.getByTestId("table-import-table").setInputFiles(table(csvOf() + `${idOf(11)},壊れた景品,0,,,\r\n`));
     await admin.page.getByTestId("table-import-media").setInputFiles(mediaDir(TUNES.draw));
     await expect(admin.page.getByTestId("table-import-counts")).toContainText("エラー 1");
-    await expect(admin.page.locator('[data-testid="table-import-row"][data-status="error"]')).toContainText("当選確率の重み");
+    await expect(admin.page.locator('[data-testid="table-import-row"][data-status="error"]')).toContainText("景品ランク");
     await expect(admin.page.getByRole("dialog").getByRole("button", { name: "取り込む" })).toBeDisabled();
 
     // 直して取り込む
@@ -121,8 +121,8 @@ test.describe("景品の CSV 取込・書き出し", () => {
     const csvFile = await csvDownload;
     expect(csvFile.suggestedFilename()).toBe("prizes.csv");
     const csvText = readFileSync(await csvFile.path(), "utf-8");
-    expect(csvText.startsWith("﻿ID,名前,当選確率の重み,アニメーション,画像1,画像2,当選画像1,当選画像2,BGM1,BGM2")).toBe(true);
-    expect(csvText).toContain(`${idOf(1)},${nameOf(1)},20,スロット,${SHARED_IMAGE},`);
+    expect(csvText.startsWith("﻿ID,名前,景品ランク,アニメーション,画像1,画像2,当選画像1,当選画像2,BGM1,BGM2")).toBe(true);
+    expect(csvText).toContain(`${idOf(1)},${nameOf(1)},4,スロット,${SHARED_IMAGE},`);
 
     await admin.page.getByTestId("table-export-media").check();
     const zipDownload = admin.page.waitForEvent("download");
@@ -244,10 +244,10 @@ test.describe("景品の CSV 取込・書き出し", () => {
 
 const MEMBER_IDS = ["csv-jpm-1", "csv-jpm-2"];
 const NEW_MEMBER = "csv-jpm-new";
-type ExtraRow = { memberId: string; rank: number; weight?: number };
+type ExtraRow = { memberId: string; weight?: number };
 const serverExtras = async (request: APIRequestContext): Promise<ExtraRow[]> => {
   const { json } = await adminRpc<{ json: string | null }>(request, "jackpotGame_getJson", "member-extras.json");
-  return json ? JSON.parse(json).data : [];
+  return json ? JSON.parse(json).data.extras ?? [] : [];
 };
 
 test.describe("メンバーの CSV 取込・書き出し", () => {
@@ -258,7 +258,7 @@ test.describe("メンバーの CSV 取込・書き出し", () => {
     for (const id of [...MEMBER_IDS, NEW_MEMBER]) await adminRpc(request, "accounts_deleteMember", { id }).catch(() => undefined);
   });
 
-  test("ランク・当選しやすさを ID をキーに設定する。名簿にいない ID は、名前があれば名簿に追加する。書き出し直すと全行「変更なし」", async ({ browser, request }) => {
+  test("当選しやすさを ID をキーに設定する。名簿にいない ID は、名前があれば名簿に追加する。書き出し直すと全行「変更なし」", async ({ browser, request }) => {
     const admin = await newDevice(browser, { signedIn: true });
     const rpc = watchRpc(admin.page);
     await admin.page.goto("/#/execute/jackpot-admin/members");
@@ -268,7 +268,7 @@ test.describe("メンバーの CSV 取込・書き出し", () => {
     await admin.page.getByTestId("table-import-open").click();
     // 置き換え(名簿の削除)は選べない
     await expect(admin.page.getByTestId("table-import-replace")).toHaveCount(0);
-    const csv = `ID,名前,ランク,当選しやすさ\r\n${MEMBER_IDS[0]},,2,77\r\n${MEMBER_IDS[1]},,,5\r\n${NEW_MEMBER},新しい人,3,40\r\n`;
+    const csv = `ID,名前,ランク,当選しやすさ\r\n${MEMBER_IDS[0]},,2,8\r\n${MEMBER_IDS[1]},,,5\r\n${NEW_MEMBER},新しい人,3,4\r\n`;
     await admin.page.getByTestId("table-import-table").setInputFiles(table(csv, "jackpot-members.csv"));
     await expect(admin.page.getByTestId("table-import-counts")).toContainText("追加 1 / 更新 2 / 変更なし 0 / エラー 0");
     rpc.reset();
@@ -282,16 +282,18 @@ test.describe("メンバーの CSV 取込・書き出し", () => {
     expect(roster).toHaveLength(rosterSize + 1);
 
     const row = (id: string) => admin.page.getByRole("row").filter({ hasText: id === NEW_MEMBER ? "新しい人" : `CSVメンバー${MEMBER_IDS.indexOf(id) + 1}` });
-    await expect(row(MEMBER_IDS[0])).toContainText("77");
+    await expect(row(MEMBER_IDS[0])).toContainText("8");
     await expect(row(MEMBER_IDS[1])).toContainText("5");
-    await expect(row(NEW_MEMBER)).toContainText("40");
+    await expect(row(NEW_MEMBER)).toContainText("4");
     // 拡張設定はサーバーへも同期される
     await expect
-      .poll(async () => (await serverExtras(request)).find((e) => e.memberId === MEMBER_IDS[0])?.rank, { timeout: 60_000 })
-      .toBe(2);
+      .poll(async () => (await serverExtras(request)).find((e) => e.memberId === MEMBER_IDS[0])?.weight, { timeout: 60_000 })
+      .toBe(8);
     const extras = await serverExtras(request);
     expect(extras.find((e) => e.memberId === MEMBER_IDS[1])).toMatchObject({ weight: 5 });
-    expect(extras.find((e) => e.memberId === NEW_MEMBER)).toMatchObject({ rank: 3, weight: 40 });
+    expect(extras.find((e) => e.memberId === NEW_MEMBER)).toMatchObject({ weight: 4 });
+    // 廃止したランクの列は無視される(古い CSV も取り込める)
+    expect(extras.find((e) => e.memberId === NEW_MEMBER)).not.toHaveProperty("rank");
 
     // 書き出し直すと全行「変更なし」
     const total = rosterSize + 1;
@@ -301,7 +303,7 @@ test.describe("メンバーの CSV 取込・書き出し", () => {
     const file = await download;
     expect(file.suggestedFilename()).toBe("jackpot-members.csv");
     const text = readFileSync(await file.path(), "utf-8");
-    expect(text.startsWith("﻿ID,名前,ランク,当選しやすさ")).toBe(true);
+    expect(text.startsWith("﻿ID,名前,当選しやすさ")).toBe(true);
     await admin.page.getByTestId("table-import-open").click();
     await admin.page.getByTestId("table-import-table").setInputFiles(table(text, "jackpot-members.csv"));
     await expect(admin.page.getByTestId("table-import-counts")).toContainText(`追加 0 / 更新 0 / 変更なし ${total} / エラー 0`);

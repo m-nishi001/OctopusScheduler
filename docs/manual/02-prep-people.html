@@ -120,16 +120,16 @@
         </figcaption>
       </figure>
       <p class="warn"><b>注意</b>QRコードは、この画面を閉じると二度と表示できません。必ず印刷してから閉じてください。なくした場合は「QR再発行」を使います(以前のQRは使えなくなります)。QRは本人専用です。写真を共有しないよう参加者に伝えてください。</p>
-      <p><strong>ジャックポットのメンバーにする:</strong>「ジャックポットの準備」→「メンバー」タブを開き、「追加」で「共有マスタから選択」を選ぶと、名簿にいる人を選べます。ここでは、抽選に使う<strong>ランク</strong>と<strong>当選しやすさ</strong>を決めます。</p>
+      <p><strong>ジャックポットのメンバーにする:</strong>「ジャックポットの準備」→「メンバー」タブを開き、「追加」で「共有マスタから選択」を選ぶと、名簿にいる人を選べます。ここでは、<strong>メンバー抽選の当選しやすさ</strong>(1〜10、標準5。大きいほど選ばれやすい)を決めます。</p>
       <figure class="shot">
         <img src="images/a-10-jp-members.webp" alt="ジャックポット管理 メンバー" loading="lazy">
         <figcaption>
           <strong>ジャックポット管理 メンバー</strong>
           <ol class="marks">
             <li><span class="n">1</span>名簿から選んで、メンバーを追加する</li>
-            <li><span class="n">2</span>ランク・当選しやすさを入れるCSVのひな形をダウンロード</li>
-            <li><span class="n">3</span>ランク・当選しやすさをCSVでまとめて設定する</li>
-            <li><span class="n">4</span>ランク・当選しやすさを編集する</li>
+            <li><span class="n">2</span>当選しやすさを入れるCSVのひな形をダウンロード</li>
+            <li><span class="n">3</span>当選しやすさをCSVでまとめて設定する</li>
+            <li><span class="n">4</span>当選しやすさを編集する</li>
           </ol>
         </figcaption>
       </figure>
@@ -138,27 +138,27 @@
         <figcaption>
           <strong>メンバー詳細ダイアログ</strong>
           <ol class="marks">
-            <li><span class="n">1</span>当選しやすさ(1〜100)</li>
+            <li><span class="n">1</span>メンバー抽選の当選しやすさ(1〜10、標準5)</li>
             <li><span class="n">2</span>顔写真は、ここではなく設定の「メンバー」で設定する</li>
             <li><span class="n">3</span>保存する</li>
           </ol>
         </figcaption>
       </figure>
-      <p><strong>ランクと当選しやすさをまとめて設定する場合:</strong>「書式CSV」を押すと、いまのメンバーが入った状態のCSVが書き出されます。1行目は見出しで、<code>id,rank,weight</code>の形です。ランクと当選しやすさを書き換えて、「データ取込」から読み込みます。</p>
+      <p><strong>当選しやすさをまとめて設定する場合:</strong>「書式CSV」を押すと、いまのメンバーが入った状態のCSVが書き出されます。1行目は見出しで、<code>ID,名前,当選しやすさ</code>の形です。当選しやすさ(1〜10)を書き換えて、「データ取込」から読み込みます。</p>
       <figure class="shot">
         <img src="images/a-12-jp-member-import.webp" alt="メンバーのデータ取込ダイアログ" loading="lazy">
         <figcaption>
           <strong>メンバーのデータ取込ダイアログ</strong>
           <ol class="marks">
-            <li><span class="n">1</span>設定できる列(id,rank,weight)の説明</li>
+            <li><span class="n">1</span>設定できる列(ID,名前,当選しやすさ)の説明</li>
             <li><span class="n">2</span>CSVファイルを選ぶ</li>
             <li><span class="n">3</span>取り込みを始める</li>
           </ol>
         </figcaption>
       </figure>
-      <p class="note"><b>ポイント</b>データ取込は、IDごとにランクと当選しやすさを設定するだけです。名簿にいないIDの行は、読み飛ばされます。「当選しやすさ」は1〜100で、全員が同じ値なら、全員が同じ確率で当選します。</p>
+      <p class="note"><b>ポイント</b>データ取込は、IDごとに当選しやすさを設定するだけです(古いCSVの「ランク」列は無視されます)。名簿にいないIDの行は、読み飛ばされます。「当選しやすさ」は1〜10で、全員が同じ値なら、全員が同じ確率で当選します。</p>
       <h3 id="prep-prizes">2-2. 景品を登録する</h3>
-      <p>「景品」タブで、景品の名前・画像・抽選アニメーションを設定します。「データ取込」でまとめて登録することもできます。</p>
+      <p>「景品」タブで、景品の名前・景品ランク(1〜5、標準3。5=豪華でレア=当たりにくい)・画像・抽選アニメーションを設定します。「データ取込」でまとめて登録することもできます。</p>
       <figure class="shot">
         <img src="images/a-13-jp-prizes.webp" alt="ジャックポット管理 景品" loading="lazy">
         <figcaption>

@@ -176,7 +176,7 @@ function toResult(draw: JackpotDraw, members: Map<string, Member>, prizes: Map<s
   const prize = prizes.get(draw.prizeId);
   return {
     drawId: draw.drawId,
-    wonMember: member ? fromMember(member) : { id: draw.memberId, name: draw.memberName, rank: 0 },
+    wonMember: member ? fromMember(member) : { id: draw.memberId, name: draw.memberName },
     wonPrize: prize ?? { id: draw.prizeId, name: draw.prizeName, order: 0 },
     isKakuhen: draw.isKakuhen,
     createdAt: draw.atMs,

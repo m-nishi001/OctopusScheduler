@@ -40,17 +40,16 @@ export class DrawSimulationService {
     return Array.from({ length: count }, (_, i) => ({
       id: `member-${i + 1}`,
       name: `メンバー${i + 1}`,
-      rank: (i % 3) + 1,
     }));
   }
 
-  /** レア度の異なる景品が混ざるよう、重みを 1 / 10 / 80 の順に繰り返す。 */
+  /** レア度の異なる景品が混ざるよう、景品ランクを 5 / 3 / 1 の順に繰り返す。 */
   private dummyPrizes(count: number): Prize[] {
-    const weights = [1, 10, 80];
+    const ranks = [5, 3, 1];
     return Array.from({ length: count }, (_, i) => ({
       id: `prize-${i + 1}`,
       name: `景品${i + 1}`,
-      weight: weights[i % weights.length],
+      rank: ranks[i % ranks.length],
       image: "dummy",
       animation: "roulette",
       order: i + 1,
@@ -76,12 +75,12 @@ export class DrawSimulationService {
 
   /** 結果をCSV形式にする。 */
   generateCsv(results: DrawResultDto[]): string {
-    const headers = ["Draw ID", "Member Name", "Prize Name", "Prize Weight", "Is Kakuhen"];
+    const headers = ["Draw ID", "Member Name", "Prize Name", "Prize Rank", "Is Kakuhen"];
     const rows = results.map((result) => [
       result.drawId,
       result.wonMember?.name || "",
       result.wonPrize?.name || "",
-      result.wonPrize?.weight || "",
+      result.wonPrize?.rank || "",
       (result.isKakuhen || false).toString(),
     ]);
     return [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");

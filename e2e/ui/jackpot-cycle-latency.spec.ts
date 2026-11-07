@@ -26,7 +26,7 @@ const BASELINE = process.env.E2E_BASELINE === "1";
 const ids = ["jp-cyc-1", "jp-cyc-2", "jp-cyc-3"];
 const keys = new Map<string, string>();
 const sessionIds: string[] = [];
-const PRIZES = Array.from({ length: 8 }, (_, i) => ({ id: `jp-cyc-p${i + 1}`, name: `遅延景品${i + 1}`, order: i + 1, weight: 10 }));
+const PRIZES = Array.from({ length: 8 }, (_, i) => ({ id: `jp-cyc-p${i + 1}`, name: `遅延景品${i + 1}`, order: i + 1, rank: 3 }));
 
 interface ServerDraw {
   drawId: string;

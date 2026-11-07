@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { applyPrizeEdit, createPrize } from "./prize";
 import type { Prize } from "./prize";
 
-const prize = (id: string, order: number): Prize => ({ id, name: id, order, weight: 10 });
+const prize = (id: string, order: number): Prize => ({ id, name: id, order, rank: 3 });
 
 describe("applyPrizeEdit", () => {
   it("編集した項目を反映し、id と order は変えない", () => {
-    const next = applyPrizeEdit(prize("a", 3), { name: "新しい名前", weight: 50, animation: "slot" });
-    expect(next).toEqual({ id: "a", order: 3, name: "新しい名前", weight: 50, animation: "slot" });
+    const next = applyPrizeEdit(prize("a", 3), { name: "新しい名前", rank: 4, animation: "slot" });
+    expect(next).toEqual({ id: "a", order: 3, name: "新しい名前", rank: 4, animation: "slot" });
   });
 
   it("フォームに無い項目は残らない(編集した内容がそのまま保存される)", () => {

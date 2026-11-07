@@ -27,8 +27,8 @@ export type JackpotGameFunctionName =
 export interface Prize {
   id: string;
   name: string;
-  /** 当選確率の重み。目安は1〜100で、大きいほど当選しやすい。未設定時は既定値が使われる。 */
-  weight?: number;
+  /** 景品ランク(1〜5、標準3)。大きいほど豪華でレア(当選しにくい)。未設定時は既定値(3)が使われる。 */
+  rank?: number;
   image?: string;
   image2?: string;
   bgm1?: string;
@@ -59,6 +59,8 @@ export interface MediaInfo {
  * 同じ名前は同じ素材として、ジャックポットの中で1つだけ持つ。
  */
 export interface JackpotRecord {
+  /** データ形式の版。古い(または無い)版を読み込んだときに、一度だけ移行する(`migrateJackpotRecord`)。 */
+  schemaVersion?: number;
   prizes: Prize[];
   screens: ScreenSettingRecord[];
   media: Record<string, MediaInfo>;

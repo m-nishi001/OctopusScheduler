@@ -63,7 +63,7 @@ describe("DrawSimulationService", () => {
   it("CSV に見出しと結果の行が出る", async () => {
     const { results, csv } = await new DrawSimulationService().runSimulation(5, 3);
     const lines = csv.split("\n");
-    expect(lines[0]).toBe('"Draw ID","Member Name","Prize Name","Prize Weight","Is Kakuhen"');
+    expect(lines[0]).toBe('"Draw ID","Member Name","Prize Name","Prize Rank","Is Kakuhen"');
     expect(lines).toHaveLength(1 + results.length);
   });
 });

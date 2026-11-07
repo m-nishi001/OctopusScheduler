@@ -13,9 +13,9 @@ const plan = (current: Prize[], csv: string, mode: ImportMode = "upsert", availa
 
 describe("prizeAdapter", () => {
   const full: Prize[] = [
-    prize("a", { weight: 40, animation: "slot", image: "a.png", image2: "a2.png", winningImage1: "w1.png", winningImage2: "w2.png", bgm1: "b1.mp3", bgm2: "b2.mp3", order: 1 }),
+    prize("a", { rank: 4, animation: "slot", image: "a.png", image2: "a2.png", winningImage1: "w1.png", winningImage2: "w2.png", bgm1: "b1.mp3", bgm2: "b2.mp3", order: 1 }),
     prize("b", { order: 2 }),
-    prize("c", { weight: 7, animation: "roulette", order: 3 }),
+    prize("c", { rank: 2, animation: "roulette", order: 3 }),
   ];
 
   it("書き出した CSV をそのまま取り込むと、全行が変更なし(置き換えでも削除なし)", () => {
@@ -27,14 +27,14 @@ describe("prizeAdapter", () => {
     expect(p.ok).toBe(true);
   });
 
-  it("ID が空なら新しい景品(識別子を発行)。空のセルは未設定、重みは未指定のまま", () => {
+  it("ID が空なら新しい景品(識別子を発行)。空のセルは未設定、景品ランクは未指定のまま", () => {
     const p = plan([], "ID,名前\n,新しい景品\n");
     expect(p.counts.add).toBe(1);
-    expect(p.upserts[0]).toMatchObject({ id: "gen", name: "新しい景品", animation: "roulette", weight: undefined });
+    expect(p.upserts[0]).toMatchObject({ id: "gen", name: "新しい景品", animation: "roulette", rank: undefined });
   });
 
   it("既存の景品の空のセルは、いまのままを保つ。`-` で素材を外せる", () => {
-    const current = [prize("a", { weight: 30, animation: "slot", image: "a.png", bgm1: "b.mp3" })];
+    const current = [prize("a", { rank: 5, animation: "slot", image: "a.png", bgm1: "b.mp3" })];
     const keep = plan(current, "ID,名前\na,景品a\n");
     expect(keep.rows[0].status).toBe("unchanged");
     const removed = plan(current, "ID,名前,画像1,BGM1\na,景品a,-,\n");
@@ -48,11 +48,27 @@ describe("prizeAdapter", () => {
     expect(plan([], "名前,アニメーション\nA,回転\n").rows[0]).toMatchObject({ status: "error", message: expect.stringContaining("ルーレット") });
   });
 
-  it("名前が空・重みが範囲外・素材が見つからない行はエラーで、取り込めない", () => {
-    const p = plan([], "ID,名前,当選確率の重み,画像1\n1,,5,\n2,B,0,\n3,C,5,none.png\n4,D,101,\n5,E,1.5,\n", "upsert", []);
+  it("名前が空・景品ランクが範囲外・素材が見つからない行はエラーで、取り込めない", () => {
+    const p = plan([], "ID,名前,景品ランク,画像1\n1,,5,\n2,B,0,\n3,C,5,none.png\n4,D,6,\n5,E,1.5,\n", "upsert", []);
     expect(p.rows.map((r) => r.status)).toEqual(["error", "error", "error", "error", "error"]);
     expect(p.ok).toBe(false);
     expect(p.upserts).toEqual([]);
+  });
+
+  it("景品ランクの列を読み書きする(1〜5)。書き出しの見出しは「景品ランク」", () => {
+    const csv = exportTable([prize("a", { rank: 5 })], prizeAdapter());
+    expect(csv.split("\r\n")[0]).toContain("景品ランク");
+    expect(csv).not.toContain("当選確率の重み");
+    expect(plan([], "名前,景品ランク\nA,5\nB,1\n").upserts.map((p) => p.rank)).toEqual([5, 1]);
+    const err = plan([], "名前,景品ランク\nA,6\n").rows[0];
+    expect(err).toMatchObject({ status: "error", message: expect.stringContaining("1〜5") });
+  });
+
+  it("古い書き出しの「当選確率の重み」列は意味が違うので無視する(景品ランクは未指定のまま)", () => {
+    const p = plan([], "名前,当選確率の重み\nA,80\n");
+    expect(p.rows[0].status).toBe("add");
+    expect(p.upserts[0].rank).toBeUndefined();
+    expect(p.upserts[0]).not.toHaveProperty("weight");
   });
 
   it("素材のフォルダ付きの書き方(images/a.png)でもファイル名で照合する", () => {

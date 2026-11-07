@@ -24,7 +24,7 @@ const ADMIN_TOKEN = process.env.E2E_ADMIN_TOKEN ?? "e2e-admin-session-token-0001
 
 const metrics = new Metrics();
 const env = { base: BASE, metrics };
-const PRIZES = Array.from({ length: 3 }, (_, i) => ({ id: `ld-p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10 }));
+const PRIZES = Array.from({ length: 3 }, (_, i) => ({ id: `ld-p${i + 1}`, name: `景品${i + 1}`, order: i + 1, rank: 3 }));
 const QUIZ_IDS = ["ldq1", "ldq2"];
 
 const realIds = Array.from({ length: REAL }, (_, i) => `lu-${runId}-r${i + 1}`);

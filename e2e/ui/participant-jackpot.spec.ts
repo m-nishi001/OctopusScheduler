@@ -37,7 +37,7 @@ test.afterAll(async ({ request }) => {
 const publish = (request: APIRequestContext, sessionId: string, published = true) =>
   adminRpc(request, "sessionHub_setPortalSession", { sessionId, published });
 
-const PRIZES = ["特賞", "一等", "二等", "三等", "四等"].map((name, i) => ({ id: `jp-p${i + 1}`, name, order: i + 1, weight: 10 }));
+const PRIZES = ["特賞", "一等", "二等", "三等", "四等"].map((name, i) => ({ id: `jp-p${i + 1}`, name, order: i + 1, rank: 3 }));
 
 /** 1回の抽選を最後まで進め、当選者の名前を返す（管理コンソールの「次へ」で進める）。 */
 async function drawOnce(admin: import("@playwright/test").Page): Promise<string> {

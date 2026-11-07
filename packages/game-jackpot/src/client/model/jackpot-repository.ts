@@ -14,6 +14,7 @@ import {
 import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
 import { deriveMedia, mimeOfName } from "@octopus/table-io";
 import { IJackpotGameApiToken, jackpotMediaRefs, jackpotRecordHashes, prizeMediaNames } from "../../server/jackpot-api-contract";
+import { JACKPOT_SCHEMA_VERSION, migrateJackpotRecord } from "./schema-migration";
 import type { JackpotGameApi, JackpotRecord, MediaInfo, Prize, ScreenSettingRecord } from "../../server/jackpot-api-contract";
 
 const RECORD_SYNC_KIND = "jackpot";
@@ -28,11 +29,18 @@ export interface ImportedFile {
 /** レコードの景品と画面設定(素材の索引を除く)。 */
 type Contents = Pick<JackpotRecord, "prizes" | "screens">;
 
-const emptyRecord = (): JackpotRecord => ({ prizes: [], screens: [], media: {} });
+const emptyRecord = (): JackpotRecord => ({ schemaVersion: JACKPOT_SCHEMA_VERSION, prizes: [], screens: [], media: {} });
 
-/** 端末やサーバーに残っているレコードの形が違っても(以前の形式など)、空のレコードとして扱う。 */
-const asRecord = (data: Partial<JackpotRecord> | null | undefined): JackpotRecord =>
-  data && Array.isArray(data.prizes) && Array.isArray(data.screens) ? { prizes: data.prizes, screens: data.screens, media: data.media ?? {} } : emptyRecord();
+/**
+ * 端末やサーバーに残っているレコードの形が違っても(以前の形式など)、空のレコードとして扱う。
+ * 古い版のレコードは、現在の版に移行して返す(景品ランクを既定値に戻す)。
+ */
+const asMigratedRecord = (data: Partial<JackpotRecord> | null | undefined): { record: JackpotRecord; changed: boolean } =>
+  data && Array.isArray(data.prizes) && Array.isArray(data.screens)
+    ? migrateJackpotRecord({ schemaVersion: data.schemaVersion, prizes: data.prizes, screens: data.screens, media: data.media ?? {} })
+    : { record: emptyRecord(), changed: false };
+
+const asRecord = (data: Partial<JackpotRecord> | null | undefined): JackpotRecord => asMigratedRecord(data).record;
 
 /** データURLを Blob にする。 */
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -59,9 +67,17 @@ export class JackpotRepository {
 
   constructor(@inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi) {}
 
-  /** いまのレコード(景品・画面設定と素材の索引)。 */
+  /**
+   * いまのレコード(景品・画面設定と素材の索引)。
+   * 古い版が残っていれば、ここで1回だけ現在の版に移行(景品ランクを既定値に戻す)して保存し直す。
+   */
   async readRecord(): Promise<JackpotRecord> {
-    return asRecord((await this.list.read())?.data);
+    const { record, changed } = asMigratedRecord((await this.list.read())?.data);
+    if (changed) {
+      await this.list.update((current) => asRecord(current));
+      eventBus.emit("syncDirty");
+    }
+    return record;
   }
 
   /** 素材の名前の中身。登録されていない・まだ手元に無い(同期の途中)なら null。 */

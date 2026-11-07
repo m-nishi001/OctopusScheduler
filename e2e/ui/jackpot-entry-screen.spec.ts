@@ -7,7 +7,7 @@ import { adminRpc, createSession, expect, loginByQr, newDevice, nextButton, open
  *   - 「エントリーした人のみ」に切り替えてからエントリー画面を開くと、その場で受付が始まり、エントリーした人だけが並ぶ・抽選される
  *   - 「説明へ」で受付が閉じ、説明画面の「まもなく抽選!」は未エントリーの人には出ない
  */
-const PRIZES = ["特賞", "一等", "二等"].map((name, i) => ({ id: `jes-p${i + 1}`, name, order: i + 1, weight: 10 }));
+const PRIZES = ["特賞", "一等", "二等"].map((name, i) => ({ id: `jes-p${i + 1}`, name, order: i + 1, rank: 3 }));
 const ids = { admin: "jes-adm", a: "jes-01", b: "jes-02", late: "jes-03" } as const;
 const names = { admin: "受付管理者", a: "参加者01", b: "参加者02", late: "参加者03" } as const;
 const keys = new Map<string, string>();

@@ -215,7 +215,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     const slides = ["一枚目の説明", "二枚目の説明"].map((content, i) => ({ id: `s${i}`, type: "text", content }));
     await seedJackpot(host.page, {
       screens: [{ screenName: "description", settingName: "description-screen-settings", settingValue: JSON.stringify({ bgm: "", contents: slides }) }],
-      prizes: [{ id: "stale-p1", name: "特賞", order: 1, weight: 10, animation: "roulette" }],
+      prizes: [{ id: "stale-p1", name: "特賞", order: 1, rank: 3, animation: "roulette" }],
     });
     // 管理端末1の受信を止められるようにして開き直す(止めている間は、ホストの表示が変わっても古い画面のまま)
     let frozen = false;

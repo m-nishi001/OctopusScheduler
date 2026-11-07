@@ -22,23 +22,16 @@
           </select>
         </div>
 
-        <div class="two-col">
-          <div class="form-group">
-            <label>名前</label>
-            <input v-model="name" type="text" placeholder="メンバー名"
-              :disabled="mode === 'add' && attachMode === 'existing'" />
-          </div>
-          <div class="form-group">
-            <label>ランク</label>
-            <input v-model.number="rank" type="number" placeholder="ランク" min="1" :max="maxRank" step="1"
-              />
-          </div>
+        <div class="form-group">
+          <label>名前</label>
+          <input v-model="name" type="text" placeholder="メンバー名"
+            :disabled="mode === 'add' && attachMode === 'existing'" />
         </div>
 
         <div class="form-group">
-          <label>当選しやすさ（{{ MIN_WEIGHT }}〜{{ MAX_WEIGHT }}）</label>
+          <label>メンバー抽選の当選しやすさ（{{ MIN_WEIGHT }}〜{{ MAX_WEIGHT }}）</label>
           <input v-model.number="weight" type="number" :min="MIN_WEIGHT" :max="MAX_WEIGHT" step="1" data-testid="member-weight" />
-          <div class="hint">大きいほど当選しやすくなります。全員が同じ値なら、みんな同じ確率です（既定 {{ DEFAULT_WEIGHT }}）。</div>
+          <div class="hint">大きいほどメンバー抽選で選ばれやすい。標準は{{ DEFAULT_WEIGHT }}</div>
         </div>
 
         <p class="hint">顔写真は、設定の「メンバー」(共通の名簿)で設定します。</p>
@@ -64,8 +57,6 @@ const emit = defineEmits<{
 }>();
 
 const name = ref('');
-const rank = ref(1);
-const maxRank = ref(10);
 const weight = ref<number>(DEFAULT_WEIGHT);
 const saving = ref(false);
 const attachMode = ref<'new' | 'existing'>('new');
@@ -84,7 +75,7 @@ watch(selectedExistingId, (id) => {
 });
 
 const canSubmit = computed(() => {
-  if (rank.value < 1 || saving.value) return false;
+  if (saving.value) return false;
   if (!Number.isInteger(weight.value) || weight.value < MIN_WEIGHT || weight.value > MAX_WEIGHT) return false;
   if (props.mode === 'add' && attachMode.value === 'existing') {
     return !!selectedExistingId.value;
@@ -94,15 +85,11 @@ const canSubmit = computed(() => {
 
 const loadFromMember = (member: any) => {
   name.value = member.name;
-  rank.value = member.rank;
   weight.value = resolveWeight(member.weight);
-  maxRank.value = 10;
 };
 
 if (props.mode === 'edit' && props.member) {
   loadFromMember(props.member);
-} else {
-  rank.value = 5;
 }
 
 const submit = async () => {
@@ -112,7 +99,6 @@ const submit = async () => {
     emit('submit', {
       id: props.mode === 'add' && attachMode.value === 'existing' ? selectedExistingId.value : undefined,
       name: name.value,
-      rank: rank.value,
       weight: weight.value,
     });
   } finally {
@@ -121,18 +107,3 @@ const submit = async () => {
 };
 
 </script>
-
-<style scoped>
-.two-col {
-  display: grid;
-  grid-template-columns: 1fr 140px;
-  gap: 12px;
-  align-items: end;
-}
-
-@media (max-width: 640px) {
-.two-col {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

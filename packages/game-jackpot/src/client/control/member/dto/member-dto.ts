@@ -4,7 +4,6 @@ export interface MemberDto {
   id: string;
   name: string;
   photo?: string;
-  rank: number;
   weight?: number;
 }
 
@@ -13,7 +12,6 @@ export const toMember = (dto: MemberDto): Member => ({
   id: dto.id,
   name: dto.name,
   photo: dto.photo,
-  rank: dto.rank,
   weight: dto.weight,
 });
 
@@ -22,6 +20,5 @@ export const fromMember = (member: Member): MemberDto => ({
   id: member.id,
   name: member.name,
   photo: member.photo,
-  rank: member.rank,
   weight: member.weight,
 });

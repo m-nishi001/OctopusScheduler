@@ -101,7 +101,7 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
           id: `p${i + 1}`,
           name: `景品${i + 1}`,
           order: i + 1,
-          weight: 10,
+          rank: 3,
           ...(sc.animation ? { animation: sc.animation } : {}),
         })),
       });

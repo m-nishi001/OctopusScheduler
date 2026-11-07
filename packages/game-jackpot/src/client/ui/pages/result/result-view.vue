@@ -16,8 +16,8 @@
         </li>
       </ul>
       <div v-if="specialWinner || lowestWinner" class="result-notes">
-        <span v-if="specialWinner" class="special-winner">最高ランク当選者: {{ specialWinner?.name }}</span>
-        <span v-if="lowestWinner" class="lowest-winner">最低ランク当選者: {{ lowestWinner?.name }}</span>
+        <span v-if="specialWinner" class="special-winner">最高ランク景品の当選者: {{ specialWinner?.name }}</span>
+        <span v-if="lowestWinner" class="lowest-winner">最低ランク景品の当選者: {{ lowestWinner?.name }}</span>
       </div>
       <p class="result-hint">Enterキーでエンディング画面へ</p>
     </div>
@@ -36,6 +36,7 @@ import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { useJackpotFinale } from '../../composables/use-jackpot-finale';
 import { container } from 'tsyringe';
+import { pickRankWinners } from './rank-winners';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { MemberPhotoCache } from '@octopus/accounts';
 import { ResultScreenSetting } from '@model/screen-config/result-screen-setting';
@@ -72,11 +73,10 @@ export default {
         // 当選者の写真は、共通の名簿の写真キャッシュから(まとめて読む。取れなければ頭文字のアバター)
         await photoCache.ensure(results.map(r => r.wonMember?.photo));
         winners.value = results.filter(r => r.wonMember).map(r => ({ ...r.wonMember!, prize: r.wonPrize ? r.wonPrize.name : '', id: r.wonMember!.id, photo: photoCache.get(r.wonMember!.photo) }));
-        const ranks = results.filter(r => r.wonMember).map(r => r.wonMember!.rank);
-        const minRank = Math.min(...ranks);
-        const maxRank = Math.max(...ranks);
-        specialWinner.value = results.find(r => r.wonMember && r.wonMember.rank === minRank)?.wonMember;
-        lowestWinner.value = results.find(r => r.wonMember && r.wonMember.rank === maxRank)?.wonMember;
+        // 当たった景品のランクで決める(最高ランクの景品の当選者 = 特別表示、最低ランクの景品の当選者 = 最低表示)
+        const { special, lowest } = pickRankWinners(results);
+        specialWinner.value = special;
+        lowestWinner.value = lowest;
       } finally {
         isLoading.value = false;
       }
@@ -214,7 +214,7 @@ export default {
   overflow-wrap: anywhere;
 }
 
-/* 最高ランク / 最低ランクの当選者は金・銀で目立たせる */
+/* 最高ランク / 最低ランクの景品の当選者は金・銀で目立たせる */
 .special {
   border-color: var(--jp-gold);
   box-shadow: var(--jp-glow);

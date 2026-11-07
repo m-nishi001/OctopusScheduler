@@ -5,7 +5,7 @@ import type { DrawResultDto } from "./dto/draw-result-dto";
 
 const draw = (drawId: string, memberId: string, prizeId: string, isKakuhen = false): DrawResultDto => ({
   drawId,
-  wonMember: { id: memberId, name: memberId, rank: 1 },
+  wonMember: { id: memberId, name: memberId },
   wonPrize: { id: prizeId, name: prizeId, order: 1 },
   isKakuhen,
   createdAt: 1,

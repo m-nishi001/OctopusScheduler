@@ -23,7 +23,7 @@ import { resolveWeight } from '@model/draw/weighted-selector';
 const columns: DataTableColumn[] = [
   { key: 'photo', label: '写真' },
   { key: 'name', label: '名前', sortable: true },
-  { key: 'weight', label: '当選しやすさ' },
+  { key: 'weight', label: 'メンバー抽選の当選しやすさ（1〜10）' },
   { key: 'actions', label: '操作' },
 ];
 

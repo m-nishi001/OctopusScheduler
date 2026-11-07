@@ -10,13 +10,13 @@ import { DrawConflictError } from "../../model/errors";
 import { CycleSource } from "../../ui/pages/main-draw/cycle-source";
 
 /** 全員・全景品を最後まで引き切る通しの検証（本番と同じ抽選ロジック + メモリ上の保存先）。 */
-function build(memberCount: number, prizeCount: number, weights?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool()) {
-  const members = Array.from({ length: memberCount }, (_, i) => ({ id: `m${i}`, name: `M${i}`, rank: 1 }));
+function build(memberCount: number, prizeCount: number, ranks?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool()) {
+  const members = Array.from({ length: memberCount }, (_, i) => ({ id: `m${i}`, name: `M${i}` }));
   const prizes = Array.from({ length: prizeCount }, (_, i) => ({
     id: `p${i}`,
     name: `P${i}`,
     order: i + 1,
-    weight: weights ? weights(i) : 10,
+    rank: ranks ? ranks(i) : 3,
   }));
   const { app, store } = createInMemoryDrawApp({ members, prizes, pool });
   return {
@@ -38,7 +38,7 @@ describe("通し抽選: 人数 × 景品数マトリクス", () => {
   for (const m of MEMBER_COUNTS) {
     for (const p of PRIZE_COUNTS) {
       it(`メンバー${m}人 × 景品${p}件: 例外なく引き切り、重複当選がない`, async () => {
-        const { service, store, prizes, initializer } = build(m, p, (i) => (i % 3 === 0 ? 100 : i % 3 === 1 ? 1 : undefined));
+        const { service, store, prizes, initializer } = build(m, p, (i) => (i % 3 === 0 ? 5 : i % 3 === 1 ? 1 : undefined));
         await initializer.initialize(prizes as any);
         const draws = Math.min(m, p);
         const wonMembers = new Set<string>();

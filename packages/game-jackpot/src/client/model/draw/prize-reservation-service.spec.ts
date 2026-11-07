@@ -24,10 +24,10 @@ describe("PrizeReservationService", () => {
     const rand = new MockRandom([0.0, 0.4, 0.6, 0.2]);
     const svc = new PrizeReservationService(rand as any);
     const prizes = [
-      { id: "p1", weight: 10 },
-      { id: "p2", weight: 5 },
-      { id: "p3", weight: 1 },
-      { id: "p4", weight: 2 },
+      { id: "p1", rank: 5 },
+      { id: "p2", rank: 3 },
+      { id: "p3", rank: 1 },
+      { id: "p4", rank: 2 },
     ];
     const res = svc.reservePrizes(2, prizes as any);
     expect(res.length).toBe(2);
@@ -38,16 +38,33 @@ describe("PrizeReservationService", () => {
   });
 
   /**
-   * weight未設定(legacy相当)の景品が混在していてもデフォルト値扱いで
+   * 2件取り置くときは、景品ランクが最も高い景品と最も低い景品の両端から1件ずつ選ぶ。
+   */
+  it("reservePrizes takes the top-rank and the lowest-rank prize when reserving two", () => {
+    for (const seq of [[0.0], [0.9]]) {
+      const svc = new PrizeReservationService(new MockRandom(seq) as any);
+      const prizes = [
+        { id: "p1", rank: 5 },
+        { id: "p2", rank: 3 },
+        { id: "p3", rank: 1 },
+        { id: "p4", rank: 2 },
+      ];
+      const res = svc.reservePrizes(2, prizes as any);
+      expect(res.map((r) => r.id).sort()).toEqual(["p1", "p3"]);
+    }
+  });
+
+  /**
+   * rank未設定(legacy相当)の景品が混在していてもデフォルト値扱いで
    * 例外なく予約できることをテストする。
    */
-  it("reservePrizes tolerates prizes with an unset weight", () => {
+  it("reservePrizes tolerates prizes with an unset rank", () => {
     const rand = new MockRandom([0.1, 0.3]);
     const svc = new PrizeReservationService(rand as any);
     const prizes = [
-      { id: "p1", weight: 50 },
+      { id: "p1", rank: 5 },
       { id: "p2" },
-      { id: "p3", weight: 3 },
+      { id: "p3", rank: 2 },
     ];
     const res = svc.reservePrizes(1, prizes as any);
     expect(res.length).toBe(1);
