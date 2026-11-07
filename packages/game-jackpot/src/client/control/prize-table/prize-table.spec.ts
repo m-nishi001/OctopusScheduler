@@ -71,6 +71,20 @@ describe("prizeAdapter", () => {
     expect(p.upserts[0]).not.toHaveProperty("weight");
   });
 
+  it("確変対応の列を あり/なし(ON/OFF・true/false・1/0 も可)で読み書きする。列が無い・空なら、いまのまま", () => {
+    const csv = exportTable([prize("a", { kakuhen: true }), prize("b", { kakuhen: false, image2: "x.png" }), prize("c", { image2: "legacy.png" }), prize("d")], prizeAdapter());
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toContain("確変対応");
+    expect(lines.slice(1, 5).map((l) => l.split(",")[4])).toEqual(["あり", "なし", "あり", "なし"]);
+    const p = plan([], "名前,確変対応\nA,あり\nB,なし\nC,ON\nD,off\nE,true\nF,0\nG,\n");
+    expect(p.upserts.map((x) => x.kakuhen)).toEqual([true, false, true, false, true, false, undefined]);
+    const current = [prize("a", { kakuhen: true })];
+    expect(plan(current, "ID,名前\na,景品a\n").rows[0].status).toBe("unchanged");
+    expect(plan(current, "ID,名前,確変対応\na,景品a,\n").rows[0].status).toBe("unchanged");
+    expect(plan(current, "ID,名前,確変対応\na,景品a,なし\n").upserts[0].kakuhen).toBe(false);
+    expect(plan([], "名前,確変対応\nA,たぶん\n").rows[0]).toMatchObject({ status: "error", message: expect.stringContaining("確変対応") });
+  });
+
   it("素材のフォルダ付きの書き方(images/a.png)でもファイル名で照合する", () => {
     const p = plan([], "名前,画像1\nA,images/a.png\n", "upsert", ["a.png"]);
     expect(p.upserts[0].image).toBe("a.png");

@@ -10,13 +10,14 @@ import { DrawConflictError } from "../../model/errors";
 import { CycleSource } from "../../ui/pages/main-draw/cycle-source";
 
 /** 全員・全景品を最後まで引き切る通しの検証（本番と同じ抽選ロジック + メモリ上の保存先）。 */
-function build(memberCount: number, prizeCount: number, ranks?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool()) {
+function build(memberCount: number, prizeCount: number, ranks?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool(), kakuhenOn: (i: number) => boolean = () => false) {
   const members = Array.from({ length: memberCount }, (_, i) => ({ id: `m${i}`, name: `M${i}` }));
   const prizes = Array.from({ length: prizeCount }, (_, i) => ({
     id: `p${i}`,
     name: `P${i}`,
     order: i + 1,
     rank: ranks ? ranks(i) : 3,
+    kakuhen: kakuhenOn(i),
   }));
   const { app, store } = createInMemoryDrawApp({ members, prizes, pool });
   return {
@@ -217,8 +218,8 @@ describe("通し抽選: 確変にする回の計画", () => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
   /** 景品 `prizeCount` 件を引き切り、何回目が確変だったか（1始まり）を返す。 */
-  const kakuhenDraws = async (prizeCount: number, plan?: KakuhenPlan) => {
-    const { service, prizes, initializer, store } = build(prizeCount + 3, prizeCount);
+  const kakuhenDraws = async (prizeCount: number, plan?: KakuhenPlan, kakuhenPrizes = 2) => {
+    const { service, prizes, initializer, store } = build(prizeCount + 3, prizeCount, undefined, undefined, (i) => i < kakuhenPrizes);
     await initializer.initialize(prizes as never, plan);
     const flags: boolean[] = [];
     for (let i = 0; i < prizeCount; i++) {
@@ -228,8 +229,15 @@ describe("通し抽選: 確変にする回の計画", () => {
     return { draws: flags.flatMap((f, i) => (f ? [i + 1] : [])), reserved: (await store.plan())!.reservedPrizeIds.length - (await store.results()).filter((r) => r.isKakuhen).length };
   };
 
-  it("計画を渡さなければ、これまでどおり景品の真ん中あたりで続けて2回", async () => {
+  it("計画を渡さなければ、確変対応ありの景品の数だけ、景品の真ん中あたりで続けて確変になる(2件なら5,6回目)", async () => {
     expect((await kakuhenDraws(10)).draws).toEqual([5, 6]);
+    expect((await kakuhenDraws(10, undefined, 3)).draws).toEqual([4, 5, 6]);
+    expect((await kakuhenDraws(10, undefined, 1)).draws).toEqual([5]);
+    expect((await kakuhenDraws(5, undefined, 5)).draws).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("確変対応ありの景品が0件なら、確変なし", async () => {
+    expect((await kakuhenDraws(10, undefined, 0)).draws).toEqual([]);
   });
 
   it("回を指定すると、指定した回だけが確変になる", async () => {
@@ -242,25 +250,60 @@ describe("通し抽選: 確変にする回の計画", () => {
     expect((await kakuhenDraws(6, { mode: "fixed", fixedTimings: [1, 5] })).draws).toEqual([1, 5]);
   });
 
-  it("指定が空なら確変なし", async () => {
-    expect((await kakuhenDraws(10, { mode: "fixed", fixedTimings: [] })).draws).toEqual([]);
+  it("指定が空なら確変なし(確変対応ありの景品が無い場合)。ある場合は、OFFの景品が尽きた最後に余ったONの景品が当たる", async () => {
+    expect((await kakuhenDraws(10, { mode: "fixed", fixedTimings: [] }, 0)).draws).toEqual([]);
+    expect((await kakuhenDraws(10, { mode: "fixed", fixedTimings: [] })).draws).toEqual([9, 10]);
   });
 
   it("景品の数を超える回は無視する", async () => {
     expect((await kakuhenDraws(4, { mode: "fixed", fixedTimings: [2, 4, 9] })).draws).toEqual([2, 4]);
   });
 
-  it("通常の抽選用に景品を1件は残すので、全部の回を指定しても、確変は景品の数-1回まで", async () => {
-    expect((await kakuhenDraws(4, { mode: "fixed", fixedTimings: [1, 2, 3, 4] })).draws).toEqual([1, 2, 3]);
+  it("回数が確変対応ありの景品より多いと、足りない回は通常の演出になる(止まらず最後まで引ける)", async () => {
+    expect((await kakuhenDraws(4, { mode: "fixed", fixedTimings: [1, 2, 3, 4] })).draws).toEqual([1, 2]);
+    expect((await kakuhenDraws(4, { mode: "fixed", fixedTimings: [1, 2, 3, 4] }, 4)).draws).toEqual([1, 2, 3, 4]);
+  });
+
+  it("回数が確変対応ありの景品より少なくても止まらない。余った景品は最後に当たり(サーバーの検査に合わせ確変の演出)、全景品が1回ずつ当たる", async () => {
+    const { service, prizes, initializer } = build(13, 10, undefined, undefined, (i) => i < 3);
+    await initializer.initialize(prizes as never, { mode: "fixed", fixedTimings: [2] });
+    const won: Array<{ id: string; kakuhen: boolean }> = [];
+    for (let i = 0; i < 10; i++) {
+      const { prizeRes, result } = await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+      won.push({ id: result.wonPrize!.id, kakuhen: prizeRes.isKakuhen === true });
+    }
+    expect(new Set(won.map((w) => w.id)).size).toBe(10);
+    // 指定した2回目と、OFFの景品(7件)が尽きたあとの最後の2回(余ったON)
+    expect(won.flatMap((w, i) => (w.kakuhen ? [i + 1] : []))).toEqual([2, 9, 10]);
+    const on = new Set(["p0", "p1", "p2"]);
+    won.forEach((w, i) => expect(on.has(w.id), `${i + 1}回目`).toBe(w.kakuhen));
+  });
+
+  it("おまかせで確変対応ありの景品が混ざっていても、確変の回はONの景品だけ・通常の回はOFFの景品だけが当たる(景品数ごと)", async () => {
+    for (const prizeCount of [2, 3, 5, 10, 30]) {
+      const on = Math.max(1, Math.floor(prizeCount / 3));
+      const { service, prizes, initializer } = build(prizeCount + 2, prizeCount, undefined, undefined, (i) => i % 3 === 0 && i / 3 < on);
+      const isOn = new Set(prizes.filter((p) => p.kakuhen).map((p) => p.id));
+      await initializer.initialize(prizes as never);
+      const kakuhenTurns: number[] = [];
+      for (let i = 0; i < prizeCount; i++) {
+        const { prizeRes, result } = await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+        expect(isOn.has(result.wonPrize!.id), `${prizeCount}件 ${i + 1}回目`).toBe(prizeRes.isKakuhen === true);
+        if (prizeRes.isKakuhen) kakuhenTurns.push(i + 1);
+      }
+      expect(kakuhenTurns).toHaveLength(Math.min(isOn.size, prizeCount));
+      kakuhenTurns.forEach((t, i) => i > 0 && expect(t).toBe(kakuhenTurns[i - 1] + 1)); // 連続
+    }
   });
 
   it("計画は最初の1回で確定し、あとから別の計画で初期化しても変わらない", async () => {
-    const { service, prizes, initializer } = build(13, 10);
+    const { service, prizes, initializer } = build(13, 10, undefined, undefined, (i) => i < 2);
     await initializer.initialize(prizes as never, { mode: "fixed", fixedTimings: [2] });
     await initializer.initialize(prizes as never, { mode: "fixed", fixedTimings: [9] }); // 無視される
     const flags: boolean[] = [];
     for (let i = 0; i < 10; i++) flags.push((await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })).prizeRes.isKakuhen === true);
-    expect(flags.flatMap((f, i) => (f ? [i + 1] : []))).toEqual([2]);
+    // 指定した2回目。ほかのONの景品(1件)は、OFFの景品が尽きた最後の回に当たる
+    expect(flags.flatMap((f, i) => (f ? [i + 1] : []))).toEqual([2, 10]);
   });
 });
 
@@ -278,7 +321,7 @@ describe("通し抽選: 次のサイクルの先読み(CycleSource)つきで、�
    * 公開が済むまでは次の確定ができない(サーバーと同じ検査は RehearsalDrawStore が行う)。
    */
   async function runWithPrefetch(options: { members: number; prizes: number; fixedTimings?: number[]; pool?: DrawPoolProvider; failCommit?: (n: number) => boolean; prefetch?: boolean }) {
-    const { service, store, prizes } = build(options.members, options.prizes, undefined, options.pool);
+    const { service, store, prizes } = build(options.members, options.prizes, undefined, options.pool, (i) => i < (options.fixedTimings?.length ?? 0));
     await service.initializeStateIfNeeded(prizes as never, { mode: "fixed", fixedTimings: options.fixedTimings ?? [] });
     let commitCalls = 0;
     const realCommit = store.commit.bind(store);

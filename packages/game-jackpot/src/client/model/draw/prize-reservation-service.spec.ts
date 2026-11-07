@@ -4,16 +4,30 @@ import { MockRandom } from "./test-utils";
 
 describe("PrizeReservationService", () => {
   /**
-   * calculateKakuhenTimingsメソッドが2つの近くのタイミングを返し、境界を制限することをテストする。
-   * 期待値: 0・1で[](通常抽選用に最低1件残すため確変なし), 2で[1], 3で[1,2], 5で[2,3]。
+   * calculateKakuhenTimings（おまかせ）は、確変の回数ぶんの連続した回を真ん中あたりに置き、景品の数を超えない。
+   * 回数を省くと2回（従来どおり）: 0・1で、2で[1,2]、3で[1,2]、5で[2,3]、10で[5,6]。
    */
-  it("calculateKakuhenTimings returns 2 nearby timings and bounds them", () => {
+  it("calculateKakuhenTimings keeps the previous behavior for 2 turns and generalizes to N consecutive turns", () => {
     const s = new PrizeReservationService(new MockRandom([0]) as any);
     expect(s.calculateKakuhenTimings(0)).toEqual([]);
-    expect(s.calculateKakuhenTimings(1)).toEqual([]);
-    expect(s.calculateKakuhenTimings(2)).toEqual([1]);
+    expect(s.calculateKakuhenTimings(1)).toEqual([1]);
     expect(s.calculateKakuhenTimings(3)).toEqual([1, 2]);
+    expect(s.calculateKakuhenTimings(4)).toEqual([2, 3]);
     expect(s.calculateKakuhenTimings(5)).toEqual([2, 3]);
+    expect(s.calculateKakuhenTimings(9)).toEqual([4, 5]);
+    expect(s.calculateKakuhenTimings(10)).toEqual([5, 6]);
+    expect(s.calculateKakuhenTimings(10, undefined, 0)).toEqual([]);
+    expect(s.calculateKakuhenTimings(10, undefined, 1)).toEqual([5]);
+    expect(s.calculateKakuhenTimings(10, undefined, 3)).toEqual([4, 5, 6]);
+    expect(s.calculateKakuhenTimings(10, undefined, 4)).toEqual([4, 5, 6, 7]);
+    // 景品の数以上なら全部の回
+    expect(s.calculateKakuhenTimings(4, undefined, 4)).toEqual([1, 2, 3, 4]);
+    expect(s.calculateKakuhenTimings(4, undefined, 9)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("calculateKakuhenTimings in fixed mode uses the given turns (in range) and ignores the count", () => {
+    const s = new PrizeReservationService(new MockRandom([0]) as any);
+    expect(s.calculateKakuhenTimings(5, { mode: "fixed", fixedTimings: [4, 2, 9] }, 1)).toEqual([2, 4]);
   });
 
   /**

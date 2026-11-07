@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AUTO_KAKUHEN_PLAN, parseKakuhenPlan, parseTimingsText, usableKakuhenTimings } from "./kakuhen-plan";
+import { kakuhenCountWarning, AUTO_KAKUHEN_PLAN, parseKakuhenPlan, parseTimingsText, usableKakuhenTimings } from "./kakuhen-plan";
 import { PrizeReservationService } from "./prize-reservation-service";
 import { MockRandom } from "./test-utils";
 
@@ -41,10 +41,10 @@ describe("parseTimingsText（入力欄の文字を回の一覧にする）", () 
 });
 
 describe("usableKakuhenTimings（景品の数に収める）", () => {
-  it("景品の数を超える回は除く。通常の抽選用に最低1件を残すので、最大で景品数-1回", () => {
+  it("景品の数を超える回は除く(景品の数まで)", () => {
     expect(usableKakuhenTimings([2, 4, 9], 5)).toEqual([2, 4]);
-    expect(usableKakuhenTimings([1, 2, 3, 4, 5], 5)).toEqual([1, 2, 3, 4]);
-    expect(usableKakuhenTimings([1], 1)).toEqual([]);
+    expect(usableKakuhenTimings([1, 2, 3, 4, 5], 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(usableKakuhenTimings([1], 1)).toEqual([1]);
     expect(usableKakuhenTimings([1], 0)).toEqual([]);
   });
 
@@ -68,5 +68,14 @@ describe("PrizeReservationService.calculateKakuhenTimings（計画に従う）",
 
   it("fixed で空なら確変なし", () => {
     expect(service.calculateKakuhenTimings(10, { mode: "fixed", fixedTimings: [] })).toEqual([]);
+  });
+});
+
+describe("kakuhenCountWarning", () => {
+  it("回数と確変対応ありの景品の数が同じなら警告なし。違えば、どちらが多いか分かる警告", () => {
+    expect(kakuhenCountWarning(2, 2)).toBeNull();
+    expect(kakuhenCountWarning(0, 0)).toBeNull();
+    expect(kakuhenCountWarning(3, 2)).toContain("多い");
+    expect(kakuhenCountWarning(1, 2)).toContain("少ない");
   });
 });

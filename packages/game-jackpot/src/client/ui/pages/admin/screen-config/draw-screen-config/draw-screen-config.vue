@@ -33,7 +33,7 @@
                 <div class="config-item">
                     <label>確変の起こし方</label>
                     <select v-model="localConfig.kakuhenMode" class="admin-input" data-testid="kakuhen-mode">
-                        <option value="auto">おまかせ（景品の真ん中あたりで続けて2回）</option>
+                        <option value="auto">おまかせ（景品の真ん中あたりで、確変対応ありの景品の数だけ続けて）</option>
                         <option value="fixed">回を指定する</option>
                     </select>
                 </div>
@@ -44,11 +44,20 @@
                         data-testid="kakuhen-timings" />
                     <div class="hint">
                         「何回目の抽選か」をカンマ区切りで入力します（例: 3, 7）。空欄なら確変は起きません。
-                        通常の抽選用に景品を1件は残すため、景品がN件なら最大 N-1 回までです。
+                        確変の回には確変対応ありの景品だけが当たるので、回数は確変対応ありの景品の数に合わせてください。
                         この設定は、本番の抽選を始めるときに一度だけ確定します。抽選が始まったあとに変えても、結果をリセットするまでは反映されません。
                     </div>
                 </div>
 
+
+                <div class="config-item kakuhen-summary" data-testid="kakuhen-summary">
+                    <div class="hint">確変対応ありの景品: {{ kakuhenPrizeCount }}件
+                        <template v-if="localConfig.kakuhenMode === 'auto'">（おまかせでは、確変は{{ kakuhenPrizeCount }}回になります）</template>
+                    </div>
+                    <div v-if="kakuhenWarning" class="warning" role="alert" data-testid="kakuhen-warning">
+                        {{ kakuhenWarning }}
+                    </div>
+                </div>
 
                 <!-- Per-prize animation settings removed (handled per-prize elsewhere) -->
 
@@ -77,7 +86,7 @@
 
 <script setup lang="ts">
 import { UiBusyOverlay, UiButton } from '@octopus/ui-kit';
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
@@ -86,7 +95,9 @@ import { useMediaDraft } from '@ui/composables/use-media-draft';
 import MediaPicker from '@ui/components/media-picker.vue';
 import SimulationDialog from './simulation-dialog.vue';
 import UnsavedChangesDialog from '../unsaved-changes-dialog.vue';
-import { parseKakuhenPlan, parseTimingsText } from '@model/draw/kakuhen-plan';
+import { kakuhenCountWarning, parseKakuhenPlan, parseTimingsText } from '@model/draw/kakuhen-plan';
+import { JackpotRepository } from '@model/jackpot-repository';
+import { countKakuhenPrizes } from '@model/prize/prize-kakuhen';
 import type { KakuhenMode } from '@model/draw/kakuhen-plan';
 import { clampPrizeStopSec, parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC } from '@model/draw/prize-stop-sec';
 
@@ -124,6 +135,21 @@ const localConfig = ref({
 const kakuhenTimingsText = ref('');
 draft.track(() => localConfig.value.memberLotteryBgms);
 
+/** 確変対応ありの景品の数。確変の回数はこれに合わせる。 */
+const kakuhenPrizeCount = ref(0);
+const loadKakuhenPrizeCount = async () => {
+    try {
+        kakuhenPrizeCount.value = countKakuhenPrizes(await container.resolve(JackpotRepository).getPrizes());
+    } catch (error) {
+        console.error('Failed to load prizes:', error);
+    }
+};
+/** 回を指定したとき、その回数が確変対応ありの景品の数と違えば警告する(保存はできる)。 */
+const kakuhenWarning = computed(() =>
+    localConfig.value.kakuhenMode === 'fixed'
+        ? kakuhenCountWarning(parseTimingsText(kakuhenTimingsText.value).length, kakuhenPrizeCount.value)
+        : null);
+
 const loadConfig = async () => {
     try {
         const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
@@ -140,14 +166,14 @@ const loadConfig = async () => {
 // 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。編集中なら読み直さない
 const reloadAfterSync = async () => {
     if (hasUnsavedChanges.value) return; // 入力の途中は消さない(保存すれば、新しいほうとして残る)
-    await loadConfig();
+    await Promise.all([loadConfig(), loadKakuhenPrizeCount()]);
     await nextTick();
     hasUnsavedChanges.value = false;
 };
 
 onMounted(async () => {
     eventBus.on('syncPulled', reloadAfterSync);
-    await Promise.all([loadConfig(), draft.reload()]);
+    await Promise.all([loadConfig(), draft.reload(), loadKakuhenPrizeCount()]);
     hasUnsavedChanges.value = false;
 });
 
@@ -376,6 +402,16 @@ const removeMemberBgm = (index: number) => {
 
 .close-btn:hover {
     background: #c82333;
+}
+
+.warning {
+    margin-top: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #e0a800;
+    background: rgba(224, 168, 0, 0.15);
+    color: var(--ui-text, #fff);
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .hint {

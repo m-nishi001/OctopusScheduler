@@ -15,6 +15,7 @@ import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
 import { deriveMedia, mimeOfName } from "@octopus/table-io";
 import { IJackpotGameApiToken, jackpotMediaRefs, jackpotRecordHashes, prizeMediaNames } from "../../server/jackpot-api-contract";
 import { JACKPOT_SCHEMA_VERSION, migrateJackpotRecord } from "./schema-migration";
+import { normalizePrizeKakuhen } from "./prize/prize-kakuhen";
 import type { JackpotGameApi, JackpotRecord, MediaInfo, Prize, ScreenSettingRecord } from "../../server/jackpot-api-contract";
 
 const RECORD_SYNC_KIND = "jackpot";
@@ -70,6 +71,7 @@ export class JackpotRepository {
   /**
    * いまのレコード(景品・画面設定と素材の索引)。
    * 古い版が残っていれば、ここで1回だけ現在の版に移行(景品ランクを既定値に戻す)して保存し直す。
+   * 景品の `kakuhen`(確変対応)が無い古いデータには、2枚目の素材の有無から補って返す(読むときだけの非破壊の補完。保存済みの内容と素材は変えない)。
    */
   async readRecord(): Promise<JackpotRecord> {
     const { record, changed } = asMigratedRecord((await this.list.read())?.data);
@@ -77,7 +79,7 @@ export class JackpotRepository {
       await this.list.update((current) => asRecord(current));
       eventBus.emit("syncDirty");
     }
-    return record;
+    return { ...record, prizes: record.prizes.map(normalizePrizeKakuhen) };
   }
 
   /** 素材の名前の中身。登録されていない・まだ手元に無い(同期の途中)なら null。 */

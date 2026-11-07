@@ -15,15 +15,30 @@
         </div>
       </div>
 
-      <div v-for="slot in IMAGE_SLOTS" :key="slot.field" :class="slot.area">
+      <div class="kakuhen-field" data-testid="kakuhen-field">
+        <label class="kakuhen-check">
+          <input type="checkbox" v-model="formData.kakuhen" data-testid="kakuhen-checkbox" />
+          <span>確変対応あり</span>
+        </label>
+        <p class="kakuhen-hint">
+          ONにすると確変ターンで『当たり…だが！』のフェイク演出に使われます。1枚目＝フェイク、2枚目＝本当の結果。
+          OFFの間は、画像2・当選画像2・BGM2は使えません（入力済みの内容は消さずに残しますが、抽選・演出では使いません）。
+        </p>
+      </div>
+
+      <div v-for="slot in IMAGE_SLOTS" :key="slot.field" :class="[slot.area, { 'kakuhen-dep': slot.second }]">
         <MediaPicker :label="slot.label" kind="image" v-model="formData[slot.field]" :options="draft.optionsOf('image')"
+          :disabled="slot.second && !formData.kakuhen"
           :preview-url="draft.urlOf(formData[slot.field])" @pick="draft.pick" />
       </div>
 
       <div class="bgm-actions">
-        <MediaPicker v-for="slot in BGM_SLOTS" :key="slot.field" :label="slot.label" kind="audio"
-          v-model="formData[slot.field]" :options="draft.optionsOf('audio')"
-          :preview-url="draft.urlOf(formData[slot.field])" @pick="draft.pick" />
+        <div v-for="slot in BGM_SLOTS" :key="slot.field" :class="{ 'kakuhen-dep': slot.second }">
+          <MediaPicker :label="slot.label" kind="audio"
+            v-model="formData[slot.field]" :options="draft.optionsOf('audio')"
+            :disabled="slot.second && !formData.kakuhen"
+            :preview-url="draft.urlOf(formData[slot.field])" @pick="draft.pick" />
+        </div>
       </div>
     </div>
   </div>
@@ -37,19 +52,20 @@ import FieldSelect from '../../../ui/pages/admin/prizes/components/field-select.
 import MediaPicker from '../media-picker.vue';
 import { useMediaDraft } from '@ui/composables/use-media-draft';
 import type { Prize, PrizeFields } from '@model/prize/prize';
+import { isKakuhenPrize } from '@model/prize/prize-kakuhen';
 import { DEFAULT_PRIZE_RANK, MAX_PRIZE_RANK, MIN_PRIZE_RANK, prizeRankToWeight } from '@model/prize/prize-rank';
 
 /** 景品の素材欄(画像4つ・BGM2つ)。どの項目に入るか・表示名・画面上の位置。 */
 type MediaField = 'image' | 'image2' | 'winningImage1' | 'winningImage2' | 'bgm1' | 'bgm2';
-const IMAGE_SLOTS: { field: MediaField; label: string; area: string }[] = [
+const IMAGE_SLOTS: { field: MediaField; label: string; area: string; second?: boolean }[] = [
   { field: 'image', label: '画像1', area: 'image1-preview' },
-  { field: 'image2', label: '画像2', area: 'image2-section' },
+  { field: 'image2', label: '画像2', area: 'image2-section', second: true },
   { field: 'winningImage1', label: '当選画像1', area: 'winning-image1-section' },
-  { field: 'winningImage2', label: '当選画像2', area: 'winning-image2-section' },
+  { field: 'winningImage2', label: '当選画像2', area: 'winning-image2-section', second: true },
 ];
-const BGM_SLOTS: { field: MediaField; label: string }[] = [
+const BGM_SLOTS: { field: MediaField; label: string; second?: boolean }[] = [
   { field: 'bgm1', label: 'BGM1' },
-  { field: 'bgm2', label: 'BGM2' },
+  { field: 'bgm2', label: 'BGM2', second: true },
 ];
 const MEDIA_FIELDS = [...IMAGE_SLOTS, ...BGM_SLOTS].map((s) => s.field);
 
@@ -73,12 +89,13 @@ const animationOptions = [
   { value: 'slot', label: 'スロット' },
 ];
 
-type FormData = { name: string; rank: number; animation: string } & Record<MediaField, string>;
+type FormData = { name: string; rank: number; animation: string; kakuhen: boolean } & Record<MediaField, string>;
 
 const emptyFormData = (): FormData => ({
   name: '',
   rank: DEFAULT_PRIZE_RANK,
   animation: 'roulette',
+  kakuhen: false,
   image: '',
   image2: '',
   bgm1: '',
@@ -119,16 +136,17 @@ function loadPrize(prize: Prize) {
     name: prize.name,
     rank: prize.rank ?? DEFAULT_PRIZE_RANK,
     animation: prize.animation || 'roulette',
+    kakuhen: isKakuhenPrize(prize),
     ...Object.fromEntries(MEDIA_FIELDS.map((f) => [f, prize[f] || ''])),
   };
 }
 
 function submit() {
   if (!isValid.value) return;
-  const { name, rank, animation } = formData.value;
+  const { name, rank, animation, kakuhen } = formData.value;
   const media = Object.fromEntries(MEDIA_FIELDS.map((f) => [f, formData.value[f] || undefined]));
   emit('submit', {
-    fields: { name, rank, animation, ...media },
+    fields: { name, rank, animation, kakuhen, ...media },
     files: draft.filesFor(MEDIA_FIELDS.map((f) => formData.value[f])),
   });
 }
@@ -157,6 +175,33 @@ function cancel() {
   padding: 20px;
   min-width: 0;
   min-height: 0;
+}
+
+/* 確変対応のチェックと、それに連動する2枚目の欄(画像2・当選画像2・BGM2)。連動する欄は点線の枠でまとめる */
+.kakuhen-field {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.kakuhen-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kakuhen-hint {
+  margin: 4px 0 0;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.kakuhen-dep {
+  border: 1px dashed var(--ui-border, #3a4048);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 0;
 }
 
 /* ensure grid can shrink and children don't force overflow */

@@ -72,6 +72,58 @@ describe("PrizeForm", () => {
     expect(wrapper.find('[data-testid="media-name"]').text()).toBe("main.png");
   });
 
+  describe("確変対応あり", () => {
+    const pickers = (wrapper: Awaited<ReturnType<typeof mountForm>>) => wrapper.findAllComponents(MediaPicker);
+    const secondIdx = [1, 3, 5]; // 画像2・当選画像2・BGM2
+
+    it("チェックはOFFが既定で、説明文を出す。OFFの間は画像2・当選画像2・BGM2が無効(それ以外は有効)", async () => {
+      const wrapper = await mountForm({ mode: "add" });
+      const box = wrapper.find('[data-testid="kakuhen-checkbox"]');
+      expect((box.element as HTMLInputElement).checked).toBe(false);
+      expect(wrapper.text()).toContain("確変対応あり");
+      expect(wrapper.text()).toContain("『当たり…だが！』のフェイク演出に使われます。1枚目＝フェイク、2枚目＝本当の結果");
+      pickers(wrapper).forEach((p, i) => {
+        const disabled = secondIdx.includes(i);
+        expect(p.find("select").attributes("disabled") !== undefined, `picker ${i}`).toBe(disabled);
+        expect(p.find('input[type="file"]').attributes("disabled") !== undefined, `picker ${i}`).toBe(disabled);
+      });
+      expect(wrapper.findAll('[data-testid="media-disabled-note"]')).toHaveLength(3);
+    });
+
+    it("ONにすると2枚目の欄が有効になり、OFFに戻すとまた無効になる。入力済みの内容は消えない", async () => {
+      const wrapper = await mountForm({ mode: "add" });
+      const box = wrapper.find('[data-testid="kakuhen-checkbox"]');
+      await box.setValue(true);
+      for (const i of secondIdx) expect(pickers(wrapper)[i].find("select").attributes("disabled")).toBeUndefined();
+      await chooseFile(pickers(wrapper)[1], new File(["x"], "two.png", { type: "image/png" }));
+      await box.setValue(false);
+      expect(pickers(wrapper)[1].find("select").attributes("disabled")).toBeDefined();
+      expect(pickers(wrapper)[1].find('[data-testid="media-name"]').text()).toBe("two.png");
+      await wrapper.find(".name-field input").setValue("賞");
+      submit(wrapper);
+      const [payload] = wrapper.emitted("submit")![0] as [{ fields: Record<string, unknown> }];
+      expect(payload.fields).toMatchObject({ name: "賞", kakuhen: false, image2: "two.png" });
+    });
+
+    it("保存する項目に kakuhen が入る(ON)", async () => {
+      const wrapper = await mountForm({ mode: "add" });
+      await wrapper.find(".name-field input").setValue("賞");
+      await wrapper.find('[data-testid="kakuhen-checkbox"]').setValue(true);
+      submit(wrapper);
+      const [payload] = wrapper.emitted("submit")![0] as [{ fields: Record<string, unknown> }];
+      expect(payload.fields).toMatchObject({ kakuhen: true });
+    });
+
+    it("編集では保存済みの kakuhen を読む。未設定の古い景品は2枚目の素材があればON", async () => {
+      const off = await mountForm({ mode: "edit", prize: { id: "p", name: "賞", kakuhen: false, image2: "main.png" } });
+      expect((off.find('[data-testid="kakuhen-checkbox"]').element as HTMLInputElement).checked).toBe(false);
+      const legacy = await mountForm({ mode: "edit", prize: { id: "p", name: "賞", bgm2: "theme.mp3" } });
+      expect((legacy.find('[data-testid="kakuhen-checkbox"]').element as HTMLInputElement).checked).toBe(true);
+      const plain = await mountForm({ mode: "edit", prize: { id: "p", name: "賞" } });
+      expect((plain.find('[data-testid="kakuhen-checkbox"]').element as HTMLInputElement).checked).toBe(false);
+    });
+  });
+
   describe("submit", () => {
     it("登録済みの素材を選ぶと名前が入り、ファイルは送らない。選んでいない欄は空(未設定)", async () => {
       const wrapper = await mountForm({ mode: "edit", prize: { id: "p1", name: "賞", bgm2: "keep.mp3" } });

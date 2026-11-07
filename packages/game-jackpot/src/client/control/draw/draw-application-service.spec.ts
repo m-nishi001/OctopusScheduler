@@ -12,7 +12,7 @@ import { DrawConflictError, NoEligibleMembersError } from "../../model/errors";
 import type { DrawStore } from "./draw-store";
 
 const roster = ["alice", "bob", "carol", "dave"].map((id) => ({ id, name: id }));
-const prizeList = Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `Prize${i + 1}`, rank: 3, order: i + 1 }));
+const prizeList = Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `Prize${i + 1}`, rank: 3, order: i + 1, kakuhen: i < 2 }));
 
 function setup(options: { members?: typeof roster; prizes?: typeof prizeList; eligibleMemberIds?: string[] | null; poolError?: Error; store?: DrawStore } = {}) {
   const members = options.members ?? roster;

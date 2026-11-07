@@ -5,7 +5,7 @@ import { resolvePrizeRank } from "../prize/prize-rank";
 import { AUTO_KAKUHEN_PLAN, usableKakuhenTimings } from "./kakuhen-plan";
 import type { KakuhenPlan } from "./kakuhen-plan";
 
-/** 確変の準備。確変にする回を決め、その数だけ景品を予約して、通常の抽選用に最低1件は残す。 */
+/** 確変の準備。確変にする回を決める。確変対応ONの景品を取り置き、確変の回に当てる。 */
 @injectable()
 export class PrizeReservationService {
   private rand: MathRandomProvider;
@@ -16,20 +16,17 @@ export class PrizeReservationService {
 
   /**
    * 確変にする回（何回目の抽選か。1始まり、小さい順）を決める。
-   * おまかせ（既定）は景品の数の真ん中あたりで続けて2回。指定（fixed）は指定した回（範囲外は除く）。
-   * どちらも、通常の抽選用に景品を最低1件残す。
+   * おまかせ（既定）は景品の数の真ん中あたりで、`kakuhenCount`（確変対応ONの景品の数）回だけ続けて確変にする。
+   * 回数が景品の数以上なら全部の回（景品の数まで）。指定（fixed）は指定した回（範囲外は除く）で、`kakuhenCount` は使わない。
+   * `kakuhenCount` を省くと2回。
    */
-  calculateKakuhenTimings(totalPrizes: number, plan: KakuhenPlan = AUTO_KAKUHEN_PLAN): number[] {
+  calculateKakuhenTimings(totalPrizes: number, plan: KakuhenPlan = AUTO_KAKUHEN_PLAN, kakuhenCount = 2): number[] {
     if (plan.mode === "fixed") return usableKakuhenTimings(plan.fixedTimings, totalPrizes);
-    // 確変は予約景品を使うため、少なくとも1件は通常抽選用に残す(景品1件では確変なし)
-    if (totalPrizes <= 1) return [];
-    const center = Math.max(1, Math.floor(totalPrizes / 2));
-    const t1 = Math.min(Math.max(center, 1), totalPrizes);
-    const t2 = Math.min(Math.max(center + 1, 1), totalPrizes);
-    return [t1, t2]
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort((a, b) => a - b)
-      .slice(0, totalPrizes - 1);
+    const count = Math.min(Math.max(0, Math.floor(kakuhenCount)), Math.max(0, totalPrizes));
+    if (count === 0) return [];
+    // 続けてcount回を真ん中に置く。count=2 なら、景品が5件で[2,3]、10件で[5,6]
+    const start = Math.floor((totalPrizes - count) / 2) + 1;
+    return Array.from({ length: count }, (_, i) => start + i);
   }
 
   private createPool(reservedCount: number, prizes: Prize[]) {

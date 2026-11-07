@@ -293,7 +293,8 @@ export class DrawApplicationService {
   ): DrawPrizeResponse {
     const available = this.prizeDrawService.getDrawablePrizes(prizes, results, plan.reservedPrizeIds);
     if (available.length === 0) {
-      // 通常枠が尽きたが取り置きが残っている(景品の増減で回数がずれた場合など)ときは取り置きから引く
+      // 通常枠(確変対応OFFの景品)が尽きたが取り置き(確変対応ON)が残っている(確変の回数が足りない場合など)ときは、
+      // 取り置きから引く。詰まらせない。取り置きの景品は、サーバーの検査(取り置き = 確変の抽選)に合わせて確変の演出で見せる
       if (allowReserved && this.prizeDrawService.getUnusedReservedPrizes(prizes, results, plan.reservedPrizeIds).length > 0) {
         return this.executeKakuhenDraw(prizes, results, plan, request, member);
       }

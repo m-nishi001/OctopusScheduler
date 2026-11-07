@@ -1,6 +1,6 @@
 <template>
-  <div class="media-picker" data-testid="media-picker">
-    <label class="field-label">{{ label }}</label>
+  <div :class="['media-picker', { 'media-picker--disabled': disabled }]" data-testid="media-picker" :aria-disabled="disabled || undefined">
+    <label class="field-label">{{ label }}<span v-if="disabled" class="media-picker__off" data-testid="media-disabled-note">（無効: 確変対応がOFF）</span></label>
     <div class="media-picker__body">
       <div class="media-picker__preview">
         <img v-if="kind === 'image' && previewUrl" :src="previewUrl" :alt="label" class="media-picker__image" />
@@ -9,14 +9,14 @@
       </div>
       <div class="media-picker__controls">
         <input type="file" :accept="kind === 'image' ? 'image/*' : 'audio/*'" class="media-picker__file"
-          data-testid="media-file" @change="onFile" />
-        <select :value="modelValue" class="media-picker__select" data-testid="media-select" @change="onSelect">
+          data-testid="media-file" :disabled="disabled" @change="onFile" />
+        <select :value="modelValue" class="media-picker__select" data-testid="media-select" :disabled="disabled" @change="onSelect">
           <option value="">登録済みの素材から選ぶ</option>
           <option v-for="name in options" :key="name" :value="name">{{ name }}</option>
         </select>
         <div class="media-picker__current">
           <span class="media-picker__name" data-testid="media-name">{{ modelValue || '未設定' }}</span>
-          <UiButton v-if="modelValue" size="sm" variant="danger" data-testid="media-remove" @click="emit('update:modelValue', '')">外す</UiButton>
+          <UiButton v-if="modelValue" size="sm" variant="danger" data-testid="media-remove" :disabled="disabled" @click="emit('update:modelValue', '')">外す</UiButton>
         </div>
       </div>
     </div>
@@ -38,6 +38,8 @@ defineProps<{
   modelValue: string;
   /** 選べる登録済みの素材の名前。 */
   options: string[];
+  /** 無効にする(選べない・外せない。値は消さずに残す)。 */
+  disabled?: boolean;
   /** プレビューの URL(空 = なし)。 */
   previewUrl: string;
 }>();
@@ -68,6 +70,22 @@ const onSelect = (e: Event) => emit('update:modelValue', (e.target as HTMLSelect
   color: var(--ui-text, #fff);
   font-weight: 600;
   font-size: var(--ui-font-sm, 0.875rem);
+}
+
+.media-picker--disabled {
+  opacity: 0.5;
+}
+
+.media-picker--disabled .media-picker__select,
+.media-picker--disabled .media-picker__file {
+  cursor: not-allowed;
+}
+
+.media-picker__off {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: var(--ui-font-xs, 0.75rem);
+  color: var(--ui-text-muted, #cfd6dd);
 }
 
 .media-picker__body {

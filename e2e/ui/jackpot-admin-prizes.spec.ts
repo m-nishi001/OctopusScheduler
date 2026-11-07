@@ -38,6 +38,10 @@ test.describe("ジャックポット管理の景品", () => {
     // 画像の欄もBGMの欄も同じ素材選択部品(画像4つ + BGM2つ)。画像1と当選画像2にファイルを選ぶ
     const fileInputs = dialog.locator('input[type="file"]');
     await expect(fileInputs).toHaveCount(6);
+    // 当選画像2は「確変対応あり」をONにしたときだけ選べる(OFFの間は無効)
+    await expect(fileInputs.nth(3)).toBeDisabled();
+    await dialog.getByTestId("kakuhen-checkbox").check();
+    await expect(fileInputs.nth(3)).toBeEnabled();
     await fileInputs.nth(0).setInputFiles({ name: "main.png", mimeType: "image/png", buffer: PNG_1X1 });
     await fileInputs.nth(3).setInputFiles({ name: "win2.png", mimeType: "image/png", buffer: PNG_1X1 });
     await expect(dialog.getByTestId("media-name").nth(0)).toHaveText("main.png");
@@ -60,6 +64,7 @@ test.describe("ジャックポット管理の景品", () => {
     // 保存済みの画像は登録済みの素材として選ばれ、プレビューが出る。選んでいない欄は「未設定」
     await expect(edit.getByTestId("media-name").nth(0)).toHaveText("main.png");
     await expect(edit.getByTestId("media-name").nth(3)).toHaveText("win2.png");
+    await expect(edit.getByTestId("kakuhen-checkbox")).toBeChecked();
     await expect(edit.getByTestId("media-name").filter({ hasText: "未設定" })).toHaveCount(4);
     await expect(edit.locator("img.media-picker__image")).toHaveCount(2);
     // 外すと未設定に戻る
