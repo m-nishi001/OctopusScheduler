@@ -333,7 +333,7 @@ async function removeIds(ids: string[], message: string) {
     if (!(await confirmDelete(message))) return;
     removing.value = true;
     try {
-        for (const id of ids) await repo.deleteMember(id);
+        if (ids.length > 0) await repo.applyRoster({ upserts: [], deleteIds: ids });
     } catch (e) {
         toast.error(`削除に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

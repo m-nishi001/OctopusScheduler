@@ -35,6 +35,19 @@ export class CloudflareKeyValueStorage implements IKeyValueStorage {
     await this.bucket().delete(SCALAR_PREFIX + key);
   }
 
+  async deleteScalars(keys: string[]): Promise<void> {
+    await this.deleteKeys(keys.map((key) => SCALAR_PREFIX + key));
+  }
+
+  /** R2 の複数キー削除は1回1000件まで。 */
+  private async deleteKeys(keys: string[]): Promise<void> {
+    for (let i = 0; i < keys.length; i += 1000) await this.bucket().delete(keys.slice(i, i + 1000));
+  }
+
+  async deleteMany(keys: string[]): Promise<void> {
+    await this.deleteKeys(keys);
+  }
+
   async deleteScalarsByPrefix(prefix: string): Promise<number> {
     let deleted = 0;
     let cursor: string | undefined;

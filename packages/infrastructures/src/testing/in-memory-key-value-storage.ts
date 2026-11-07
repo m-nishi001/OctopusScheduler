@@ -66,6 +66,14 @@ export class InMemoryKeyValueStorage implements IKeyValueStorage {
     this.scalars.delete(key);
   }
 
+  async deleteScalars(keys: string[]): Promise<void> {
+    for (const key of keys) this.scalars.delete(key);
+  }
+
+  async deleteMany(keys: string[]): Promise<void> {
+    for (const key of keys) this.items.delete(key);
+  }
+
   async deleteScalarsByPrefix(prefix: string): Promise<number> {
     const keys = Array.from(this.scalars.keys()).filter((key) => key.startsWith(prefix));
     for (const key of keys) this.scalars.delete(key);

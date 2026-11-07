@@ -173,11 +173,12 @@ export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promi
   await purgeMemberData(deps, id);
 }
 
+const PURGE_CONCURRENCY = 10;
+
 /** 名簿から外れたメンバーの、セッション・パスワード・受付QRのキーを消す。名簿のロックの外で行う。 */
 async function purgeMemberData(deps: AccountsUseCaseDeps, id: string): Promise<void> {
   await revokeMemberSessions(deps, id);
-  await deps.storage.deleteScalar(CREDENTIAL_KEY_PREFIX + id);
-  await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + id);
+  await deps.storage.deleteScalars([CREDENTIAL_KEY_PREFIX + id, LOGIN_KEY_PREFIX + id]);
 }
 
 /**
@@ -198,7 +199,10 @@ export async function applyRoster(
     return { removed: deleteIds.filter((id) => existing.has(id)), orphanPhotos: change.orphanPhotos };
   });
   await discardPhotos(deps, orphanPhotos);
-  await Promise.all(removed.map((id) => purgeMemberData(deps, id)));
+  // 同時に走らせる数を絞る(保存先への同時リクエストが膨らまないように)。
+  for (let i = 0; i < removed.length; i += PURGE_CONCURRENCY) {
+    await Promise.all(removed.slice(i, i + PURGE_CONCURRENCY).map((id) => purgeMemberData(deps, id)));
+  }
   return { upserted: input.upserts.length, deleted: removed.length };
 }
 
@@ -458,7 +462,7 @@ async function revokeMemberSessions(deps: AccountsUseCaseDeps, memberId: string)
     await deps.storage.deleteScalar(MEMBER_SESSIONS_KEY_PREFIX + memberId);
     return current;
   });
-  await Promise.all(list.map(([token]) => deps.storage.deleteScalar(SESSION_KEY_PREFIX + token)));
+  if (list.length > 0) await deps.storage.deleteScalars(list.map(([token]) => SESSION_KEY_PREFIX + token));
 }
 
 /** トークンを無効化する(そのメンバーの一覧からも外す)。 */

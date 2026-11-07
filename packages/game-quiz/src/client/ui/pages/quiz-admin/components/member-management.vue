@@ -25,6 +25,8 @@ const { items: members, loading, error, load, add: addMember, update: updateMemb
         add: (input) => repo.addMember(input),
         update: (member) => repo.updateMember(member),
         remove: (id) => repo.deleteMember(id),
+        // 1回のRPCで削除(管理者を含む場合はサーバが全体を拒否するので、ログイン中の本人は消えない)
+        removeMany: (ids) => repo.applyRoster({ upserts: [], deleteIds: ids }),
     });
 
 // CSV の書き出し・取込は設定>メンバーと同じ部品。共有の名簿は消さないので、置き換え(allow-replace)は付けない。

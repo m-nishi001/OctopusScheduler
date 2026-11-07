@@ -58,6 +58,10 @@ function makeRepo(accounts: Member[], usage: unknown = { members: 4, usedBytes: 
     deleteMember: vi.fn(async (id: string) => {
       accounts.splice(accounts.findIndex((a) => a.id === id), 1);
     }),
+    applyRoster: vi.fn(async (args: { upserts: unknown[]; deleteIds: string[] }) => {
+      for (const id of args.deleteIds) accounts.splice(accounts.findIndex((a) => a.id === id), 1);
+      return { upserted: 0, deleted: args.deleteIds.length };
+    }),
     setPassword: vi.fn(async (_id: string, _pw: string) => undefined),
     issueLoginKey: vi.fn(async (id: string) => {
       const key = `key-${id}-${++counter}`;
@@ -323,7 +327,7 @@ describe("members-editor の削除", () => {
     await rowOf(wrapper, "Carol").find('button[aria-label="削除"]').trigger("click");
     await flushPromises();
     expect(confirmDeleteMock).toHaveBeenCalledWith("「Carol」を削除しますか?");
-    expect(repo.deleteMember).toHaveBeenCalledWith("carol");
+    expect(repo.applyRoster).toHaveBeenCalledWith({ upserts: [], deleteIds: ["carol"] });
     expect(wrapper.text()).not.toContain("Carol");
   });
 
@@ -332,7 +336,7 @@ describe("members-editor の削除", () => {
     confirmDeleteMock.mockResolvedValueOnce(false);
     await rowOf(wrapper, "Carol").find('button[aria-label="削除"]').trigger("click");
     await flushPromises();
-    expect(repo.deleteMember).not.toHaveBeenCalled();
+    expect(repo.applyRoster).not.toHaveBeenCalled();
   });
 
   it("ログイン中の自分は削除できない(確認も出さない)", async () => {
@@ -340,7 +344,7 @@ describe("members-editor の削除", () => {
     await rowOf(wrapper, "管理者").find('button[aria-label="削除"]').trigger("click");
     await flushPromises();
     expect(confirmDeleteMock).not.toHaveBeenCalled();
-    expect(repo.deleteMember).not.toHaveBeenCalled();
+    expect(repo.applyRoster).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith("ログイン中のアカウントは削除できません");
   });
 
@@ -351,20 +355,22 @@ describe("members-editor の削除", () => {
     await check("Carol").setValue(true);
     await buttonByText(wrapper, "選択を削除(2)")!.trigger("click");
     await flushPromises();
-    expect(repo.deleteMember.mock.calls.map((c) => c[0])).toEqual(["bob", "carol"]);
+    expect(repo.applyRoster).toHaveBeenCalledTimes(1);
+    expect(repo.applyRoster).toHaveBeenCalledWith({ upserts: [], deleteIds: ["bob", "carol"] });
+    expect(repo.deleteMember).not.toHaveBeenCalled();
 
-    repo.deleteMember.mockClear();
+    repo.applyRoster.mockClear();
     await check("管理者").setValue(true);
     await check("Alice").setValue(true);
     await buttonByText(wrapper, "選択を削除(2)")!.trigger("click");
     await flushPromises();
-    expect(repo.deleteMember).not.toHaveBeenCalled();
+    expect(repo.applyRoster).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith("ログイン中のアカウントは削除できません");
   });
 
   it("削除に失敗したらエラーを知らせる", async () => {
     const { wrapper, repo } = await mountEditor(people());
-    repo.deleteMember.mockRejectedValueOnce(new Error("busy"));
+    repo.applyRoster.mockRejectedValueOnce(new Error("busy"));
     await rowOf(wrapper, "Carol").find('button[aria-label="削除"]').trigger("click");
     await flushPromises();
     expect(toastError).toHaveBeenCalledWith(expect.stringContaining("busy"));

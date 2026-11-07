@@ -77,12 +77,12 @@ export async function getMemberPhotos(deps: MemberPhotoDeps, hashes: string[]): 
 
 /** 写真を削除する(無いものは何もしない)。名簿から参照されなくなった写真を片づけるために使う。 */
 export async function deleteMemberPhotos(deps: MemberPhotoDeps, hashes: string[]): Promise<void> {
-  await Promise.all(
-    hashes.map(async (hash) => {
-      const ref = await findPhotoKey(deps, hash);
-      if (ref) await deps.storage.delete(ref);
-    })
-  );
+  if (hashes.length === 0) return;
+  // 一覧を1回だけ引き、該当キーを複数キー削除で1回にまとめる。
+  const prefixes = [...new Set(hashes)].map((hash) => `${NAMESPACE}/${hash}_`);
+  const items = await deps.storage.listByPrefix(`${NAMESPACE}/`);
+  const keys = items.map((i) => i.key).filter((key) => prefixes.some((p) => key.startsWith(p)));
+  if (keys.length > 0) await deps.storage.deleteMany(keys);
 }
 
 const NAMESPACE = storageNamespace(StorageModule.Accounts, StorageKind.Assets);
