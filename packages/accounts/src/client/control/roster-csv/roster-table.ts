@@ -99,7 +99,7 @@ export function toRosterMembers(members: readonly Member[], photoFiles: Readonly
 
 /**
  * 名簿の取込・書き出しの「表の定義」。名簿そのもの({@link ROSTER_TABLE})のほか、名簿の人に列を足したい画面
- * (例: ジャックポットのメンバーの「ランク」「当選しやすさ」)が、写真の縮小・送信・名簿の書き込みを共有するために差し替える。
+ * (例: ジャックポットのメンバーの「当選しやすさ」)が、写真の縮小・送信・名簿の書き込みを共有するために差し替える。
  */
 export interface RosterTable<E extends RosterMember = RosterMember> {
   /** CSV の列の定義(見出しから決めるときは関数)。 */

@@ -47,7 +47,7 @@ const {
 const { confirm } = useConfirm();
 
 // CSV の書き出し・取込は設定>メンバーと同じ部品(写真の縮小・送信も同じ)。共有の名簿は消さないので、置き換えは付けない。
-// ランク・当選しやすさの列は、名簿に書いたあと、拡張設定へ1回で反映する。
+// 当選しやすさの列は、名簿に書いたあと、拡張設定へ1回で反映する。
 const memberIo = rosterTableIo({
   repo: container.resolve(AccountsRepository),
   photos: container.resolve(MemberPhotoCache),
@@ -77,15 +77,15 @@ const onFormSubmit = async (input: MemberFormInput) => {
   closeModal();
 };
 
-/** 名簿からは消さず、ジャックポットの設定(ランク・当選しやすさ)だけを初期値に戻す。 */
+/** 名簿からは消さず、ジャックポットの設定(当選しやすさ)だけを初期値に戻す。 */
 const confirmReset = (message: string) =>
   confirm({ title: '設定を初期値に戻す', message: `${message}名簿からは削除されません(メンバーの追加・削除は 設定 > メンバー で行います)。`, confirmLabel: '初期値に戻す', danger: true });
 
 const resetOne = async (id: string) => {
-  if (await confirmReset('このメンバーのジャックポットの設定(ランク・当選しやすさ)を初期値に戻しますか?')) await deleteMember(id);
+  if (await confirmReset('このメンバーのジャックポットの設定(当選しやすさ)を初期値に戻しますか?')) await deleteMember(id);
 };
 const resetSelected = async () => {
-  if (await confirmReset(`選択した${selectedMembers.value.length}人のジャックポットの設定(ランク・当選しやすさ)を初期値に戻しますか?`)) await deleteSelectedMembers();
+  if (await confirmReset(`選択した${selectedMembers.value.length}人のジャックポットの設定(当選しやすさ)を初期値に戻しますか?`)) await deleteSelectedMembers();
 };
 
 // 初めて開くブラウザでは、表示した後の背景同期でサーバーのデータが取り込まれる。取り込み完了時に一覧を読み直す
