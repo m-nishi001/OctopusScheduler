@@ -93,6 +93,23 @@ describe("jackpotMemberTable", () => {
     const current: JackpotMemberRow[] = [{ id: "m1", name: "アリス", rank: 5 }];
     const plan = planImport(current, parsed.rows, jackpotMemberAdapter(), "upsert");
     expect(plan.upserts[0]).toMatchObject({ id: "m1", name: "アリス", rank: 3, weight: 40 });
-    expect(exportTable(plan.next, jackpotMemberAdapter()).split("\r\n")[1]).toBe("m1,アリス,,3,40");
+    expect(exportTable(plan.next, jackpotMemberAdapter()).split("\r\n")[1]).toBe("m1,アリス,3,40");
+  });
+
+  it("書き出しに写真の列は無い(ジャックポットのメンバーは写真を持たない)", async () => {
+    const env = fakes({ m1: { rank: 2, weight: 30 } });
+    const out = await exportRoster(people, { includeMedia: false }, { ensure: async () => undefined, get: () => undefined }, env.table);
+    const header = new TextDecoder().decode(out.bytes).replace(/^\uFEFF/, "").split("\r\n")[0];
+    expect(header).toBe("ID,名前,ランク,当選しやすさ");
+    expect(JACKPOT_MEMBER_HEADERS.map((h) => h.key)).not.toContain("photo");
+  });
+
+  it("古い書き出しの「写真」列は無視する。画像が無くてもエラーにならず、名簿の写真は変えない", async () => {
+    const env = fakes({ m1: { rank: 2 } });
+    const p = await preview("ID,名前,写真,ランク\nm1,アリス,missing.png,4\n", env);
+    expect(p.plan.rows[0].status).toBe("update");
+    await p.apply();
+    expect(env.roster).toEqual([]);
+    expect(env.setExtras).toHaveBeenCalledWith([{ id: "m1", rank: 4, weight: undefined }]);
   });
 });

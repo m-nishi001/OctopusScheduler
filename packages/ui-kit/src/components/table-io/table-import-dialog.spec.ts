@@ -97,6 +97,13 @@ describe('TableImportDialog', () => {
         expect(q('table-import-result')?.textContent).toContain('ok');
     });
 
+    it('既定(csvOnly なし)は、CSV または ZIP と素材のフォルダ欄を出す', async () => {
+        await open(vi.fn<(input: TableImportInput) => Promise<TableImportPreview>>(), { mediaLabel: '素材フォルダ' });
+        expect(q<HTMLInputElement>('table-import-table')!.getAttribute('accept')).toBe('.csv,.zip,text/csv,application/zip');
+        expect(q('table-import-media')).not.toBeNull();
+        expect(document.body.textContent).toContain('CSV または ZIP');
+    });
+
     describe('置き換え', () => {
         it('allowReplace でないとチェックを出さない', async () => {
             await open(vi.fn<(input: TableImportInput) => Promise<TableImportPreview>>());
@@ -134,6 +141,36 @@ describe('TableImportDialog', () => {
             await flushPromises();
             expect(apply).toHaveBeenCalledTimes(1);
             expect(q('table-import-result')?.textContent).toContain('削除 1');
+        });
+    });
+
+    describe('csvOnly(CSVだけを受け付ける)', () => {
+        it('素材のフォルダ欄を出さず、ファイル欄は CSV だけを受け付ける', async () => {
+            await open(vi.fn<(input: TableImportInput) => Promise<TableImportPreview>>(), { csvOnly: true });
+            expect(q('table-import-media')).toBeNull();
+            const input = q<HTMLInputElement>('table-import-table')!;
+            expect(input.getAttribute('accept')).toBe('.csv');
+            expect(input.getAttribute('aria-label')).toBe('CSVを選ぶ');
+            expect(document.body.textContent).toContain('CSV');
+            expect(document.body.textContent).not.toContain('ZIP');
+        });
+
+        it('CSV を選ぶと読み込み、素材の件数は出さない。media は空で渡す', async () => {
+            const onPreview = vi.fn().mockResolvedValue({ ...okPreview([row(2, 'n1', 'add')]), media: { added: 0, replaced: 0 } });
+            await open(onPreview, { csvOnly: true });
+            await pickCsv('members.csv');
+            expect(onPreview).toHaveBeenLastCalledWith({ table: expect.objectContaining({ name: 'members.csv' }), media: [], mode: 'upsert' });
+            expect(q('table-import-counts')?.textContent).toContain('追加 1');
+            expect(q('table-import-media-counts')).toBeNull();
+        });
+
+        it('CSV 以外のファイルは読まずに断る', async () => {
+            const onPreview = vi.fn<(input: TableImportInput) => Promise<TableImportPreview>>();
+            await open(onPreview, { csvOnly: true });
+            await pickCsv('members.zip');
+            expect(onPreview).not.toHaveBeenCalled();
+            expect(q('table-import-errors')?.textContent).toContain('CSVファイルを選んでください');
+            expect(confirmButton().disabled).toBe(true);
         });
     });
 

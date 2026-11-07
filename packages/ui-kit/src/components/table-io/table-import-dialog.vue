@@ -5,13 +5,17 @@
         <div class="ui-table-import">
             <template v-if="phase !== 'result'">
                 <p class="ui-table-import__lead">
-                    CSV(または「素材も含める」で書き出したZIP)を選びます。IDが同じ行は上書き、無ければ追加します。<template v-if="allowReplace">既定ではファイルに無い行は削除しません。</template><template v-else>ファイルに無い行は削除しません。</template>
+                    <template v-if="csvOnly">CSVを選びます。</template><template v-else>CSV(または「素材も含める」で書き出したZIP)を選びます。</template>IDが同じ行は上書き、無ければ追加します。<template v-if="allowReplace">既定ではファイルに無い行は削除しません。</template><template v-else>ファイルに無い行は削除しません。</template>
                 </p>
-                <UiField label="CSV または ZIP" required>
+                <UiField v-if="csvOnly" label="CSV" required>
+                    <input type="file" accept=".csv" :disabled="busy"
+                        data-testid="table-import-table" aria-label="CSVを選ぶ" @change="pickTable" />
+                </UiField>
+                <UiField v-else label="CSV または ZIP" required>
                     <input type="file" accept=".csv,.zip,text/csv,application/zip" :disabled="busy"
                         data-testid="table-import-table" aria-label="CSVまたはZIPを選ぶ" @change="pickTable" />
                 </UiField>
-                <UiField :label="`${mediaLabel}(任意)`" :hint="mediaHint">
+                <UiField v-if="!csvOnly" :label="`${mediaLabel}(任意)`" :hint="mediaHint">
                     <input type="file" multiple webkitdirectory :disabled="busy" data-testid="table-import-media"
                         :aria-label="`${mediaLabel}を選ぶ`" @change="pickMedia" />
                 </UiField>
@@ -28,7 +32,7 @@
                         追加 {{ preview.counts.add }} / 更新 {{ preview.counts.update }} / 変更なし {{ preview.counts.unchanged }} /
                         <template v-if="allowReplace">削除 {{ preview.counts.delete }} / </template>エラー {{ preview.counts.error }}
                     </p>
-                    <p v-if="preview.media" class="ui-table-import__counts" data-testid="table-import-media-counts">
+                    <p v-if="preview.media && !csvOnly" class="ui-table-import__counts" data-testid="table-import-media-counts">
                         {{ mediaLabelShort }} 追加 {{ preview.media.added }} / 差し替え {{ preview.media.replaced }}
                     </p>
                     <div class="ui-table-import__scroll">
@@ -90,8 +94,10 @@ const props = withDefaults(
         /** 素材のフォルダ欄の呼び名(例: 画像)。 */
         mediaLabel?: string;
         mediaHint?: string;
+        /** 真なら CSV だけを受け付ける。素材のフォルダ欄と ZIP を出さない(素材を扱わない画面用)。 */
+        csvOnly?: boolean;
     }>(),
-    { allowReplace: false, mediaLabel: '素材フォルダ', mediaHint: 'CSVの素材の列のファイル名と同じファイルが入ったフォルダ。ZIPなら不要です' },
+    { allowReplace: false, mediaLabel: '素材フォルダ', mediaHint: 'CSVの素材の列のファイル名と同じファイルが入ったフォルダ。ZIPなら不要です', csvOnly: false },
 );
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();
 
@@ -156,7 +162,14 @@ async function refresh() {
 }
 
 function pickTable(event: Event) {
-    table.value = (event.target as HTMLInputElement).files?.[0] ?? null;
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (props.csvOnly && file && !/\.csv$/i.test(file.name)) {
+        table.value = null;
+        preview.value = null;
+        errors.value = ['CSVファイルを選んでください'];
+        return;
+    }
+    table.value = file;
     void refresh();
 }
 

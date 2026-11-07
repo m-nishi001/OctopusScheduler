@@ -129,6 +129,17 @@ const onSelect = (e: Event) => emit('update:modelValue', (e.target as HTMLSelect
   color: var(--ui-text, #fff);
 }
 
+/* 開いたときの候補(白地に白文字にならないよう、暗い配色にする) */
+.media-picker__select {
+  color-scheme: dark;
+}
+
+/* Make <option> list darker on supporting browsers (Firefox, modern browsers) */
+.media-picker__select option {
+  background: var(--ui-surface, #2b3036);
+  color: var(--ui-text, #fff);
+}
+
 .media-picker__current {
   display: flex;
   align-items: center;

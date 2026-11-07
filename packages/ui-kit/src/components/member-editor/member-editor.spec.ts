@@ -189,4 +189,20 @@ describe('MemberEditor の CSV 書き出し・取込', () => {
         await flushPromises();
         expect(document.body.querySelector('[data-testid="table-import-replace"]')).not.toBeNull();
     });
+
+    it('写真が無い画面(クイズ)は、取込を CSV だけにする', async () => {
+        const { w } = setup({ onPreviewImport: vi.fn() });
+        await w.find('[data-testid="table-import-open"]').trigger('click');
+        await flushPromises();
+        expect(document.body.querySelector('[data-testid="table-import-media"]')).toBeNull();
+        expect(document.body.querySelector<HTMLInputElement>('[data-testid="table-import-table"]')!.getAttribute('accept')).toBe('.csv');
+    });
+
+    it('写真がある画面は、画像フォルダを出し、CSV か ZIP を受け付ける', async () => {
+        const { w } = setup({ onPreviewImport: vi.fn(), onPickPhoto: vi.fn() });
+        await w.find('[data-testid="table-import-open"]').trigger('click');
+        await flushPromises();
+        expect(document.body.querySelector('[data-testid="table-import-media"]')).not.toBeNull();
+        expect(document.body.querySelector<HTMLInputElement>('[data-testid="table-import-table"]')!.getAttribute('accept')).toContain('.zip');
+    });
 });

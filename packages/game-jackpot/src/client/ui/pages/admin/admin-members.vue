@@ -5,16 +5,14 @@
       <UiButton v-if="selectedMembers.length" variant="danger" icon="restore" :loading="deleting" @click="resetSelected">
         選択の設定を初期値に戻す({{ selectedMembers.length }})
       </UiButton>
-      <TableIoToolbar :count="members.length" :on-export="memberIo.onExport" media-label="写真も含める(ZIP)"
-        @import="importOpen = true" />
+      <TableIoToolbar :count="members.length" :on-export="memberIo.onExport" @import="importOpen = true" />
     </UiToolbar>
 
     <MemberList :members="members" v-model:selected="selectedMembers" :get-member-image-src="getMemberImageSrc"
       @edit="(member) => openModal('edit', member)" @delete="resetOne" />
   </div>
 
-  <TableImportDialog v-model="importOpen" :on-preview="memberIo.onPreviewImport" media-label="写真フォルダ"
-    media-hint="CSVの写真の列のファイル名と同じ画像が入ったフォルダ。ZIPなら不要です。名簿にいない ID は、名前があれば名簿に追加します(名簿の人は削除しません)" />
+  <TableImportDialog v-model="importOpen" :on-preview="memberIo.onPreviewImport" csv-only />
 
   <MemberFormDialog v-if="modalMode" :mode="modalMode" :member="modalData"
     :existing-directory-members="availableDirectoryMembers" @submit="onFormSubmit" @cancel="closeModal" />

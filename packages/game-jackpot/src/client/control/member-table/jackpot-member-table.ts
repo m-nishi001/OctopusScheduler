@@ -2,8 +2,9 @@
  * ジャックポットのメンバーの表(CSV)。共通の名簿の表(`@octopus/accounts` の {@link ROSTER_TABLE})に、
  * ジャックポット固有の「ランク」「当選しやすさ」の列を足したもの。
  *
- * - 列: `ID*, 名前, 写真, ランク, 当選しやすさ`。空のセル = いまのまま。
- * - 名前と写真は名簿に書く(名簿の取込と同じ縮小・送信。名簿の人は削除しない = 置き換えは無い)。
+ * - 列: `ID*, 名前, ランク, 当選しやすさ`。空のセル = いまのまま。写真は持たない(ジャックポットのメンバーは写真なし)。
+ *   古い書き出しの「写真」列は読まずに無視する。
+ * - 名前は名簿に書く(名簿の人は削除しない = 置き換えは無い)。
  *   ランクと当選しやすさは、名簿に書いたあとに、メンバーの拡張設定へ1回の書き込みで反映する。
  * - 名簿にいない ID: 名前があれば名簿に追加する(ランク・当選しやすさもそのとき設定する)。名前が無ければエラー(行を直すまで取り込めない)。
  *   名簿にいる人は、名前を空にしておけば名前を変えず、ランク・当選しやすさだけを変えられる。
@@ -19,7 +20,6 @@ export const JACKPOT_MEMBER_CSV_NAME = "jackpot-members.csv";
 export const JACKPOT_MEMBER_HEADERS: readonly Header[] = [
   { key: "id", label: "ID", aliases: ["メンバーID"], required: true },
   { key: "name", label: "名前", aliases: ["name", "氏名"] },
-  { key: "photo", label: "写真", aliases: ["photo", "画像"], media: true },
   { key: "rank", label: "ランク", aliases: ["rank"] },
   { key: "weight", label: "当選しやすさ", aliases: ["weight", "重み"] },
 ];
@@ -45,7 +45,8 @@ export function jackpotMemberAdapter(options: RosterAdapterOptions = {}): TableA
     labelKey: "name",
     key: (m) => m.id,
     toRow: (m): Row => ({
-      ...base.toRow(m),
+      id: m.id,
+      name: m.name,
       rank: m.rank === undefined ? "" : String(m.rank),
       weight: m.weight === undefined ? "" : String(m.weight),
     }),
