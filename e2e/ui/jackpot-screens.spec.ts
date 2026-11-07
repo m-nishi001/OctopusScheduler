@@ -61,7 +61,7 @@ test.describe("ジャックポットの全画面", () => {
       });
       await page.goto("/#/sessions");
       await seedJackpot(page, {
-        prizes: Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10 })),
+        prizes: Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `景品${i + 1}`, order: i + 1, rank: 3 })),
       });
 
       const dir = SHOTS ? join(SHOTS, vp.name) : null;

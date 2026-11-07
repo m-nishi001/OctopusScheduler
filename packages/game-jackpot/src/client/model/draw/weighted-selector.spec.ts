@@ -33,20 +33,37 @@ describe("WeightedSelector", () => {
     });
 
     /**
-     * 広いレンジの重み(例: 1 vs 90)で、レア景品が実際に稀にしか選ばれないことをテストする。
+     * 重みの幅(1 vs 9)で、軽い方が実際に稀にしか選ばれないことをテストする。
      */
-    it("supports a wide weight range so a rare prize stays rare", () => {
+    it("keeps a low-weight item rare within the 1-10 range", () => {
       const pool = [
         { id: "common", weight: 1 },
-        { id: "grand", weight: 90 },
+        { id: "grand", weight: 9 },
       ];
-      // total=91, r just under the common item's boundary (1/91) still selects grand.
-      const sel = new WeightedSelector(new MockRandom([0.02]) as any);
+      // total=10, r=0.2*10=2 is past the first item's slice (1) so grand is selected.
+      const sel = new WeightedSelector(new MockRandom([0.2]) as any);
       expect(sel.selectWeighted(pool).id).toBe("grand");
 
-      // r within the tiny common-item slice selects common.
-      const selCommon = new WeightedSelector(new MockRandom([0.0]) as any);
+      // r within the first 1/10 selects common.
+      const selCommon = new WeightedSelector(new MockRandom([0.05]) as any);
       expect(selCommon.selectWeighted(pool).id).toBe("common");
+    });
+
+    /**
+     * 重みを取り出す関数を渡すと、その値を重みとして使う(景品はランクから求めた重みを渡す)。
+     */
+    it("uses a custom weight accessor when given", () => {
+      const pool = [{ id: "a", v: 1 }, { id: "b", v: 4 }];
+      const sel = new WeightedSelector(new MockRandom([0.3]) as any);
+      // total=5, r=1.5 -> b
+      expect(sel.selectWeighted(pool, (p) => p.v).id).toBe("b");
+    });
+
+    /**
+     * メンバーの既定の重みは5。
+     */
+    it("has default weight 5 and range 1-10", () => {
+      expect([DEFAULT_WEIGHT, MIN_WEIGHT, MAX_WEIGHT]).toEqual([5, 1, 10]);
     });
 
     /**
@@ -82,7 +99,7 @@ describe("WeightedSelector", () => {
     });
 
     it("floors fractional weights", () => {
-      expect(resolveWeight(12.7)).toBe(12);
+      expect(resolveWeight(7.7)).toBe(7);
     });
   });
 });

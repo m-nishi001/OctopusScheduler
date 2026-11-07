@@ -11,8 +11,8 @@ import { MathRandomProvider } from "../../model/common/math-random-provider";
 import { DrawConflictError, NoEligibleMembersError } from "../../model/errors";
 import type { DrawStore } from "./draw-store";
 
-const roster = ["alice", "bob", "carol", "dave"].map((id, i) => ({ id, name: id, rank: i }));
-const prizeList = Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `Prize${i + 1}`, weight: 10, order: i + 1 }));
+const roster = ["alice", "bob", "carol", "dave"].map((id) => ({ id, name: id }));
+const prizeList = Array.from({ length: 6 }, (_, i) => ({ id: `p${i + 1}`, name: `Prize${i + 1}`, rank: 3, order: i + 1 }));
 
 function setup(options: { members?: typeof roster; prizes?: typeof prizeList; eligibleMemberIds?: string[] | null; poolError?: Error; store?: DrawStore } = {}) {
   const members = options.members ?? roster;
@@ -224,7 +224,7 @@ describe("DrawApplicationService", () => {
     it("当選者がメンバー名簿に見つからなければ、理由の分かる例外", async () => {
       const { service } = setup();
       await expect(
-        service.resumeDraw({ drawId: "d", wonMember: { id: "ghost", name: "幽霊", rank: 1 }, wonPrize: prizeList[0], isKakuhen: false, createdAt: 1 })
+        service.resumeDraw({ drawId: "d", wonMember: { id: "ghost", name: "幽霊" }, wonPrize: prizeList[0], isKakuhen: false, createdAt: 1 })
       ).rejects.toThrow(/幽霊/);
     });
   });

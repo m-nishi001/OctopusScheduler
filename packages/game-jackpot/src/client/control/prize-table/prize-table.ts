@@ -2,7 +2,8 @@
  * 景品の表(CSV)への対応。汎用の判断(差分・往復・エラー)は `@octopus/table-io` に任せ、ここは列と検証だけを持つ。
  *
  * - 取り込む対象はレコードの景品そのもの({@link Prize})。画像・音声はファイル名(素材の名前)で持つ。
- * - 列: `ID, 名前*, 当選確率の重み, アニメーション(ルーレット|スロット), 画像1, 画像2, 当選画像1, 当選画像2, BGM1, BGM2`。
+ * - 列: `ID, 名前*, 景品ランク, アニメーション(ルーレット|スロット), 画像1, 画像2, 当選画像1, 当選画像2, BGM1, BGM2`。
+ * - 景品ランクは1〜5(標準3、5=豪華でレア)。古い書き出しの「当選確率の重み」列は意味が違うので読まずに無視する(ランクは既定の3になる)。
  * - 空のセル = いまのまま(新規なら未設定)。素材のセルは `-` で外す。
  * - 並び順(`order`)は列に無い。置き換えではファイルの行の順がそのまま並び順、追加・更新では既存の並びを保って新しい景品を末尾に足す
  *   ({@link orderImportedPrizes})。
@@ -10,7 +11,7 @@
 import { resolveMediaCell } from "@octopus/table-io";
 import type { Header, ImportMode, ImportPlan, Row, TableAdapter } from "@octopus/table-io";
 import type { Prize } from "../../../server/jackpot-api-contract";
-import { MAX_WEIGHT, MIN_WEIGHT } from "../../model/draw/weighted-selector";
+import { MAX_PRIZE_RANK, MIN_PRIZE_RANK } from "../../model/prize/prize-rank";
 
 export const PRIZE_CSV_NAME = "prizes.csv";
 
@@ -21,7 +22,7 @@ const DEFAULT_ANIMATION = "roulette";
 export const PRIZE_HEADERS: readonly Header[] = [
   { key: "id", label: "ID", aliases: ["景品ID", "prizeId"] },
   { key: "name", label: "名前", aliases: ["name", "景品名"], required: true },
-  { key: "weight", label: "当選確率の重み", aliases: ["重み", "weight"] },
+  { key: "rank", label: "景品ランク", aliases: ["rank", "ランク"] },
   { key: "animation", label: "アニメーション", aliases: ["animation", "抽選アニメーション"] },
   { key: "image", label: "画像1", aliases: ["image", "image1", "画像"], media: true },
   { key: "image2", label: "画像2", aliases: ["image2"], media: true },
@@ -58,7 +59,7 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
     toRow: (p): Row => ({
       id: p.id,
       name: p.name,
-      weight: p.weight === undefined ? "" : String(p.weight),
+      rank: p.rank === undefined ? "" : String(p.rank),
       animation: ANIMATION_LABELS[p.animation ?? DEFAULT_ANIMATION] ?? p.animation ?? "",
       image: p.image ?? "",
       image2: p.image2 ?? "",
@@ -70,11 +71,11 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
     fromRow(row, existing) {
       if (!row.name) return "名前が空です";
 
-      let weight = existing?.weight;
-      if (row.weight) {
-        const n = Number(row.weight);
-        if (!Number.isInteger(n) || n < MIN_WEIGHT || n > MAX_WEIGHT) return `当選確率の重みは${MIN_WEIGHT}〜${MAX_WEIGHT}の整数で入力してください`;
-        weight = n;
+      let rank = existing?.rank;
+      if (row.rank) {
+        const n = Number(row.rank);
+        if (!Number.isInteger(n) || n < MIN_PRIZE_RANK || n > MAX_PRIZE_RANK) return `景品ランクは${MIN_PRIZE_RANK}〜${MAX_PRIZE_RANK}の整数で入力してください`;
+        rank = n;
       }
 
       let animation = existing?.animation ?? DEFAULT_ANIMATION;
@@ -84,7 +85,7 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
         animation = found[0];
       }
 
-      const prize: Prize = { id: row.id, name: row.name, weight, animation, order: existing?.order ?? 0 };
+      const prize: Prize = { id: row.id, name: row.name, rank, animation, order: existing?.order ?? 0 };
       for (const [key, label] of MEDIA_COLUMNS) {
         const r = resolveMediaCell(row[key], existing?.[key], available);
         if ("missing" in r) return `${label}「${r.missing}」が見つかりません`;

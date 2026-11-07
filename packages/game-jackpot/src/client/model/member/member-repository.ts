@@ -6,10 +6,11 @@ import { AccountsRepository } from "@octopus/accounts";
 import type { Member as DirectoryMember } from "@octopus/accounts";
 import type { Member } from "./member";
 import type { JackpotMemberExtra } from "./jackpot-member-extra";
+import { JACKPOT_SCHEMA_VERSION, migrateMemberExtraData } from "../schema-migration";
+import type { MemberExtraData } from "../schema-migration";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 
-export const DEFAULT_RANK = 5;
 const SYNC_KIND = "member-extras";
 const DRIVE_FILE_NAME = "member-extras.json";
 
@@ -17,10 +18,10 @@ const DRIVE_FILE_NAME = "member-extras.json";
  * jackpot固有のメンバーリポジトリ。
  *
  * メンバーのid/nameは `@octopus/accounts` が持つ共有マスタから取得し、
- * rank/当選しやすさ(weight)といったjackpot固有の設定は `MemberExtraData`(一覧全体を1件のレコード `{ data: JackpotMemberExtra[], updatedAt }`)
+ * 当選しやすさ(weight)といったjackpot固有の設定は `MemberExtraData`(一覧全体を1件のレコード `{ data: { schemaVersion, extras }, updatedAt }`)
  * としてローカルに保持してマージする。id/nameは共有マスタへの書き込みで
  * 即座に他デバイスへ反映されるため、バックグラウンド同期の対象はjackpot固有の
- * 拡張設定(rank/weight)のみでよい。
+ * 拡張設定(weight)のみでよい。
  *
  * `MemberRosterOverride` は動作確認用シミュレーション(draw-simulation-service.ts)が
  * 一時的にダミーメンバーへ差し替えるための、共有マスタに一切影響しないローカル専用の
@@ -28,7 +29,7 @@ const DRIVE_FILE_NAME = "member-extras.json";
  */
 @injectable()
 export class MemberRepository {
-  private readonly extraStore = new BlobRecordStore<JackpotMemberExtra[]>("jackpot-game", "MemberExtraData");
+  private readonly extraStore = new BlobRecordStore<MemberExtraData>("jackpot-game", "MemberExtraData");
 
   constructor(
     @inject(AccountsRepository) private readonly directory: AccountsRepository,
@@ -39,24 +40,31 @@ export class MemberRepository {
     return {
       id: directoryMember.id,
       name: directoryMember.name,
-      rank: extra?.rank ?? DEFAULT_RANK,
       weight: extra?.weight,
       photo: directoryMember.photo,
     };
   }
 
-  /** 保存してあるメンバー拡張設定(rank/weight)を、memberId をキーにした Map で返す。 */
+  /**
+   * 保存してあるメンバー拡張設定(weight)を、memberId をキーにした Map で返す。
+   * 古い版(版が無い・以前の配列形式)が残っていれば、ここで1回だけ初期値(当選しやすさ5)に戻して保存し直す。
+   */
   async readExtras(): Promise<Map<string, JackpotMemberExtra>> {
     const record = await this.extraStore.read();
-    return new Map((record?.data ?? []).map((e) => [e.memberId, e] as const));
+    const { data, changed } = migrateMemberExtraData(record?.data);
+    if (changed) {
+      await this.extraStore.update((current) => migrateMemberExtraData(current).data);
+      eventBus.emit("syncDirty");
+    }
+    return new Map(data.extras.map((e) => [e.memberId, e] as const));
   }
 
   /** メンバー拡張設定をまとめて保存する(同期の記録の更新日時も一緒に1回で書く)。 */
   private async saveExtras(change: (extras: Map<string, JackpotMemberExtra>) => void): Promise<void> {
     await this.extraStore.update((current) => {
-      const extras = new Map((current ?? []).map((e) => [e.memberId, e] as const));
+      const extras = new Map(migrateMemberExtraData(current).data.extras.map((e) => [e.memberId, e] as const));
       change(extras);
-      return Array.from(extras.values());
+      return { schemaVersion: JACKPOT_SCHEMA_VERSION, extras: Array.from(extras.values()) };
     });
     eventBus.emit("syncDirty");
   }
@@ -76,7 +84,7 @@ export class MemberRepository {
 
   /**
    * メンバーを追加する。`member.id` が既存マスタのIDと一致する場合は
-   * 既存の共有メンバーへ紐付ける(rank/weightの設定のみ)。一致しない場合は
+   * 既存の共有メンバーへ紐付ける(weightの設定のみ)。一致しない場合は
    * 新規メンバーとして共有マスタに追加してから紐付ける。
    */
   async addMembers(members: Member[]): Promise<Member[]> {
@@ -92,7 +100,6 @@ export class MemberRepository {
 
       const extra: JackpotMemberExtra = {
         memberId: directoryMember.id,
-        rank: member.rank,
         weight: member.weight,
       };
       extras.push(extra);
@@ -103,15 +110,15 @@ export class MemberRepository {
   }
 
   /**
-   * 名簿にいるメンバーの rank / 当選しやすさを、id をキーにまとめて設定する(省略した項目は今の値を保つ)。
+   * 名簿にいるメンバーの当選しやすさを、id をキーにまとめて設定する(省略した項目は今の値を保つ)。
    * 名簿にいない id は何もせず、その id を返す(メンバーの作成は名簿の仕事)。保存・同期の記録は1回だけ。
    */
-  async setExtras(rows: { id: string; rank?: number; weight?: number }[]): Promise<{ updated: number; unknown: string[] }> {
+  async setExtras(rows: { id: string; weight?: number }[]): Promise<{ updated: number; unknown: string[] }> {
     const directoryMembers = await this.directory.listMembers();
     const known = new Set(directoryMembers.map((m) => m.id));
     const unknown: string[] = [];
     let updated = 0;
-    const changes: { id: string; rank?: number; weight?: number }[] = [];
+    const changes: { id: string; weight?: number }[] = [];
     for (const row of rows) {
       if (!known.has(row.id)) {
         unknown.push(row.id);
@@ -126,7 +133,6 @@ export class MemberRepository {
           const current = all.get(row.id);
           all.set(row.id, {
             memberId: row.id,
-            rank: row.rank ?? current?.rank ?? DEFAULT_RANK,
             weight: row.weight ?? current?.weight,
           });
         }
@@ -146,13 +152,13 @@ export class MemberRepository {
       if (updated.name !== current.name) {
         await this.directory.updateMember({ id: update.id, name: updated.name });
       }
-      extras.push({ memberId: update.id, rank: updated.rank, weight: updated.weight });
+      extras.push({ memberId: update.id, weight: updated.weight });
     }
     await this.saveExtras((all) => extras.forEach((e) => all.set(e.memberId, e)));
   }
 
   /**
-   * メンバーのジャックポット固有の設定（ランク・当選しやすさ）を初期値に戻す。
+   * メンバーのジャックポット固有の設定（当選しやすさ）を初期値に戻す。
    * 共有マスタ（名簿）からは削除しない。メンバーは名簿にいる限り、ジャックポットのメンバーでもある。
    */
   async deleteMembers(ids: string[]): Promise<void> {
@@ -161,15 +167,15 @@ export class MemberRepository {
 
   /**
    * バックグラウンド同期エンジン向けに、jackpot固有のメンバー拡張設定
-   * (rank/weight)一覧を1つのSyncTargetとして返す。id/nameは共有マスタ経由で
+   * (weight)一覧を1つのSyncTargetとして返す。id/nameは共有マスタ経由で
    * 既に常に最新のため、ここでの同期対象には含めない。
    */
-  async listSyncTargets(): Promise<SyncTarget<JackpotMemberExtra[], JackpotMemberExtra[]>[]> {
+  async listSyncTargets(): Promise<SyncTarget<MemberExtraData, MemberExtraData>[]> {
     return [
       blobRecordSyncTarget(
         SYNC_KIND,
         this.extraStore,
-        textBlobRecordRemote<JackpotMemberExtra[]>({
+        textBlobRecordRemote<MemberExtraData>({
           read: async () => (await this.jackpotApi.getJson(DRIVE_FILE_NAME)).json,
           write: (json) => this.jackpotApi.addJson({ fileName: DRIVE_FILE_NAME, json }),
         })

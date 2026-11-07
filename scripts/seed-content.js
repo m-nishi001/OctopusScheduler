@@ -5,7 +5,7 @@
  * R2 のキー・保存形式は実アプリの同期処理に合わせてある:
  *   - クイズ一覧         quiz-game/json/quiz-list.json    ({ updatedAt, data: { quizzes, media } }、画像・音声は素材の名前で参照し、media が 名前 → ハッシュ・MIME・サイズ)
  *   - クイズのアセット   quiz-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
- *   - ジャックポット     jackpot-game/json/jackpot-config.json ({ updatedAt, data: { prizes, screens, media } }。景品と画面設定(settingValue は JSON 文字列)は素材の名前で参照し、media が 名前 → ハッシュ・MIME・サイズ)
+ *   - ジャックポット     jackpot-game/json/jackpot-config.json ({ updatedAt, data: { schemaVersion, prizes, screens, media } }。景品と画面設定(settingValue は JSON 文字列)は素材の名前で参照し、media が 名前 → ハッシュ・MIME・サイズ)
  *   - ジャックポットの素材 jackpot-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
  * 一覧のファイルは、アプリの同期が保存する `{ updatedAt, data }` の形(updatedAt はミリ秒)。端末が持つ同じ種類のデータより新しければ、取り込まれる。
  */
@@ -150,12 +150,12 @@ export const TUNES = {
 // ---------- ジャックポット ----------
 
 const PRIZE_DEFS = [
-  { id: "seed-prize-1", name: "1等 ペア旅行券", weight: 3, animation: "roulette", colors: ["#f59e0b", "#b45309"] },
-  { id: "seed-prize-2", name: "2等 最新ワイヤレスイヤホン", weight: 8, animation: "slot", colors: ["#3b82f6", "#1e3a8a"] },
-  { id: "seed-prize-3", name: "3等 高級和牛セット", weight: 15, animation: "roulette", colors: ["#ef4444", "#7f1d1d"] },
-  { id: "seed-prize-4", name: "4等 ギフトカード 5,000円", weight: 25, animation: "slot", colors: ["#10b981", "#064e3b"] },
-  { id: "seed-prize-5", name: "5等 人気スイーツ詰め合わせ", weight: 35, animation: "roulette", colors: ["#ec4899", "#831843"] },
-  { id: "seed-prize-6", name: "参加賞 オリジナルタンブラー", weight: 50, animation: "slot", colors: ["#8b5cf6", "#4c1d95"] },
+  { id: "seed-prize-1", name: "1等 ペア旅行券", rank: 5, animation: "roulette", colors: ["#f59e0b", "#b45309"] },
+  { id: "seed-prize-2", name: "2等 最新ワイヤレスイヤホン", rank: 4, animation: "slot", colors: ["#3b82f6", "#1e3a8a"] },
+  { id: "seed-prize-3", name: "3等 高級和牛セット", rank: 3, animation: "roulette", colors: ["#ef4444", "#7f1d1d"] },
+  { id: "seed-prize-4", name: "4等 ギフトカード 5,000円", rank: 2, animation: "slot", colors: ["#10b981", "#064e3b"] },
+  { id: "seed-prize-5", name: "5等 人気スイーツ詰め合わせ", rank: 1, animation: "roulette", colors: ["#ec4899", "#831843"] },
+  { id: "seed-prize-6", name: "参加賞 オリジナルタンブラー", rank: 1, animation: "slot", colors: ["#8b5cf6", "#4c1d95"] },
 ];
 
 /** 景品の画像の素材の名前。1 が通常の画像、2 が確変の 2 回目に出す画像。 */
@@ -183,7 +183,7 @@ export function buildPrizes() {
   return PRIZE_DEFS.map((p, i) => ({
     id: p.id,
     name: p.name,
-    weight: p.weight,
+    rank: p.rank,
     animation: p.animation,
     order: i + 1,
     image: prizeImageName(p, 1),
@@ -329,7 +329,7 @@ function screenMediaNames(settingValue) {
   return names;
 }
 
-/** ジャックポットのレコード `{ prizes, screens, media }`。media は、景品と画面設定が参照している素材の 名前 → { hash, mime, size }。 */
+/** ジャックポットのレコード `{ schemaVersion, prizes, screens, media }`。media は、景品と画面設定が参照している素材の 名前 → { hash, mime, size }。 */
 export function buildJackpotRecord() {
   const files = jackpotMediaFiles();
   const prizes = buildPrizes();
@@ -344,7 +344,7 @@ export function buildJackpotRecord() {
     const [mime, body] = files.get(name);
     media[name] = { hash: blobHash(body), mime, size: body.length };
   }
-  return { prizes, screens, media };
+  return { schemaVersion: 1, prizes, screens, media };
 }
 
 /** ジャックポット側のアセット。`[ハッシュ, MIME, 中身]`(同じ中身は1つにまとめる)。 */

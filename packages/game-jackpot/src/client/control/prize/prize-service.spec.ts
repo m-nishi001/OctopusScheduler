@@ -28,13 +28,13 @@ describe("PrizeService", () => {
     await service.addPrize({ name: "A" });
     await service.addPrize({ name: "B" });
 
-    await service.updatePrize("id-1", { name: "A2", weight: 5 });
-    await service.updatePrize("id-2", { name: "B2", weight: 9 });
+    await service.updatePrize("id-1", { name: "A2", rank: 5 });
+    await service.updatePrize("id-2", { name: "B2", rank: 4 });
 
     const prizes = (await service.fetchPrizes()).sort((x, y) => x.order - y.order);
-    expect(prizes.map((p) => [p.id, p.name, p.order, p.weight])).toEqual([
+    expect(prizes.map((p) => [p.id, p.name, p.order, p.rank])).toEqual([
       ["id-1", "A2", 1, 5],
-      ["id-2", "B2", 2, 9],
+      ["id-2", "B2", 2, 4],
     ]);
   });
 

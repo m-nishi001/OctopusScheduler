@@ -78,14 +78,14 @@ describe("PrizeDrawService", () => {
      * 当選景品を除いたダミーIDを返すことをテストする。
      */
     it("delegates to WeightedSelector.selectWeighted and excludes the winner from dummies", () => {
-      // r=0.05*total(10)=0.5 -> falls into the first prize's weight slice (p1).
+      // ランク5,5,1 -> 重み1,1,5(合計7)。r=0.05*7=0.35 -> 先頭の景品(p1)の枠に入る。
       const rand = new MockRandom([0.05, 0.1, 0.2, 0.3]);
       const selector = new WeightedSelector(rand as any);
       const svc = new PrizeDrawService(selector, rand as any);
       const prizes = [
-        { id: "p1", weight: 1 },
-        { id: "p2", weight: 1 },
-        { id: "p3", weight: 8 },
+        { id: "p1", rank: 5 },
+        { id: "p2", rank: 5 },
+        { id: "p3", rank: 1 },
       ];
       const res = svc.drawPrize({
         prizes: prizes as any,
@@ -99,11 +99,24 @@ describe("PrizeDrawService", () => {
       expect(res!.dummyPrizeIds).not.toContain("p1");
     });
 
+    it("rare high-rank prizes are drawn less often than low-rank ones", () => {
+      // ランク5,5,1 -> 重み1,1,5(合計7)。r=0.5*7=3.5 -> p3 の枠(2〜7)に入る。
+      const rand = new MockRandom([0.5, 0.1, 0.2]);
+      const svc = new PrizeDrawService(new WeightedSelector(rand as any), rand as any);
+      const prizes = [
+        { id: "p1", rank: 5 },
+        { id: "p2", rank: 5 },
+        { id: "p3", rank: 1 },
+      ];
+      const res = svc.drawPrize({ prizes: prizes as any, assignedPrizeIds: [], member: { id: "m1" } as any, dummyCount: 1 });
+      expect(res!.winnerPrizeId).toBe("p3");
+    });
+
     it("returns null when no prizes are available after excluding assigned ones", () => {
       const rand = new MockRandom([0]);
       const selector = new WeightedSelector(rand as any);
       const svc = new PrizeDrawService(selector, rand as any);
-      const prizes = [{ id: "p1", weight: 5 }];
+      const prizes = [{ id: "p1", rank: 3 }];
       const res = svc.drawPrize({
         prizes: prizes as any,
         assignedPrizeIds: ["p1"],

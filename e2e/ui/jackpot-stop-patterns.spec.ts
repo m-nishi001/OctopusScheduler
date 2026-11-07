@@ -71,7 +71,7 @@ async function scene(browser: import("@playwright/test").Browser, request: impor
   });
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toBeVisible();
-  const prizes = ["特賞", "一等", "二等", "三等", "四等"].map((name, i) => ({ id: `jp-stop-${kind}-${i + 1}`, name, order: i + 1, weight: 10, animation: kind }));
+  const prizes = ["特賞", "一等", "二等", "三等", "四等"].map((name, i) => ({ id: `jp-stop-${kind}-${i + 1}`, name, order: i + 1, rank: 3, animation: kind }));
   await seedJackpot(host.page, { prizes });
   // 抽選の対象は既定で「参加者全員(自動)」: ポータルから入室した人を1人用意する
   const guest = await joinPortalAs(browser, request, sessionId, MEMBER.id, memberKey);

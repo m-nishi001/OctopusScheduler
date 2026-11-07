@@ -6,7 +6,8 @@
           <FieldText v-model="formData.name" label="名前" placeholder="景品名" />
         </div>
         <div class="weight-field">
-          <FieldNumberStepper v-model="formData.weight" :min="1" :max="100" label="当選確率の重み" />
+          <FieldNumberStepper v-model="formData.rank" :min="MIN_PRIZE_RANK" :max="MAX_PRIZE_RANK" label="景品ランク（1〜5、標準3、5=豪華でレア）" />
+          <p class="rank-hint">ランクが高いほど豪華でレア（当選しにくい）。</p>
           <p class="odds-preview">このプールでの当選確率: 約{{ oddsPreviewPercent }}%</p>
         </div>
         <div class="animation-field">
@@ -36,7 +37,7 @@ import FieldSelect from '../../../ui/pages/admin/prizes/components/field-select.
 import MediaPicker from '../media-picker.vue';
 import { useMediaDraft } from '@ui/composables/use-media-draft';
 import type { Prize, PrizeFields } from '@model/prize/prize';
-import { DEFAULT_WEIGHT, resolveWeight } from '@model/draw/weighted-selector';
+import { DEFAULT_PRIZE_RANK, MAX_PRIZE_RANK, MIN_PRIZE_RANK, prizeRankToWeight } from '@model/prize/prize-rank';
 
 /** 景品の素材欄(画像4つ・BGM2つ)。どの項目に入るか・表示名・画面上の位置。 */
 type MediaField = 'image' | 'image2' | 'winningImage1' | 'winningImage2' | 'bgm1' | 'bgm2';
@@ -55,7 +56,7 @@ const MEDIA_FIELDS = [...IMAGE_SLOTS, ...BGM_SLOTS].map((s) => s.field);
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },
   prize: { type: Object, default: null },
-  /** 当選確率プレビュー計算のための、このプール内の他の景品(編集中の景品自身は除く)。 */
+  /** 当選確率プレビュー(景品ランクから求めた重みで計算)のための、このプール内の他の景品(編集中の景品自身は除く)。 */
   otherPrizes: { type: Array as () => Prize[], default: () => [] },
 });
 
@@ -72,11 +73,11 @@ const animationOptions = [
   { value: 'slot', label: 'スロット' },
 ];
 
-type FormData = { name: string; weight: number; animation: string } & Record<MediaField, string>;
+type FormData = { name: string; rank: number; animation: string } & Record<MediaField, string>;
 
 const emptyFormData = (): FormData => ({
   name: '',
-  weight: DEFAULT_WEIGHT,
+  rank: DEFAULT_PRIZE_RANK,
   animation: 'roulette',
   image: '',
   image2: '',
@@ -98,8 +99,8 @@ const oddsPreviewPercent = computed(() => {
   const currentId = props.mode === 'edit' && props.prize ? props.prize.id : undefined;
   const othersTotalWeight = props.otherPrizes
     .filter((p) => p.id !== currentId)
-    .reduce((sum, p) => sum + resolveWeight(p.weight), 0);
-  const currentWeight = resolveWeight(formData.value.weight);
+    .reduce((sum, p) => sum + prizeRankToWeight(p.rank), 0);
+  const currentWeight = prizeRankToWeight(formData.value.rank);
   const totalWeight = othersTotalWeight + currentWeight;
   if (totalWeight <= 0) return '0.0';
   return ((currentWeight / totalWeight) * 100).toFixed(1);
@@ -116,7 +117,7 @@ function loadPrize(prize: Prize) {
   formData.value = {
     ...emptyFormData(),
     name: prize.name,
-    weight: prize.weight ?? DEFAULT_WEIGHT,
+    rank: prize.rank ?? DEFAULT_PRIZE_RANK,
     animation: prize.animation || 'roulette',
     ...Object.fromEntries(MEDIA_FIELDS.map((f) => [f, prize[f] || ''])),
   };
@@ -124,10 +125,10 @@ function loadPrize(prize: Prize) {
 
 function submit() {
   if (!isValid.value) return;
-  const { name, weight, animation } = formData.value;
+  const { name, rank, animation } = formData.value;
   const media = Object.fromEntries(MEDIA_FIELDS.map((f) => [f, formData.value[f] || undefined]));
   emit('submit', {
-    fields: { name, weight, animation, ...media },
+    fields: { name, rank, animation, ...media },
     files: draft.filesFor(MEDIA_FIELDS.map((f) => formData.value[f])),
   });
 }
@@ -183,6 +184,12 @@ function cancel() {
 
 .basic-fields>.weight-field {
   grid-column: 2;
+}
+
+.rank-hint {
+  margin: 4px 0 0;
+  font-size: 0.85em;
+  color: #666;
 }
 
 .odds-preview {

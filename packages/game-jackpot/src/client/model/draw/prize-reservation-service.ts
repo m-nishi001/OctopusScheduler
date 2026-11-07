@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import type { Prize } from "../prize/prize";
 import { MathRandomProvider } from "../common/math-random-provider";
-import { resolveWeight } from "./weighted-selector";
+import { resolvePrizeRank } from "../prize/prize-rank";
 import { AUTO_KAKUHEN_PLAN, usableKakuhenTimings } from "./kakuhen-plan";
 import type { KakuhenPlan } from "./kakuhen-plan";
 
@@ -33,9 +33,9 @@ export class PrizeReservationService {
   }
 
   private createPool(reservedCount: number, prizes: Prize[]) {
-    // sort by weight descending
+    // sort by prize rank descending (top rank = rarest first)
     const sortedHigh = [...prizes].sort(
-      (a, b) => resolveWeight(b.weight) - resolveWeight(a.weight)
+      (a, b) => resolvePrizeRank(b.rank) - resolvePrizeRank(a.rank)
     );
 
     // number to take from each side
@@ -77,10 +77,10 @@ export class PrizeReservationService {
       const candidates = arr.filter((p) => !exclude.has(p.id));
       if (candidates.length === 0) return null;
       if (pref === 0) return candidates[this.rand.nextInt(candidates.length)];
-      const weights = candidates.map((p) => resolveWeight(p.weight));
-      const target = pref > 0 ? Math.max(...weights) : Math.min(...weights);
+      const ranks = candidates.map((p) => resolvePrizeRank(p.rank));
+      const target = pref > 0 ? Math.max(...ranks) : Math.min(...ranks);
       const filtered = candidates.filter(
-        (p) => resolveWeight(p.weight) === target
+        (p) => resolvePrizeRank(p.rank) === target
       );
       return filtered[this.rand.nextInt(filtered.length)];
     };

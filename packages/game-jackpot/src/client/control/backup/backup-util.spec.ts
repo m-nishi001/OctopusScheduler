@@ -20,7 +20,7 @@ describe("buildLocalBackup", () => {
       data: { prizes: [{ id: "p1", name: "1等", order: 1 }], screens: [{ screenName: "opening", settingValue: "{}" }], media: {} },
       updatedAt: 111,
     });
-    await store("MemberExtraData").save("record", { data: [{ memberId: "m1", rank: 3 }], updatedAt: 222 });
+    await store("MemberExtraData").save("record", { data: [{ memberId: "m1", weight: 3 }], updatedAt: 222 });
 
     const backup = await buildLocalBackup();
 
@@ -29,7 +29,7 @@ describe("buildLocalBackup", () => {
     expect(JSON.stringify(backup.stores.JackpotData.record)).toContain("1等");
     expect(JSON.stringify(backup.stores.JackpotData.record)).toContain("opening");
     expect(JSON.stringify(backup.stores.JackpotData.record)).toContain('"updatedAt":111');
-    expect(JSON.stringify(backup.stores.MemberExtraData.record)).toContain('"rank":3');
+    expect(JSON.stringify(backup.stores.MemberExtraData.record)).toContain('"weight":3');
     // 抽選結果と確変の予定はセッションの結果ファイル(サーバー)にあり、ローカルのバックアップには含めない
     expect(backup.stores.DrawResultData).toBeUndefined();
     expect(backup.stores.PrizeDrawState).toBeUndefined();

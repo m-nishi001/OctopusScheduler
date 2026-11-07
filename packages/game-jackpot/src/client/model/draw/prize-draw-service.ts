@@ -1,6 +1,7 @@
 import { WeightedSelector } from "./weighted-selector";
 import { injectable, inject } from "tsyringe";
 import type { Prize } from "../prize/prize";
+import { prizeRankToWeight } from "../prize/prize-rank";
 import type { Member } from "../member/member";
 import { MathRandomProvider } from "../common/math-random-provider";
 import { NoReservedPrizesError } from "../errors";
@@ -8,7 +9,7 @@ import { NoReservedPrizesError } from "../errors";
 /** 確定済みの抽選のうち、景品の側だけ見る。 */
 type WonPrizes = { wonPrize?: { id: string } | null }[];
 
-/** 景品抽選。残っている景品から、景品の重みに応じて1つを選ぶ。 */
+/** 景品抽選。残っている景品から、景品ランクから求めた重み(ランクが高いほどレア)に応じて1つを選ぶ。 */
 @injectable()
 export class PrizeDrawService {
   private weightedSelector: WeightedSelector;
@@ -100,7 +101,7 @@ export class PrizeDrawService {
     const available = prizes.filter((p) => !assignedPrizeIds.includes(p.id));
     if (available.length === 0) return null;
 
-    const picked = this.weightedSelector.selectWeighted(available);
+    const picked = this.weightedSelector.selectWeighted(available, (p) => prizeRankToWeight(p.rank));
     return {
       winnerPrizeId: picked.id,
       dummyPrizeIds: this.pickDummyPrizeIds(prizes, picked.id, opts.dummyCount),

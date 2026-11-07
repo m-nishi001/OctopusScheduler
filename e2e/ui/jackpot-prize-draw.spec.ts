@@ -40,7 +40,7 @@ for (const kind of ["roulette", "slot"] as const) {
       id: `jp-draw-${kind}-${i + 1}`,
       name,
       order: i + 1,
-      weight: 10,
+      rank: 3,
       animation: kind,
     }));
     await seedJackpot(host.page, { prizes });

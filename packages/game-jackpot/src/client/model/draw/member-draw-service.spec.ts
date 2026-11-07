@@ -31,16 +31,16 @@ describe("MemberDrawService", () => {
   });
 
   describe("メンバーごとの当選しやすさ（weight）", () => {
-    // 重み 1 / 10 / 89 → 合計 100。乱数 r は [0,100) に対応: [0,1)=a, [1,11)=b, [11,100)=c
+    // 重み 1 / 2 / 7 → 合計 10。乱数 r は [0,10) に対応: [0,1)=a, [1,3)=b, [3,10)=c
     const members = [
       { id: "a", weight: 1 },
-      { id: "b", weight: 10 },
-      { id: "c", weight: 89 },
+      { id: "b", weight: 2 },
+      { id: "c", weight: 7 },
     ];
 
     it("乱数が重みの区間のどこに入るかで当選者が決まる", () => {
-      expect(service([0.005]).drawMember(members as never, [], 0)!.winnerId).toBe("a");
-      expect(service([0.05]).drawMember(members as never, [], 0)!.winnerId).toBe("b");
+      expect(service([0.05]).drawMember(members as never, [], 0)!.winnerId).toBe("a");
+      expect(service([0.2]).drawMember(members as never, [], 0)!.winnerId).toBe("b");
       expect(service([0.5]).drawMember(members as never, [], 0)!.winnerId).toBe("c");
     });
 
@@ -51,7 +51,7 @@ describe("MemberDrawService", () => {
         const winner = service([(i + 0.5) / draws]).drawMember(members as never, [], 0)!.winnerId!;
         counts[winner]++;
       }
-      expect(counts).toEqual({ a: 10, b: 100, c: 890 });
+      expect(counts).toEqual({ a: 100, b: 200, c: 700 });
     });
 
     it("重みを付けない（または全員同じ）なら、全員が同じ確率", () => {
@@ -62,13 +62,13 @@ describe("MemberDrawService", () => {
       expect(counts).toEqual({ a: 250, b: 250, c: 250, d: 250 });
     });
 
-    it("範囲外の重み（0・大きすぎ）は 1〜100 に収める", () => {
+    it("範囲外の重み（0・大きすぎ）は 1〜10 に収める", () => {
       const odd = [
         { id: "zero", weight: 0 }, // → 1
-        { id: "big", weight: 100000 }, // → 100
+        { id: "big", weight: 100000 }, // → 10
       ];
-      // 合計 101: [0,1)=zero, [1,101)=big
-      expect(service([0.001]).drawMember(odd as never, [], 0)!.winnerId).toBe("zero");
+      // 合計 11: [0,1)=zero, [1,11)=big
+      expect(service([0.01]).drawMember(odd as never, [], 0)!.winnerId).toBe("zero");
       expect(service([0.5]).drawMember(odd as never, [], 0)!.winnerId).toBe("big");
     });
 

@@ -16,8 +16,8 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 const members = [
-  { id: "m1", name: "太郎", rank: 1 },
-  { id: "m2", name: "花子", rank: 2 },
+  { id: "m1", name: "太郎" },
+  { id: "m2", name: "花子" },
 ];
 const prizes = [
   { id: "p1", name: "1等", order: 1 },
@@ -79,7 +79,7 @@ describe("SessionDrawStore", () => {
     const reloaded = new SessionDrawStore(() => agent, directory);
     expect(await reloaded.plan()).toEqual({ kakuhenTimings: [2], reservedPrizeIds: ["p2"] });
     const pending = await reloaded.pending();
-    expect(pending).toMatchObject({ drawId: "d1", wonMember: { id: "m1", name: "太郎", rank: 1 }, wonPrize: { id: "p1", name: "1等" } });
+    expect(pending).toMatchObject({ drawId: "d1", wonMember: { id: "m1", name: "太郎" }, wonPrize: { id: "p1", name: "1等" } });
   });
 
   it("矛盾(当選済みのメンバー)は DrawConflictError にして、状態を読み直す", async () => {

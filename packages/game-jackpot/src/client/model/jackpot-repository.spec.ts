@@ -78,6 +78,41 @@ describe("JackpotRepository", () => {
     expect(await repo.getScreenSettings()).toHaveLength(1);
   });
 
+  describe("移行(古い版は1回だけ景品ランクを初期値に戻す)", () => {
+    const store = () => new LocalStorageService("jackpot-game", "JackpotData");
+    const seedLegacy = () =>
+      store().save("record", {
+        updatedAt: 10,
+        data: { prizes: [{ id: "p1", name: "A", order: 1, weight: 80 }], screens: [], media: {} },
+      });
+
+    it("版の無い景品は、景品ランク3にして weight を捨て、版つきに保存し直す", async () => {
+      await seedLegacy();
+      const record = await repo.readRecord();
+      expect(record.schemaVersion).toBe(1);
+      expect(record.prizes).toEqual([{ id: "p1", name: "A", order: 1, rank: 3 }]);
+      const stored = await store().get<{ updatedAt: number; data: unknown }>("record");
+      expect(stored!.data).toEqual({ schemaVersion: 1, prizes: [{ id: "p1", name: "A", order: 1, rank: 3 }], screens: [], media: {} });
+      expect(stored!.updatedAt).toBeGreaterThan(10);
+    });
+
+    it("2回目の読み込みでは何も書き直さず、移行後に変えた景品ランクは保たれる", async () => {
+      await seedLegacy();
+      await repo.readRecord();
+      await repo.addPrizes([prize("p1", { rank: 5 })]);
+      const before = await store().get<{ updatedAt: number }>("record");
+      expect((await repo.getPrizes())[0].rank).toBe(5);
+      expect((await store().get<{ updatedAt: number }>("record"))!.updatedAt).toBe(before!.updatedAt);
+    });
+
+    it("何も保存されていない端末は、空のレコードを返すだけで書かない。以後の保存には版が付く", async () => {
+      expect(await repo.readRecord()).toMatchObject({ schemaVersion: 1, prizes: [] });
+      expect(await store().get("record")).toBeUndefined();
+      await repo.addPrizes([prize("p1", { rank: 4 })]);
+      expect((await repo.readRecord()).schemaVersion).toBe(1);
+    });
+  });
+
   it("素材は名前で参照され、名前から中身を引ける。同じ名前は1つだけ保存される", async () => {
     await repo.addPrizes([prize("p1", { image: "a.png" }), prize("p2", { image: "a.png", bgm1: "b.mp3" })], files({ "a.png": png("one"), "b.mp3": mp3("bgm") }));
     const { media } = await repo.readRecord();
@@ -143,7 +178,7 @@ describe("JackpotRepository", () => {
 
   it("以前の形式(配列)のレコードは、空のレコードとして扱う", async () => {
     await new LocalStorageService("jackpot-game", "JackpotData").save("record", { data: [{ id: "old" }], updatedAt: 1 });
-    expect(await repo.readRecord()).toEqual({ prizes: [], screens: [], media: {} });
+    expect(await repo.readRecord()).toEqual({ schemaVersion: 1, prizes: [], screens: [], media: {} });
     await repo.addPrizes([prize("p1")]);
     expect((await repo.getPrizes()).map((p) => p.id)).toEqual(["p1"]);
   });
@@ -157,7 +192,7 @@ describe("JackpotRepository", () => {
       await repo.deletePrizes(["p1"]);
       await sync(repo);
       expect(await server.blobCount()).toBe(0);
-      expect(JSON.parse((await server.api.getRecord()).json!).data).toEqual({ prizes: [], screens: [], media: {} });
+      expect(JSON.parse((await server.api.getRecord()).json!).data).toEqual({ schemaVersion: 1, prizes: [], screens: [], media: {} });
       await sync(repo);
       expect(await repo.getPrizes()).toEqual([]);
     });

@@ -12,8 +12,7 @@ export interface MemberFormInput {
   /** 既存の共有マスタメンバーに紐付ける場合に指定する。新規作成時は省略する。 */
   id?: string;
   name: string;
-  rank: number;
-  /** 当選しやすさ(1〜100)。省略時は既定値。 */
+  /** メンバー抽選の当選しやすさ(1〜10)。省略時は既定値。 */
   weight?: number;
 }
 
@@ -102,7 +101,6 @@ export function useMembers(
     const newMember: MemberDto = {
       id: input.id || "",
       name: input.name,
-      rank: input.rank,
       weight: input.weight,
     };
     const addedMember = await memberService.saveMember(newMember);
@@ -112,7 +110,7 @@ export function useMembers(
   };
 
   const updateMember = async (original: any, input: MemberFormInput) => {
-    const updated: any = { ...original, name: input.name, rank: input.rank, weight: input.weight };
+    const updated: any = { ...original, name: input.name, weight: input.weight };
     await memberRepo.updateMembers([{ id: updated.id, updateFn: () => updated }]);
     await fetchMembers();
     await saveMembersToLocalJson();

@@ -33,8 +33,8 @@ test("参加者がいなくて抽選に失敗しても、ホストは固まら�
 
   await seedJackpot(host.page, {
     prizes: [
-      { id: "jp-fail-prize-1", name: "特賞", order: 1, weight: 10, animation: "roulette" },
-      { id: "jp-fail-prize-2", name: "一等", order: 2, weight: 10, animation: "roulette" },
+      { id: "jp-fail-prize-1", name: "特賞", order: 1, rank: 3, animation: "roulette" },
+      { id: "jp-fail-prize-2", name: "一等", order: 2, rank: 3, animation: "roulette" },
     ],
   });
 

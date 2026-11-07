@@ -15,7 +15,7 @@ const ids = Array.from({ length: MEMBER_COUNT }, (_, i) => `jp-state-${i + 1}`);
 const nameOf = (id: string) => `状態${id.slice(-1)}`;
 const keys = new Map<string, string>();
 const sessionIds: string[] = [];
-const PRIZES = Array.from({ length: 8 }, (_, i) => ({ id: `jp-state-p${i + 1}`, name: `状態景品${i + 1}`, order: i + 1, weight: 10 }));
+const PRIZES = Array.from({ length: 8 }, (_, i) => ({ id: `jp-state-p${i + 1}`, name: `状態景品${i + 1}`, order: i + 1, rank: 3 }));
 
 
 interface ServerDraw {

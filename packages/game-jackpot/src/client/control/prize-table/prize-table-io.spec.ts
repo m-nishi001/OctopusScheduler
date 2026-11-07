@@ -69,7 +69,7 @@ describe("景品の書き出し・取込", () => {
     await repo.addPrizes([prize("old", { order: 4 })]);
     const rows = Array.from({ length: 10 }, (_, i) => `,新${i},5,スロット,pic.png`).join("\n");
     const apply = vi.spyOn(repo, "applyPrizeImport");
-    const preview = await previewPrizeImport({ table: csvFile(`ID,名前,当選確率の重み,アニメーション,画像1\n${rows}\n`), media: [file("pic.png", "ONE")], mode: "upsert" }, { repo });
+    const preview = await previewPrizeImport({ table: csvFile(`ID,名前,景品ランク,アニメーション,画像1\n${rows}\n`), media: [file("pic.png", "ONE")], mode: "upsert" }, { repo });
     expect(preview).toMatchObject({ ok: true, counts: { add: 10 }, media: { added: 1, replaced: 0 } });
     if (!preview.ok) return;
     const result = await preview.apply(() => undefined);

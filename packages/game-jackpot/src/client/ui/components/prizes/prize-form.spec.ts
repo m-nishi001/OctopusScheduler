@@ -46,16 +46,29 @@ describe("PrizeForm", () => {
     expect(bgm.findAll("option").map((o) => o.text())).not.toContain("main.png");
   });
 
-  it("exposes a weight field (not the removed rank field) defaulted for a new prize", async () => {
+  it("景品ランク(1〜5、標準3)の欄を持ち、新しい景品は3が入る。旧「当選確率の重み」は出さない", async () => {
     const wrapper = await mountForm({ mode: "add" });
-    expect(wrapper.text()).toContain("当選確率の重み");
-    expect(wrapper.text()).not.toContain("景品ランク");
-    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe("10");
+    expect(wrapper.text()).toContain("景品ランク（1〜5、標準3、5=豪華でレア）");
+    expect(wrapper.text()).not.toContain("当選確率の重み");
+    const input = wrapper.find('input[type="number"]');
+    expect((input.element as HTMLInputElement).value).toBe("3");
+    expect(input.attributes("min")).toBe("1");
+    expect(input.attributes("max")).toBe("5");
   });
 
-  it("loads an existing prize's weight and media names when editing", async () => {
-    const wrapper = await mountForm({ mode: "edit", prize: { id: "p", name: "Grand Prize", weight: 80, image: "main.png" } });
-    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe("80");
+  it("範囲外の入力は1〜5にそろえて、景品ランクとして送る", async () => {
+    const wrapper = await mountForm({ mode: "add" });
+    await wrapper.find('.name-field input').setValue("賞");
+    await wrapper.find('input[type="number"]').setValue("9");
+    submit(wrapper);
+    const [payload] = wrapper.emitted("submit")![0] as [{ fields: Record<string, unknown> }];
+    expect(payload.fields).toMatchObject({ name: "賞", rank: 5 });
+    expect(payload.fields).not.toHaveProperty("weight");
+  });
+
+  it("loads an existing prize's rank and media names when editing", async () => {
+    const wrapper = await mountForm({ mode: "edit", prize: { id: "p", name: "Grand Prize", rank: 5, image: "main.png" } });
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe("5");
     expect(wrapper.find('[data-testid="media-name"]').text()).toBe("main.png");
   });
 
@@ -99,21 +112,22 @@ describe("PrizeForm", () => {
 
   describe("odds preview", () => {
     it("computes the win probability against the other prizes in the pool", async () => {
-      const wrapper = await mountForm({ mode: "add", otherPrizes: [{ id: "p1", name: "A", weight: 90, order: 1 }] });
-      // new prize defaults to weight 10 -> total = 90 + 10 = 100 -> 10.0%
-      expect(wrapper.text()).toContain("約10.0%");
+      const wrapper = await mountForm({ mode: "add", otherPrizes: [{ id: "p1", name: "A", rank: 1, order: 1 }, { id: "p2", name: "B", rank: 2, order: 2 }] });
+      // 他の景品の重み 5 + 4、新しい景品は標準ランク3 -> 重み3 -> 3 / 12 = 25.0%
+      expect(wrapper.text()).toContain("約25.0%");
     });
 
     it("excludes the prize being edited from its own odds calculation", async () => {
       const wrapper = await mountForm({
         mode: "edit",
-        prize: { id: "p1", name: "Grand Prize", weight: 50 },
+        prize: { id: "p1", name: "Grand Prize", rank: 5 },
         otherPrizes: [
-          { id: "p1", name: "Grand Prize", weight: 50, order: 1 },
-          { id: "p2", name: "B", weight: 50, order: 2 },
+          { id: "p1", name: "Grand Prize", rank: 5, order: 1 },
+          { id: "p2", name: "B", rank: 1, order: 2 },
         ],
       });
-      expect(wrapper.text()).toContain("約50.0%");
+      // 自分(ランク5 -> 重み1)と B(ランク1 -> 重み5): 1 / 6 = 16.7%
+      expect(wrapper.text()).toContain("約16.7%");
     });
   });
 });

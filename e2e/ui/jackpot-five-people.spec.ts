@@ -16,7 +16,7 @@ const names = ids.map(nameOf);
 const keys = new Map<string, string>();
 const sessionIds: string[] = [];
 /** メンバー(4人)より多い景品。 */
-const PRIZES = Array.from({ length: 10 }, (_, i) => ({ id: `jp-five-p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10 }));
+const PRIZES = Array.from({ length: 10 }, (_, i) => ({ id: `jp-five-p${i + 1}`, name: `景品${i + 1}`, order: i + 1, rank: 3 }));
 
 test.beforeAll(async ({ request }) => {
   for (const id of ids) {
