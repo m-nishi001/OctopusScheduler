@@ -1,23 +1,10 @@
-#!/usr/bin/env node
 /**
- * Cloudflare 環境の自動セットアップ(冪等)。`npm run deploy:cloudflare` から呼ばれる。
+ * Cloudflare 環境の自動セットアップ(冪等)。scripts/cf-env.js(`npm run <env>:up`)から呼ばれるライブラリ。
  *
  *   1. D1 データベース / R2 バケットが無ければ作成する
- *   2. wrangler.toml が無い(または REPLACE_WITH_* が残っている)場合、
- *      wrangler.example.toml から実リソース名/IDを埋めて生成する
- *
- * 認証は wrangler の通常の方法(`wrangler login` または環境変数
- * CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID)に従う。
- * リソース名は環境変数 CLOUDFLARE_D1_NAME / CLOUDFLARE_R2_BUCKET で変更できる。
+ *   2. 設定ファイル(wrangler.<env>.toml)が無い(または REPLACE_WITH_* が残っている)場合、
+ *      環境用に変えた wrangler.example.toml から実リソース名/IDを埋めて生成する
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { runWrangler } from "./lib/wrangler.js";
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_D1_NAME = "octopus-scheduler-db";
-const DEFAULT_R2_BUCKET = "octopus-scheduler-assets";
 
 /** wrangler.toml にプレースホルダが残っているか。 */
 export function hasPlaceholders(toml) {
@@ -80,31 +67,4 @@ export function setup({ run, readTemplate, existingToml, d1Name, bucket }) {
   }
 
   return { toml: renderWranglerToml(readTemplate(), { d1Name, d1Id, bucket }), created };
-}
-
-function main() {
-  const tomlPath = join(ROOT, "wrangler.toml");
-  const run = (args) =>
-    runWrangler(args, { cwd: ROOT, stdio: ["ignore", "pipe", "inherit"] });
-
-  const result = setup({
-    run,
-    readTemplate: () => readFileSync(join(ROOT, "wrangler.example.toml"), "utf8"),
-    existingToml: existsSync(tomlPath) ? readFileSync(tomlPath, "utf8") : null,
-    d1Name: process.env.CLOUDFLARE_D1_NAME || DEFAULT_D1_NAME,
-    bucket: process.env.CLOUDFLARE_R2_BUCKET || DEFAULT_R2_BUCKET,
-  });
-
-  if (result.toml === null) {
-    console.log("wrangler.toml は設定済みのため、リソース作成をスキップしました。");
-    return;
-  }
-  writeFileSync(tomlPath, result.toml);
-  console.log(
-    `wrangler.toml を生成しました。${result.created.length ? `作成: ${result.created.join(", ")}` : "既存リソースを使用"}`
-  );
-}
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main();
 }

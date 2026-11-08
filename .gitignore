@@ -4,9 +4,10 @@ dist
 coverage
 
 # Cloudflare: D1データベースID・R2バケット名など環境固有のリソースIDを含むため、
-# .clasp.json と同様にコミットしない(テンプレートは wrangler.example.toml)。
+# .clasp.json と同様にコミットしない(環境ごとに wrangler.<dev|staging|prod>.toml。テンプレートは wrangler.example.toml)。
 wrangler.toml
-wrangler.staging.toml
+wrangler.*.toml
+!wrangler.example.toml
 .wrangler/
 
 # 認証情報・環境固有の設定(誤コミット防止)。

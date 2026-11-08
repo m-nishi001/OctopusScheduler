@@ -2,8 +2,8 @@
 
 > **要点**
 > - ローカルで通しを見るなら `npm run build && npm run dev:stack`(架空データ入りの実 workerd が立つ)
-> - 本物の Cloudflare で見るなら `npm run staging:up`、終わったら必ず `npm run staging:down`
-> - 自動テストは `npm run e2e`(ローカル)。staging に向けるときは `BASE` を指定する
+> - 本物の Cloudflare で見るなら `npm run dev:up` か `npm run staging:up`、終わったら必ず `dev:down` / `staging:down`(dev・staging・prod の3環境は互いに独立)
+> - 自動テストは `npm run e2e`(ローカル)。Cloudflare 上の環境に向けるときは `BASE` を指定する
 > - 実 ID・パスワードは使わない(公開リポジトリ)。テストデータは全て架空
 
 ## 前提
@@ -46,7 +46,7 @@ npm run dev:stack -- --port 8841     # --port 省略時は空きポート。--co
 
 ### 投入されるデータ
 
-`dev:stack` と `staging:up` は、起動時に次の架空データを R2 に入れ、ポータル公開済みのセッションまで用意する(`scripts/seed-test-data.js` / `seed-content.js` / `seed-session.js`)。
+`dev:stack` と `dev:up` / `staging:up` は、起動時に次の架空データを R2 に入れ、ポータル公開済みのセッションまで用意する(`scripts/seed-test-data.js` / `seed-content.js` / `seed-session.js`)。
 
 | 種類 | 内容 |
 | --- | --- |
@@ -55,8 +55,8 @@ npm run dev:stack -- --port 8841     # --port 省略時は空きポート。--co
 | 景品 | 6 種(1等〜参加賞。ルーレット/スロット、景品ランクはばらつきあり)。画像 2 種・BGM 2 種つき |
 | 画面設定 | オープニング・説明・抽選・デモ・結果・エンディング(文言・画像・BGM・SE) |
 | 画像・音 | スクリプトが生成する小さな PNG / WAV(ネットワーク不要・著作権の問題なし。音は短い自作の旋律) |
-| セッション | 「年末ジャックポット抽選会(試験環境)」を作成し、参加者ポータルに公開済み(寿命 12 時間。切れたら `npm run staging:seed`) |
-| 結果(サンプル。**既定では投入しない**) | `npm run dev:stack:results` / `npm run staging:seed:results`(`--with-results`)を使ったときだけ、参加者ポータルの「結果」タブが最初から埋まるよう、クイズ3ラウンドの順位と抽選5件の当選履歴を投入(`seed-demo-` で始まる ID。実際に出題した結果とは混ざらない)。`test-user-03` などでログインすると「あなたが当選!」の強調も見える。投入すると新しく始める抽選の結果と混ざってノイズになるため、通常は付けない |
+| セッション | 「年末ジャックポット抽選会(試験環境)」を作成し、参加者ポータルに公開済み(寿命 12 時間。切れたら `npm run dev:seed` / `npm run staging:seed`) |
+| 結果(サンプル。**既定では投入しない**) | `npm run dev:stack:results` / `npm run dev:seed:results` / `npm run staging:seed:results`(`--with-results`)を使ったときだけ、参加者ポータルの「結果」タブが最初から埋まるよう、クイズ3ラウンドの順位と抽選5件の当選履歴を投入(`seed-demo-` で始まる ID。実際に出題した結果とは混ざらない)。`test-user-03` などでログインすると「あなたが当選!」の強調も見える。投入すると新しく始める抽選の結果と混ざってノイズになるため、通常は付けない |
 
 - クイズ・景品・画面設定・画像/音は**ブラウザが管理画面を開いたときに R2 から取り込まれる**(同期)。新しいブラウザで、クイズ管理(`/#/quiz-admin`)とジャックポット管理(`/#/execute/jackpot-admin`)を一度開けば揃う。一覧(クイズ・景品・画面設定)のシードは、アプリの同期と同じ `{ updatedAt, data }` の形で、`updatedAt` は投入した時刻。**新しいほうが勝つ**ので、すでに自分のデータがあるブラウザは、シードより新しい編集を持っていればそちらが残り、古ければシードで置き換わる。迷ったら、シークレットウィンドウで試す。取り込みや失敗の記録は、ヘッダーの同期表示を押すと開ける詳細で確かめられる。
 - ジャックポットのメンバーの「当選しやすさ」は同期の対象外のためシードできない(既定値 5)。抽選結果・クイズの回答は操作して作る。
@@ -75,30 +75,56 @@ npm run dev:stack -- --port 8841     # --port 省略時は空きポート。--co
 
 無料枠の予算は `packages/session-hub` の `quota-budget.spec.ts` が強制する(想定最大でも無料枠の 30% 以内)。通信量を増やす変更は、ここが失敗しないことを確認する。
 
-## 3. Cloudflare 上の試験環境(staging)
+## 3. Cloudflare 上の環境(dev / staging / prod)の作成・削除
 
-本物の Durable Object・WebSocket・レート制限の挙動を、会場を想定した複数端末で確認したいときに使う。本番とは Worker・D1・R2 をすべて分ける(`octopus-scheduler-staging*`)。
+本物の Durable Object・WebSocket・レート制限の挙動を、会場を想定した複数端末で確認したいときに使う。環境は dev / staging / prod の3つで、Worker・D1・R2・Durable Object・レート制限がすべて別。どの環境も同じ手順で作る・作り直す・消すことができ、互いに影響しない(定義は `scripts/lib/environments.js`)。`dev:stack`(ローカルの workerd)と `dev:up`(Cloudflare 上の dev)は別物。
+
+| 環境 | Worker(=サブドメイン) | D1 / R2 | 設定ファイル(gitignore) | テストデータ | R2 の自動削除 | 削除時の確認 |
+| --- | --- | --- | --- | --- | --- | --- |
+| dev | `octopus-scheduler-dev` | `octopus-scheduler-dev-db` / `-dev-assets` | `wrangler.dev.toml` | あり | 1日 | なし |
+| staging | `octopus-scheduler-staging` | `octopus-scheduler-staging-db` / `-staging-assets` | `wrangler.staging.toml` | あり | なし | なし |
+| prod | `octopus-scheduler` | `octopus-scheduler-db` / `-assets` | `wrangler.prod.toml` | なし(管理者だけ) | なし | Worker 名を手で入力 |
+
+URL は `https://<Worker名>.<アカウントのサブドメイン>.workers.dev`。
 
 ```bash
 npm run build
-npm run staging:up      # D1/R2 作成 → wrangler.staging.toml 生成 → migrate → deploy → 架空データ投入
+npm run dev:up          # D1/R2 作成 → wrangler.dev.toml 生成 → migrate → deploy → 架空データ投入
+npm run staging:up      # staging も同じ手順(dev と並べて立てても互いに影響しない)
 # 表示された URL とログイン情報(パスワードは毎回ランダム)で確認する
+npm run dev:down        # dev だけが消える。staging は動き続ける
 npm run staging:down    # Worker / D1 / R2 を削除
 ```
 
+| やりたいこと | dev | staging |
+| --- | --- | --- |
+| 作る・作り直す(冪等) | `npm run dev:up` | `npm run staging:up` |
+| テストデータなしで作る | `dev:up:blank` | `staging:up:blank` |
+| データとポータル公開セッションだけ入れ直す | `dev:seed` / `dev:seed:results` | `staging:seed` / `staging:seed:results` |
+| 消す | `npm run dev:down` | `npm run staging:down` |
+
 - 認証: `wrangler login` するか、`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` を設定しておく
-- **本番と同じアカウントの無料枠を使う**。普段は撤去しておき、確認する時間だけ立てる。人数・時間を絞る
-- テストデータなしで立てるとき(本番に近い空の状態の確認): `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD=<8文字以上> npm run staging:up:blank`(`--no-seed`)。管理者はブートストラップ用 Secret から作られ(ID は既定 `admin`、変えるなら `OCTOPUS_BOOTSTRAP_ADMIN_ID`)、パスワードを指定しなければランダム生成して最後に表示する。`--with-results` とは併用できない
-- `staging:up` は冪等(再実行しても既存リソースを使い、データを再投入する)
-- Playwright を staging に向ける: `staging:up` の最後に表示される `BASE=… E2E_ADMIN_…=… npx playwright test -c e2e/playwright.config.ts` をそのまま実行する
-- R2 バケットは空でないと削除できない(wrangler に一覧・一括削除が無いため)。`staging:down` は、AWS CLI の profile `r2`(S3 互換 API。設定は[開発環境を作る](dev-environment.md#r2-の-s3-キーバケットを空にする用))でバケットを空にしてから削除するので、1回で消える。profile が無いときは、`staging:up` が付けた「1日で自動削除」のルールにより**翌日以降にもう一度 `staging:down`** すれば消える(ダッシュボードの R2 → 該当バケット → Settings → Empty Bucket でも空にできる)。バケットだけが残っていても、Worker は削除済みなので外からは到達できない
-- `wrangler.staging.toml`(リソース ID を含む)は gitignore 済み。コミットしない
+- **すべての環境が同じアカウントの無料枠を共有する**。普段は撤去しておき、確認する時間だけ立てる。人数・時間を絞る
+- テストデータなしで立てるとき(本番に近い空の状態の確認): `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD=<8文字以上> npm run dev:up:blank`(`--no-seed`)。管理者はブートストラップ用 Secret から作られ(ID は既定 `admin`、変えるなら `OCTOPUS_BOOTSTRAP_ADMIN_ID`)、パスワードを指定しなければランダム生成して最後に表示する。`--with-results` とは併用できない
+- `dev:up` / `staging:up` は冪等(再実行しても既存リソースを使い、データを再投入する)
+- Playwright を向ける: `up` の最後に表示される `BASE=… E2E_ADMIN_…=… npx playwright test -c e2e/playwright.config.ts` をそのまま実行する
+- R2 バケットは空でないと削除できない(wrangler に一覧・一括削除が無いため)。`<env>:down` は、AWS CLI の profile `r2`(S3 互換 API。設定は[開発環境を作る](dev-environment.md#r2-の-s3-キーバケットを空にする用))でバケットを空にしてから削除するので、1回で消える。profile が無いときの保険として、**dev のバケットだけ**「1日で自動削除」のルールを付けてある(翌日以降にもう一度 `dev:down` すれば消える)。staging と prod には自動削除を付けない(`staging:up` は、以前付けた `staging-autoclean` ルールが残っていれば外す)。staging で profile が無いときはダッシュボードの R2 → 該当バケット → Settings → Empty Bucket で空にしてから `staging:down` を実行する。バケットだけが残っていても、Worker は削除済みなので外からは到達できない
+- `wrangler.<env>.toml`(リソース ID を含む)は gitignore 済み。コミットしない
+- 独自ドメインを使うときだけ、ローカルの環境変数 `OCTOPUS_DOMAIN_DEV` / `OCTOPUS_DOMAIN_STAGING` / `OCTOPUS_DOMAIN_PROD` にドメインを入れる(設定ファイルに `routes` が出力される)。ドメインはリポジトリに書かない
+
+### prod(本番)
+
+`npm run prod:up` / `npm run prod:down` で、本番も同じように作り直し・削除ができる。ただし厳しく保護する(手順は[Cloudflare へのデプロイ](deploy-cloudflare.md))。
+
+- `prod:up` は常に空の状態で作る(`--with-results` / `--no-seed` / `prod:seed` は無い)。初期管理者のパスワードは環境変数 `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD`(8文字以上)で必ず渡す。ランダム生成はしない
+- リソースがすでにあれば作り直さず、マイグレーションとデプロイだけ行う(本番の更新デプロイを兼ねる)。管理者のパスワードは変えない
+- `prod:down` は標準入力で Worker 名を入力しないと止まる
 
 ## よくある失敗
 
 | 症状 | 原因と対処 |
 | --- | --- |
-| `dist/cloudflare/worker.js がありません` / `dist は xxxx からビルドされていますが…` | `npm run build` を実行(`staging:up` と `dev:stack` は、dist が現在のソース=HEAD と未コミット差分のビルドでないと拒否する。`git pull` 後は必ず再ビルド。依存が変わったら先に `npm ci`)。未追跡の新規ファイルは判定に含まれない |
+| `dist/cloudflare/worker.js がありません` / `dist は xxxx からビルドされていますが…` | `npm run build` を実行(`dev:up` / `staging:up` / `prod:up` と `dev:stack` は、dist が現在のソース=HEAD と未コミット差分のビルドでないと拒否する。`git pull` 後は必ず再ビルド。依存が変わったら先に `npm ci`)。未追跡の新規ファイルは判定に含まれない |
 | ビルドが他パッケージの古い内容で通る/落ちる | worktree で `npm ci` していない、またはキャッシュ。`npm run build:force` |
 | `wrangler dev` が起動しない/固まる | Wrangler 3 系を使っていないか。ポートが他セッションと衝突していないか(`--port` を変える) |
 | 想定外のポートのアプリが開く | そのポートは別セッションの wrangler。cwd を確認して自分用ポートに変える |

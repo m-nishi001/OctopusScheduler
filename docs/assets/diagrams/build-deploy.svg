@@ -49,8 +49,8 @@ text{font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",Meiryo,sans-serif}
 <text x="117" y="307.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">npm run deploy:gas</text>
 <text x="117" y="326.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">build → clasp push</text>
 <rect x="252" y="282" width="222" height="84" rx="10" class="bx srv cf"/>
-<text x="363" y="307.2" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">npm run deploy:cloudflare</text>
-<text x="363" y="324.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">build → setup:cloudflare</text>
+<text x="363" y="307.2" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">npm run prod:up</text>
+<text x="363" y="324.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">build → D1/R2 作成</text>
 <text x="363" y="340.8" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">D1 migrate → wrangler deploy</text>
 <path d="M6,392 L474,392" class="ln ds"/>
 <text x="240" y="380" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">開発・確認用（dist を使って起動）</text>

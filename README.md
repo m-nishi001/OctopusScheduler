@@ -6,7 +6,7 @@
 
 前提: Node.js 22、`npm ci` 済み。
 
-1. **デプロイする**: `npm run deploy:gas` または `npm run deploy:cloudflare`（事前準備は [GAS](docs/markdown/dev/deploy-gas.md) / [Cloudflare](docs/markdown/dev/deploy-cloudflare.md)）
+1. **デプロイする**: `npm run deploy:gas` または `npm run prod:up`（事前準備は [GAS](docs/markdown/dev/deploy-gas.md) / [Cloudflare](docs/markdown/dev/deploy-cloudflare.md)）
 2. **初回管理者のパスワードをシークレットに登録する**（再デプロイ不要）
 3. **ログインする**: ログイン画面で ID `admin` とそのパスワードを入力 → [認証と初回管理者](docs/markdown/dev/authentication.md)
 

@@ -1,43 +1,14 @@
-#!/usr/bin/env node
 /**
- * Cloudflare に作ったリソースの削除(`npm run teardown:cloudflare`)。`setup-cloudflare.js` の逆。
+ * Cloudflare に作ったリソースの削除。`setup-cloudflare.js` の逆。scripts/cf-env.js(`npm run <env>:down`)から呼ばれるライブラリ。
  *
  *   1. Worker を削除する(Durable Object・Worker の secret も一緒に消える)
  *   2. D1 データベースを削除する
  *   3. R2 バケットを削除する(空でなければ AWS CLI の profile r2 で S3 互換 API から空にして再試行する。
  *      AWS CLI が使えず空にできないときは手順を表示する)
- *   4. ローカルの wrangler.toml を削除する(次回デプロイで新しい ID で生成し直す)
+ *   4. ローカルの設定ファイル(wrangler.<env>.toml)を削除する(次回デプロイで新しい ID で生成し直す)
  *
  * 管理者アカウントやセッションは R2 に入っているため、バケットを消すと失われる。
- * 消さずに残したいときは `--keep-bucket`。確認なしで実行するときは `--yes`。
- * 何も消さずに対象を表示するだけなら `--dry-run`。
- * 認証・リソース名は setup-cloudflare.js と同じ(`wrangler login` / CLOUDFLARE_* 環境変数)。
  */
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { createInterface } from "node:readline/promises";
-import { fileURLToPath } from "node:url";
-import { emptyBucket } from "./lib/r2-s3.js";
-import { runWrangler } from "./lib/wrangler.js";
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_D1_NAME = "octopus-scheduler-db";
-const DEFAULT_R2_BUCKET = "octopus-scheduler-assets";
-
-/** wrangler.example.toml の先頭にある `name = "..."`(Worker 名)を返す。 */
-export function readWorkerName(toml) {
-  const m = toml.match(/^name\s*=\s*"([^"]+)"/m);
-  if (!m) throw new Error("wrangler.example.toml から Worker 名を読み取れませんでした。");
-  return m[1];
-}
-
-export function parseArgs(argv) {
-  return {
-    yes: argv.includes("--yes"),
-    keepBucket: argv.includes("--keep-bucket"),
-    dryRun: argv.includes("--dry-run"),
-  };
-}
 
 /** 削除する対象の一覧(確認表示とテストに使う)。 */
 export function planTargets({ workerName, d1Name, bucket, keepBucket }) {
@@ -94,58 +65,4 @@ export function teardown({ run, emptyBucket, workerName, d1Name, bucket, keepBuc
 
   if (failed.length === 0) removeLocalToml();
   return { failed, bucketNotEmpty };
-}
-
-async function confirm(workerName) {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    const answer = await rl.question(`続けるには Worker 名 "${workerName}" を入力してください: `);
-    return answer.trim() === workerName;
-  } finally {
-    rl.close();
-  }
-}
-
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const workerName = readWorkerName(readFileSync(join(ROOT, "wrangler.example.toml"), "utf8"));
-  const d1Name = process.env.CLOUDFLARE_D1_NAME || DEFAULT_D1_NAME;
-  const bucket = process.env.CLOUDFLARE_R2_BUCKET || DEFAULT_R2_BUCKET;
-
-  console.log("次の Cloudflare リソースを削除します:");
-  for (const t of planTargets({ workerName, d1Name, bucket, keepBucket: args.keepBucket })) console.log(`  - ${t}`);
-  if (args.dryRun) {
-    console.log("(--dry-run のため何も削除しませんでした)");
-    return;
-  }
-  if (!args.yes && !(await confirm(workerName))) {
-    console.log("中止しました。");
-    process.exitCode = 1;
-    return;
-  }
-
-  const tomlPath = join(ROOT, "wrangler.toml");
-  const run = (a) =>
-    runWrangler(a, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
-  const result = teardown({
-    run,
-    emptyBucket: (b) => emptyBucket(b),
-    workerName,
-    d1Name,
-    bucket,
-    keepBucket: args.keepBucket,
-    removeLocalToml: () => existsSync(tomlPath) && rmSync(tomlPath),
-    log: console.log,
-  });
-
-  if (result.bucketNotEmpty) {
-    console.log(
-      `\nR2 バケットが空でないため削除できませんでした。AWS CLI の profile r2 を設定すると自動で空にします(docs/markdown/dev/dev-environment.md)。それまでは、ダッシュボードの R2 → ${bucket} → Settings → Empty Bucket で空にしてから、もう一度 npm run teardown:cloudflare を実行してください(削除済みのものはスキップされます)。`
-    );
-  }
-  if (result.failed.length > 0) process.exitCode = 1;
-}
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main();
 }

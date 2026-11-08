@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseArgs, planTargets, readWorkerName, teardown } from "./teardown-cloudflare.js";
+import { planTargets, teardown } from "./teardown-cloudflare.js";
 
 const base = { workerName: "w", d1Name: "db", bucket: "bk", keepBucket: false };
 
@@ -17,16 +17,6 @@ function harness(failures = {}) {
   const opts = { ...base, run, removeLocalToml: () => (removed = true), log: (m) => logs.push(m) };
   return { calls, logs, opts, wasRemoved: () => removed };
 }
-
-test("readWorkerName は先頭の name を返す", () => {
-  assert.equal(readWorkerName('name = "octopus-scheduler"\nmain = "x"'), "octopus-scheduler");
-  assert.throws(() => readWorkerName("main = 1"));
-});
-
-test("parseArgs はフラグを解釈する", () => {
-  assert.deepEqual(parseArgs(["--yes", "--keep-bucket"]), { yes: true, keepBucket: true, dryRun: false });
-  assert.equal(parseArgs(["--dry-run"]).dryRun, true);
-});
 
 test("planTargets は R2 を残す/消すで表示が変わる", () => {
   assert.match(planTargets(base)[2], /消える/);

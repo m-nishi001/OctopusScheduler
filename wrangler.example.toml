@@ -1,7 +1,7 @@
 # wrangler.toml のテンプレート。`.clasp.example.json` と同じ位置付けで、
-# `npm run deploy:cloudflare` が scripts/setup-cloudflare.js で D1/R2 を作成し、
-# 各 REPLACE_WITH_* を埋めた `wrangler.toml` を生成する(`wrangler.toml` はgitignore対象)。
-# 手動で使う場合は `wrangler.toml` としてコピーし、REPLACE_WITH_* を置き換える。
+# `npm run <dev|staging|prod>:up` が scripts/cf-env.js で環境ごとに Worker 名・レート制限 ID を変え、
+# scripts/setup-cloudflare.js で D1/R2 を作成して REPLACE_WITH_* を埋めた `wrangler.<env>.toml` を生成する(gitignore 対象)。
+# ここにある値(name・namespace_id 1001/1002)は本番のもの。環境の定義は scripts/lib/environments.js。
 name = "octopus-scheduler"
 main = "dist/cloudflare/worker.js"
 compatibility_date = "2024-09-23"
