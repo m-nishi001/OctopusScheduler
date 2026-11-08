@@ -1,4 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 410" role="img" aria-label="GAS版とCloudflare版の比較">
+<style>
+.bgr{fill:#1f2530}
+.bx{fill:#161a22;stroke:#343c4c;stroke-width:1.5}
+.bx.app{stroke:#7bb4ff;stroke-width:2.5;fill:#1b2a41}
+.bx.gas{stroke:#7bb4ff;fill:#1b2a41}
+.bx.cf{stroke:#ffb877;fill:#3a2616}
+.bx.srv{stroke-width:3;stroke-dasharray:none}
+.bx.ver{stroke:#e8ebf1;stroke-width:2.5}
+.bx.lab{fill:#1f2530}
+.nf{fill:none}
+.fr{fill:none;stroke:#343c4c;stroke-width:1.5;stroke-dasharray:6 4}
+.ln{fill:none;stroke:#a3adbf;stroke-width:1.8}.ln.ds{stroke-dasharray:5 4}
+.ahp{fill:#a3adbf}
+.tx{fill:#e8ebf1}.tx.b{font-weight:700}.tm{fill:#a3adbf}
+.nm{fill:#7bb4ff}.nt{fill:#0b1220;font-weight:700}
+text{font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",Meiryo,sans-serif}
+</style>
+<rect class="bgr" x="0" y="0" width="480" height="410"/>
 <defs>
 <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
 <path d="M0,0 L10,5 L0,10 z" class="ahp"/>
