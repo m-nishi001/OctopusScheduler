@@ -6,7 +6,7 @@
 > - 更新は Cloudflare では WebSocket（数百人）、GAS ではポーリング（約 30 人）
 > - 新しいゲームをつなぐ手順は [§7](#7-新しいゲーム機能をつなぐには)
 
-会場の投影端末・運営の手元の端末・参加者のスマホを、**セッション(パーティールーム)**で結ぶ仕組みの設計と運用メモです。実装は `packages/session-hub`、画面は `apps/app-scheduler` の `/sessions` `/session/host/:id` `/session/console/:id` `/portal` と、ログイン済み参加者向けの `packages/participant-portal`（`/p`）。デプロイは [GAS](deploy-gas.md) / [Cloudflare](deploy-cloudflare.md)、全体の構成は [architecture.md](architecture.md) を参照してください。
+会場の投影端末・運営の手元の端末・参加者のスマホを、<strong>セッション(パーティールーム)</strong>で結ぶ仕組みの設計と運用メモです。実装は `packages/session-hub`、画面は `apps/app-scheduler` の `/sessions` `/session/host/:id` `/session/console/:id` `/portal` と、ログイン済み参加者向けの `packages/participant-portal`（`/p`）。デプロイは [GAS](deploy-gas.md) / [Cloudflare](deploy-cloudflare.md)、全体の構成は [architecture.md](architecture.md) を参照してください。
 
 ## 1. 端末の役割
 
@@ -145,7 +145,7 @@ GAS で参加者に使ってもらう場合のデプロイ設定は [deploy-gas.
 
 | 項目 | 内容 |
 | --- | --- |
-| 保存先 | **R2(GAS は Google Drive の JSON)**にセッションごと1ファイル `results/json/<sessionId>.json`。Durable Object の状態(6KB 上限)には載せない |
+| 保存先 | <strong>R2(GAS は Google Drive の JSON)</strong>にセッションごと1ファイル `results/json/<sessionId>.json`。Durable Object の状態(6KB 上限)には載せない |
 | DO に載るもの | `results` 名前空間の `{ rev }` だけ(更新番号。数十バイト)。ホストが結果を保存するたびに公開する。ホストを再読み込みしても、保存済みの結果から rev を取り直して公開し直す |
 | 書き込み | ホスト端末(管理者)。クイズは**順位発表の演出が終わってから** `putQuizResult`、ジャックポットは抽選が決まった時点で `commitJackpotDraw`(未公開で確定。ポータルには見せず rev も進めない)し、**当選者と賞品が画面に見えた後に** `revealJackpotDraw`(公開して rev を進める)。演出の途中では公開しない=ネタバレ防止。デモは保存しない。確変の予定は `ensureJackpotPlan`(先に保存されたものが勝つ)、管理画面のリセットは `resetJackpot`(抽選と予定だけ消し、クイズは残す) |
 | 読み取り | `getResults`(ログイン済みなら誰でも)。サーバーが**本人向けに整形**して返し、他のメンバーのIDは含めない(順位表は上位10件、自分の順位・正誤、累計での自分の行) |

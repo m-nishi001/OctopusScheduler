@@ -3,7 +3,7 @@
  *
  * wrangler には R2 のオブジェクト一覧・一括削除が無く、空でないバケットは削除できない。R2 は S3 互換なので、
  * AWS CLI の profile(既定 `r2`。キーとエンドポイントは `~/.aws` にあり、リポジトリには置かない)で空にする。
- * 設定方法は docs/dev-environment.md。
+ * 設定方法は docs/markdown/dev/dev-environment.md。
  */
 import { execFileSync } from "node:child_process";
 
@@ -24,7 +24,7 @@ export function runAws(args, options = {}) {
   try {
     return execFileSync("aws", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...options });
   } catch (error) {
-    if (error.code === "ENOENT") throw new Error("aws コマンドが見つかりません(AWS CLI v2 を導入してください。docs/dev-environment.md)");
+    if (error.code === "ENOENT") throw new Error("aws コマンドが見つかりません(AWS CLI v2 を導入してください。docs/markdown/dev/dev-environment.md)");
     throw error;
   }
 }

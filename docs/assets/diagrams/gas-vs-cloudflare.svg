@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 410" role="img" aria-label="GAS版とCloudflare版の比較">
+<defs>
+<marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>GAS版とCloudflare版の比較</title>
+<desc>配信、通信、リアルタイム、保存先、想定人数の違い</desc>
+<rect x="6" y="8" width="222" height="40" rx="4" class="bx srv gas"/>
+<text x="117" y="28.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="14">GAS 版</text>
+<rect x="252" y="8" width="222" height="40" rx="4" class="bx srv cf"/>
+<text x="363" y="28.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="14">Cloudflare 版</text>
+<rect x="6" y="58" width="222" height="66" rx="10" class="bx gas"/>
+<text x="117" y="72.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">配信</text>
+<text x="117" y="91.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">HtmlService</text>
+<text x="117" y="109.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">doGet が1枚のHTMLを返す</text>
+<rect x="252" y="58" width="222" height="66" rx="10" class="bx cf"/>
+<text x="363" y="72.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">配信</text>
+<text x="363" y="91.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">ASSETS（静的ファイル置き場）</text>
+<text x="363" y="109.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">Worker が配る</text>
+<rect x="6" y="132" width="222" height="66" rx="10" class="bx gas"/>
+<text x="117" y="146.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">通信</text>
+<text x="117" y="165.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">google.script.run</text>
+<text x="117" y="183.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">関数をそのまま呼ぶ</text>
+<rect x="252" y="132" width="222" height="66" rx="10" class="bx cf"/>
+<text x="363" y="146.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">通信</text>
+<text x="363" y="165.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">POST /rpc</text>
+<text x="363" y="183.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">名前つきの呼び出しを送る</text>
+<rect x="6" y="206" width="222" height="66" rx="10" class="bx gas"/>
+<text x="117" y="220.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">リアルタイム</text>
+<text x="117" y="239.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">ポーリング（nextPollMs）</text>
+<text x="117" y="257.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">間隔はサーバーが指示する</text>
+<rect x="252" y="206" width="222" height="66" rx="10" class="bx cf"/>
+<text x="363" y="220.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">リアルタイム</text>
+<text x="363" y="239.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">WebSocket + Durable Object</text>
+<text x="363" y="257.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">失敗時は低頻度ポーリング</text>
+<rect x="6" y="280" width="222" height="66" rx="10" class="bx gas"/>
+<text x="117" y="294.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">保存先</text>
+<text x="117" y="313.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">スクリプトプロパティ・Drive</text>
+<text x="117" y="331.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">CacheService・ScriptLock</text>
+<rect x="252" y="280" width="222" height="66" rx="10" class="bx cf"/>
+<text x="363" y="294.8" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">保存先</text>
+<text x="363" y="313.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">R2・D1</text>
+<text x="363" y="331.2" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">Durable Object</text>
+<rect x="6" y="354" width="222" height="46" rx="10" class="bx gas"/>
+<text x="117" y="367.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">想定人数</text>
+<text x="117" y="386.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">約30人</text>
+<rect x="252" y="354" width="222" height="46" rx="10" class="bx cf"/>
+<text x="363" y="367.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">想定人数</text>
+<text x="363" y="386.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">数百人</text>
+</svg>

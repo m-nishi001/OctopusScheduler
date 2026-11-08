@@ -12,4 +12,4 @@
 
 ## 注意
 
-認証の仕組みと初回管理者・復旧手順は [docs/authentication.md](docs/authentication.md) にあります。デプロイして使う場合は、シークレットの管理を含めて自己責任で運用してください。
+認証の仕組みと初回管理者・復旧手順は [docs/markdown/dev/authentication.md](docs/markdown/dev/authentication.md) にあります。デプロイして使う場合は、シークレットの管理を含めて自己責任で運用してください。

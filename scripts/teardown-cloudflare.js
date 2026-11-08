@@ -140,7 +140,7 @@ async function main() {
 
   if (result.bucketNotEmpty) {
     console.log(
-      `\nR2 バケットが空でないため削除できませんでした。AWS CLI の profile r2 を設定すると自動で空にします(docs/dev-environment.md)。それまでは、ダッシュボードの R2 → ${bucket} → Settings → Empty Bucket で空にしてから、もう一度 npm run teardown:cloudflare を実行してください(削除済みのものはスキップされます)。`
+      `\nR2 バケットが空でないため削除できませんでした。AWS CLI の profile r2 を設定すると自動で空にします(docs/markdown/dev/dev-environment.md)。それまでは、ダッシュボードの R2 → ${bucket} → Settings → Empty Bucket で空にしてから、もう一度 npm run teardown:cloudflare を実行してください(削除済みのものはスキップされます)。`
     );
   }
   if (result.failed.length > 0) process.exitCode = 1;

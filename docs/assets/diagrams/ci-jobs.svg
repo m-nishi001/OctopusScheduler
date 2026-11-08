@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 316" role="img" aria-label="CIのジョブ構成">
+<defs>
+<marker id="ah10" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>CIのジョブ構成</title>
+<desc>lint、unit、typecheck、buildが並列に走り、buildの後にcheck-distとe2e、最後にverifyで集約</desc>
+<rect x="6" y="10" width="140" height="48" rx="10" class="bx"/>
+<text x="76" y="24.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">lint</text>
+<text x="76" y="43.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">ESLint</text>
+<path d="M146,34 L350,34" class="ln" marker-end="url(#ah10)"/>
+<rect x="6" y="70" width="140" height="48" rx="10" class="bx"/>
+<text x="76" y="84.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">unit</text>
+<text x="76" y="103.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">テストとカバレッジ</text>
+<path d="M146,94 L350,94" class="ln" marker-end="url(#ah10)"/>
+<rect x="6" y="130" width="140" height="48" rx="10" class="bx"/>
+<text x="76" y="144.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">typecheck</text>
+<text x="76" y="163.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">型検査</text>
+<path d="M146,154 L350,154" class="ln" marker-end="url(#ah10)"/>
+<rect x="6" y="190" width="140" height="48" rx="10" class="bx app"/>
+<text x="76" y="204.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">build</text>
+<text x="76" y="223.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">dist を作る</text>
+<rect x="190" y="170" width="130" height="44" rx="10" class="bx"/>
+<text x="255" y="183.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">check-dist</text>
+<text x="255" y="200.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">verify を実行</text>
+<rect x="190" y="226" width="130" height="44" rx="10" class="bx"/>
+<text x="255" y="239.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">e2e</text>
+<text x="255" y="256.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">worker/ui/gas</text>
+<path d="M146,206 L190,192" class="ln" marker-end="url(#ah10)"/>
+<path d="M146,222 L190,248" class="ln" marker-end="url(#ah10)"/>
+<path d="M320,192 L350,192" class="ln" marker-end="url(#ah10)"/>
+<path d="M320,248 L350,248" class="ln" marker-end="url(#ah10)"/>
+<rect x="350" y="10" width="124" height="262" rx="10" class="bx ver"/>
+<text x="412" y="131.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">verify</text>
+<text x="412" y="150.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">全部成功かを集約</text>
+<text x="240" y="300" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12.5">build の後だけ待ち、ほかは並列に走る</text>
+</svg>

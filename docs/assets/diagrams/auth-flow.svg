@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 505" role="img" aria-label="ログインと毎回の検証">
+<defs>
+<marker id="ah5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>ログインと毎回の検証</title>
+<desc>ログイン要求からトークン発行、以降の毎回の検証までの順序</desc>
+<rect x="6" y="8" width="100" height="40" rx="10" class="bx app"/>
+<text x="56" y="28.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">ブラウザ</text>
+<path d="M56,48 L56,500" class="ln ds"/>
+<rect x="126" y="8" width="100" height="40" rx="10" class="bx srv"/>
+<text x="176" y="28.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">サーバー入口</text>
+<path d="M176,48 L176,500" class="ln ds"/>
+<rect x="246" y="8" width="100" height="40" rx="10" class="bx srv"/>
+<text x="296" y="28.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">accounts</text>
+<path d="M296,48 L296,500" class="ln ds"/>
+<rect x="366" y="8" width="100" height="40" rx="10" class="bx"/>
+<text x="416" y="28.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">保存先</text>
+<path d="M416,48 L416,500" class="ln ds"/>
+<path d="M6,318 L474,318" class="ln ds"/>
+<text x="240" y="306" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">ここまでがログイン。以降は通常の呼び出し</text>
+<path d="M60,88 L174,88" class="ln" marker-end="url(#ah5)"/>
+<text x="116" y="74" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">ログイン要求</text>
+<circle cx="74" cy="88" r="10" class="nm"/>
+<text x="74" y="88" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">1</text>
+<path d="M180,126 L294,126" class="ln" marker-end="url(#ah5)"/>
+<text x="236" y="112" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">認証を依頼</text>
+<circle cx="194" cy="126" r="10" class="nm"/>
+<text x="194" y="126" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">2</text>
+<path d="M300,164 L414,164" class="ln" marker-end="url(#ah5)"/>
+<text x="356" y="150" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">失敗回数を確認</text>
+<circle cx="314" cy="164" r="10" class="nm"/>
+<text x="314" y="164" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">3</text>
+<path d="M300,202 L414,202" class="ln" marker-end="url(#ah5)"/>
+<text x="356" y="188" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">セッションを保存</text>
+<circle cx="314" cy="202" r="10" class="nm"/>
+<text x="314" y="202" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">4</text>
+<path d="M292,240 L178,240" class="ln ds" marker-end="url(#ah5)"/>
+<text x="236" y="226" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">トークンを渡す</text>
+<circle cx="278" cy="240" r="10" class="nm"/>
+<text x="278" y="240" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">5</text>
+<path d="M172,278 L58,278" class="ln ds" marker-end="url(#ah5)"/>
+<text x="116" y="264" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">トークンを返す</text>
+<circle cx="158" cy="278" r="10" class="nm"/>
+<text x="158" y="278" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">6</text>
+<path d="M60,360 L174,360" class="ln" marker-end="url(#ah5)"/>
+<text x="116" y="346" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">トークンつきで呼ぶ</text>
+<circle cx="74" cy="360" r="10" class="nm"/>
+<text x="74" y="360" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">7</text>
+<path d="M180,398 L294,398" class="ln" marker-end="url(#ah5)"/>
+<text x="236" y="384" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">トークンを検証</text>
+<circle cx="194" cy="398" r="10" class="nm"/>
+<text x="194" y="398" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">8</text>
+<path d="M300,436 L414,436" class="ln" marker-end="url(#ah5)"/>
+<text x="356" y="422" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">セッションを照合</text>
+<circle cx="314" cy="436" r="10" class="nm"/>
+<text x="314" y="436" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">9</text>
+<path d="M172,474 L58,474" class="ln ds" marker-end="url(#ah5)"/>
+<text x="116" y="460" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">実行または拒否</text>
+<circle cx="158" cy="474" r="10" class="nm"/>
+<text x="158" y="474" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">10</text>
+</svg>

@@ -42,6 +42,8 @@ jobs:
           restore-keys: turbo-lint-${{ runner.os }}-
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
+      # docs/markdown から作る docs/gas/index.html が最新か(古ければ `npm run docs:build` して commit)
+      - run: npm run docs:check
 
   unit:
     runs-on: ubuntu-latest

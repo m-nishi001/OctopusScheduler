@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 515" role="img" aria-label="当日の進行のデータの流れ">
+<defs>
+<marker id="ah6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>当日の進行のデータの流れ</title>
+<desc>操作端末、参加者、ホストがセッションを介してやり取りする</desc>
+<rect x="6" y="10" width="170" height="56" rx="10" class="bx app"/>
+<text x="91" y="28.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">操作端末</text>
+<text x="91" y="47.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">コマンドを送る</text>
+<rect x="304" y="10" width="170" height="56" rx="10" class="bx cf"/>
+<text x="389" y="28.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">参加者スマホ</text>
+<text x="389" y="47.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">回答を送る・状態を見る</text>
+<rect x="60" y="190" width="360" height="130" rx="6" class="bx srv"/>
+<text x="240" y="227.7" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">セッション（サーバー側）</text>
+<text x="240" y="245.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">コマンド列：番号（seq）で順序を保証</text>
+<text x="240" y="264.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">状態：ホストが公開した最新の画面</text>
+<text x="240" y="282.3" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">回答：締切はサーバー時刻で強制</text>
+<rect x="140" y="440" width="200" height="60" rx="10" class="bx app"/>
+<text x="240" y="460.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">会場ホストPC</text>
+<text x="240" y="479.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">状態の正（権威）</text>
+<path d="M50,66 L100,190" class="ln" marker-end="url(#ah6)"/>
+<circle cx="28" cy="128" r="10" class="nm"/>
+<text x="28" y="128" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">1</text>
+<path d="M115,190 L65,66" class="ln" marker-end="url(#ah6)"/>
+<circle cx="142" cy="128" r="10" class="nm"/>
+<text x="142" y="128" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">4</text>
+<path d="M430,66 L380,190" class="ln" marker-end="url(#ah6)"/>
+<circle cx="452" cy="128" r="10" class="nm"/>
+<text x="452" y="128" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">5</text>
+<path d="M365,190 L415,66" class="ln" marker-end="url(#ah6)"/>
+<circle cx="338" cy="128" r="10" class="nm"/>
+<text x="338" y="128" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">4</text>
+<path d="M200,320 L200,440" class="ln" marker-end="url(#ah6)"/>
+<circle cx="178" cy="380" r="10" class="nm"/>
+<text x="178" y="380" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">2</text>
+<path d="M280,440 L280,320" class="ln" marker-end="url(#ah6)"/>
+<circle cx="302" cy="380" r="10" class="nm"/>
+<text x="302" y="380" text-anchor="middle" dominant-baseline="central" class="nt" font-size="12">3</text>
+</svg>

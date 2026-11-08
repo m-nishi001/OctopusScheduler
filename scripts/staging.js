@@ -13,7 +13,7 @@
  * (git pull では gitignore 済みの dist は作り直されないため。刻印は dist/cloudflare/build-info.json、scripts/lib/dist-stamp.js)。
  *
  * 注意: R2 バケットが空でないと削除できない(wrangler に一覧・一括削除が無い)。そのため撤去時は、AWS CLI の
- * profile r2(S3 互換 API。docs/dev-environment.md)でバケットを空にしてから削除する。profile が無いときの保険として、
+ * profile r2(S3 互換 API。docs/markdown/dev/dev-environment.md)でバケットを空にしてから削除する。profile が無いときの保険として、
  * staging:up でバケットに「1日で自動削除」のルールを付けてある(翌日以降にもう一度 staging:down すればよい)。
  */
 import { execFile } from "node:child_process";
@@ -295,7 +295,7 @@ function down() {
   });
   if (result.bucketNotEmpty) {
     console.log(
-      `\nR2 バケットが空でないため削除できませんでした。AWS CLI の profile r2 を設定すると自動で空にします(docs/dev-environment.md)。それまでは、オブジェクトが1日で自動削除されるので翌日以降にもう一度 npm run staging:down を実行するか、ダッシュボードの R2 → ${STAGING.bucket} → Settings → Empty Bucket で空にしてから実行してください(削除済みのものはスキップされます)。`
+      `\nR2 バケットが空でないため削除できませんでした。AWS CLI の profile r2 を設定すると自動で空にします(docs/markdown/dev/dev-environment.md)。それまでは、オブジェクトが1日で自動削除されるので翌日以降にもう一度 npm run staging:down を実行するか、ダッシュボードの R2 → ${STAGING.bucket} → Settings → Empty Bucket で空にしてから実行してください(削除済みのものはスキップされます)。`
     );
   }
   if (result.failed.length > 0) process.exitCode = 1;
