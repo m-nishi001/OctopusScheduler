@@ -1,31 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { assertNotProduction, ensureLifecycle, ensureLifecycleAsync, isTransientAuthError, lifecycleArgs, parseDeployUrl, renderTimings, parseSeedArgs, renderUpSummary, runWithRetry, runWithRetryAsync, STAGING, toStagingTemplate } from "./staging.js";
+import { applyLifecyclePolicy, ensureLifecycle, ensureLifecycleAsync, isTransientAuthError, lifecycleArgs, lifecycleRemoveArgs, parseDeployUrl, parseSeedArgs, removeLegacyLifecycleAsync, renderTimings, renderUpSummary, resolveBootstrapPassword, runWithRetry, runWithRetryAsync } from "./cf-env.js";
+import { ENVIRONMENTS } from "./lib/environments.js";
 
-const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../wrangler.example.toml"), "utf8");
-
-test("toStagingTemplate: Worker 名とレート制限の namespace_id を本番と分ける", () => {
-  const out = toStagingTemplate(template);
-  assert.match(out, /^name = "octopus-scheduler-staging"$/m);
-  assert.ok(!out.includes('namespace_id = "1001"') && !out.includes('namespace_id = "1002"'));
-  assert.ok(out.includes('namespace_id = "2001"') && out.includes('namespace_id = "2002"'));
-});
-
-test("toStagingTemplate: プレースホルダと Durable Object の設定は残す", () => {
-  const out = toStagingTemplate(template);
-  assert.match(out, /REPLACE_WITH_YOUR_D1_DATABASE_ID/);
-  assert.match(out, /SESSION_ROOM/);
-  assert.match(out, /new_sqlite_classes/);
-});
-
-test("assertNotProduction: staging の名前は通り、本番と同じ名前は拒否する", () => {
-  assert.doesNotThrow(() => assertNotProduction(STAGING));
-  assert.throws(() => assertNotProduction({ ...STAGING, bucket: "octopus-scheduler-assets" }));
-  assert.throws(() => assertNotProduction({ ...STAGING, workerName: "octopus-scheduler" }));
-});
+const { dev, staging, prod } = ENVIRONMENTS;
 
 test("parseDeployUrl: デプロイ出力から workers.dev の URL を取り出す", () => {
   const out = "Uploaded octopus-scheduler-staging\nDeployed octopus-scheduler-staging triggers\n  https://octopus-scheduler-staging.example-sub.workers.dev\nCurrent Version ID: x";
@@ -35,6 +13,7 @@ test("parseDeployUrl: デプロイ出力から workers.dev の URL を取り出�
 
 test("renderUpSummary: Playwright を向けるコマンドと撤去の案内を含む", () => {
   const text = renderUpSummary({
+    env: staging,
     url: "https://x.workers.dev",
     seed: { admin: { id: "admin", password: "pw", sessionToken: "tok" }, participants: { ids: ["test-user-01", "test-user-20"], password: "pu", loginKeys: { "test-user-01": "k01" } } },
   });
@@ -46,6 +25,7 @@ test("renderUpSummary: Playwright を向けるコマンドと撤去の案内を�
 
 test("renderUpSummary: 結果データの投入有無を要約に正しく出す(既定は含まない)", () => {
   const base = {
+    env: staging,
     url: "https://x.workers.dev",
     seed: { admin: { id: "admin", password: "pw", sessionToken: "tok" }, participants: { ids: ["test-user-01"], password: "pu" } },
     session: { name: "S", code: "123456", reused: false },
@@ -61,7 +41,7 @@ test("parseSeedArgs: 既定は結果を含まず、--with-results で含む。�
   assert.throws(() => parseSeedArgs(["--bogus"]), /不明な引数/);
 });
 
-test("lifecycleArgs: staging のバケットに1日で自動削除するルールを付ける", () => {
+test("lifecycleArgs: dev のバケットに1日で自動削除するルールを付ける", () => {
   const args = lifecycleArgs("b");
   assert.deepEqual(args.slice(0, 5), ["r2", "bucket", "lifecycle", "add", "b"]);
   assert.equal(args[args.indexOf("--expire-days") + 1], "1");
@@ -174,4 +154,54 @@ test("renderTimings: ステップ名と秒数、全体を出す", () => {
   assert.match(out, /deploy\s*: 12\.3s/);
   assert.match(out, /seed\s*: 0\.8s/);
   assert.match(out, /全体\s*: 13\.0s/);
+});
+
+test("parseSeedArgs: prod は常に空なので --with-results / --no-seed を拒否する", () => {
+  assert.throws(() => parseSeedArgs(["--with-results"], prod), /prod/);
+  assert.throws(() => parseSeedArgs(["--no-seed"], prod), /prod/);
+  assert.throws(() => parseSeedArgs(["--yes"], prod), /不明な引数/);
+  assert.deepEqual(parseSeedArgs([], prod), { withResults: false, noSeed: false, positional: [] });
+  assert.equal(parseSeedArgs(["--with-results"], dev).withResults, true);
+});
+
+test("renderUpSummary: 環境名が見出し・撤去/再投入の案内に出る。prod には撤去の案内を出さない", () => {
+  const seed = { admin: { id: "admin", password: "pw", sessionToken: "tok" }, participants: { ids: ["test-user-01"], password: "pu" } };
+  const session = { name: "S", code: "123456", reused: false };
+  const text = renderUpSummary({ env: dev, url: "https://x.workers.dev", seed, session });
+  assert.match(text, /=== dev 起動完了 ===/);
+  assert.match(text, /npm run dev:down/);
+  assert.match(text, /npm run dev:seed/);
+  const blank = renderUpSummary({ env: prod, url: "https://x.workers.dev", blank: { adminId: "admin", generatedPassword: null } });
+  assert.match(blank, /=== prod 起動完了\(テストデータなし\) ===/);
+  assert.doesNotMatch(blank, /prod:down/);
+});
+
+test("resolveBootstrapPassword: 環境変数を優先し、required のときは無いと拒否する(ランダム生成しない)", () => {
+  assert.deepEqual(resolveBootstrapPassword({ OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD: "longenough" }, () => "r"), { password: "longenough", generated: false });
+  assert.deepEqual(resolveBootstrapPassword({}, () => "rand"), { password: "rand", generated: true });
+  assert.throws(() => resolveBootstrapPassword({}, () => "rand", { required: true }), /OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD/);
+  assert.throws(() => resolveBootstrapPassword({ OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD: "short" }, () => "r", { required: true }), /8文字/);
+});
+
+test("lifecycleRemoveArgs: 旧 staging-autoclean ルールを外す", () => {
+  assert.deepEqual(lifecycleRemoveArgs("b"), ["r2", "bucket", "lifecycle", "remove", "b", "--name", "staging-autoclean"]);
+});
+
+test("removeLegacyLifecycleAsync: ルールが無い失敗は無視し、それ以外は例外にする", async () => {
+  const fail = (message) => async () => {
+    throw new Error(message);
+  };
+  await removeLegacyLifecycleAsync(fail("Rule not found"), "b");
+  await assert.rejects(() => removeLegacyLifecycleAsync(fail("Authentication error"), "b"), /Authentication/);
+});
+
+test("applyLifecyclePolicy: dev は追加、staging は旧ルール削除、prod は何もしない", async () => {
+  const run = async (env) => {
+    const calls = [];
+    const policy = await applyLifecyclePolicy(async (a) => calls.push(a), env);
+    return { policy, calls };
+  };
+  assert.deepEqual(await run(dev), { policy: "add", calls: [lifecycleArgs(dev.bucket)] });
+  assert.deepEqual(await run(staging), { policy: "remove", calls: [lifecycleRemoveArgs(staging.bucket)] });
+  assert.deepEqual(await run(prod), { policy: "none", calls: [] });
 });

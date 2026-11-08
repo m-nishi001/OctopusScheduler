@@ -206,7 +206,7 @@ RPC は「遠くにある関数を、名前を指定して呼ぶ」しくみで�
 <ul>
 <li><code>npm run build</code> が各パッケージをビルドし、<code>scripts/prepare-dist.js</code> が <code>dist/gas</code> と <code>dist/cloudflare</code> にまとめる</li>
 <li><code>npm run verify</code> が、サーバー関数の契約と成果物を検査する</li>
-<li>GAS は <code>deploy:gas</code>(clasp)、Cloudflare は <code>deploy:cloudflare</code>(wrangler)</li>
+<li>GAS は <code>deploy:gas</code>(clasp)、Cloudflare は <code>prod:up</code>(wrangler)</li>
 <li>GitHub Actions では、lint・unit・typecheck・build を並列に走らせ、最後に verify で集約する</li>
 </ul></div>
 
@@ -219,9 +219,9 @@ RPC は「遠くにある関数を、名前を指定して呼ぶ」しくみで�
 | **`npm run build`** | 全パッケージをビルドして dist を作る |
 | **`npm run verify`** | `verify:gas`(契約)+`verify:dist`(成果物) |
 | **`npm run deploy:gas`** | build して `clasp push` |
-| **`npm run deploy:cloudflare`** | build → `setup:cloudflare` → D1 のマイグレーション → `wrangler deploy` |
+| **`npm run prod:up`** | `scripts/cf-env.js prod up`: D1/R2 の作成(無ければ) → D1 のマイグレーション → `wrangler deploy`(要 `npm run build`) |
 | **`npm run dev:stack`** | ローカルで丸ごと起動して確認する |
-| **`npm run staging:up` / `staging:down`** | Cloudflareの検証環境を作る / 片付ける |
+| **`npm run dev:up` / `staging:up`(と `:down`)** | Cloudflareの開発環境・検証環境を作る / 片付ける(本番とは別のWorker・D1・R2) |
 
 <p class="small">手順は <a href="../dev/deploy-gas.md">deploy-gas.md</a>・<a href="../dev/deploy-cloudflare.md">deploy-cloudflare.md</a>・<a href="../dev/development.md">development.md</a> を参照してください。</p>
 

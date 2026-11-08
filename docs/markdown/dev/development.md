@@ -28,10 +28,10 @@ npm run build
 | `npm run verify` | GAS エンドポイント契約と `dist` の検証 |
 | `npm run e2e` | 実 workerd のスモーク（29 項目）＋ Playwright の複数端末テスト |
 | `npm run e2e:gas` | 同じ Playwright のテストを、GAS 実行環境シミュレーター（`scripts/gas-sim`）に対して流す |
-| `npm run deploy:gas` / `npm run deploy:cloudflare` | デプロイ（[GAS](deploy-gas.md) / [Cloudflare](deploy-cloudflare.md)） |
+| `npm run deploy:gas` / `npm run prod:up` | 本番へのデプロイ（[GAS](deploy-gas.md) / [Cloudflare](deploy-cloudflare.md)）。`prod:down` で削除（Worker 名の入力が必要） |
 | `npm run seed:local-admin` | ローカルに管理者とログイン済みセッションを投入（[詳細](authentication.md#ローカル開発で使う)） |
 | `npm run dev:stack` | 架空データ入りの実 workerd を1コマンドで起動（[手順書](dev-verification.md)） |
-| `npm run staging:up` / `staging:down` | Cloudflare 上の試験環境を作る／撤去する（[手順書](dev-verification.md#3-cloudflare-上の試験環境staging)） |
+| `npm run dev:up` / `dev:down`、`npm run staging:up` / `staging:down` | Cloudflare 上の開発環境・検証環境を作る／撤去する。`:up:blank`（データなし）・`:seed`・`:seed:results` もある（[手順書](dev-verification.md#3-cloudflare-上の環境dev--staging--prodの作成削除)） |
 
 ## テストの種類
 

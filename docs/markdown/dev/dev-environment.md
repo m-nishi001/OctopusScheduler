@@ -27,7 +27,7 @@
 
 ## R2 の S3 キー(バケットを空にする用)
 
-R2 のバケットは空でないと削除できず、wrangler には一覧・一括削除が無い。`staging:down` / `teardown:cloudflare` は、S3 互換 API で空にするために AWS CLI の profile `r2` を使う。
+R2 のバケットは空でないと削除できず、wrangler には一覧・一括削除が無い。`dev:down` / `staging:down` / `prod:down` は、S3 互換 API で空にするために AWS CLI の profile `r2` を使う。
 
 1. Cloudflare ダッシュボード → R2 → API → **Manage API tokens** で、対象バケットに「Object Read & Write」権限のトークンを作る。表示される Access Key ID / Secret Access Key と、アカウントの S3 エンドポイントを控える(Secret は再表示できない)
 2. コンテナ内で設定する(値は自分のもの。**コミットしない・チャットや Issue に貼らない**):

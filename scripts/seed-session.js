@@ -2,7 +2,7 @@
  * デプロイ済みの試験環境に、ポータル公開済みのセッションを用意する(第三者がログインしてすぐ参加できるように)。
  *
  * 管理者のセッショントークンで /rpc を呼ぶ。既に使えるセッション(同名・終了前)があれば作り直さず、ポータルに公開し直すだけ。
- * セッションの寿命は12時間なので、期限が切れたら `node scripts/staging.js seed` で作り直せる。
+ * セッションの寿命は12時間なので、期限が切れたら `npm run <env>:seed(node scripts/cf-env.js <env> seed)` で作り直せる。
  */
 import { buildPrizes } from "./seed-content.js";
 

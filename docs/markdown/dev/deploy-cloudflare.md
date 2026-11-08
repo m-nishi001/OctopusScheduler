@@ -1,9 +1,10 @@
 # Cloudflare へのデプロイ
 
 > **要点**
-> - 認証して `npm run deploy:cloudflare` を実行するだけ。D1・R2 の作成も自動
-> - 初回管理者のパスワードは `npm run secret:bootstrap`（再デプロイ不要）
-> - 作ったものは `npm run teardown:cloudflare` でまとめて削除できる
+> - 認証して `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD=<8文字以上> npm run build && npm run prod:up` を実行するだけ。D1・R2 の作成も自動
+> - 初回管理者のパスワードは `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD` で渡す（ランダム生成はしない）
+> - 作ったものは `npm run prod:down`（Worker 名の入力が必要）でまとめて削除できる
+> - 開発用・検証用の環境（`dev:up` / `staging:up`）は本番と完全に別。詳しくは[開発中の通し動作確認](dev-verification.md#3-cloudflare-上の環境dev--staging--prodの作成削除)
 > - セッション機能は Durable Object + WebSocket で、無料プランで数百人まで動く
 
 ## まずこれだけ（早見表）
@@ -12,20 +13,18 @@
 
 | やりたいこと | コマンド | 補足 |
 | --- | --- | --- |
-| 作る・更新する | `npm run deploy:cloudflare` | 何度実行してもよい。表示された URL が公開先（反映に数十秒） |
-| 最初の管理者を作る | `npm run secret:bootstrap` | 新規に作ったときだけ。パスワードを入力し、ID `admin` でログイン |
-| 全部消す | `npm run teardown:cloudflare -- --yes` | R2 は AWS CLI の profile `r2` で自動的に空にして削除する。profile が無いと空でない R2 で失敗する → 下の「削除」へ |
-| 消すが管理者は残す | `npm run teardown:cloudflare -- --yes --keep-bucket` | 次の deploy で `secret:bootstrap` は不要 |
+| 作る・更新する | `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD=<8文字以上> npm run prod:up` | 事前に `npm run build`。何度実行してもよい。リソースがあれば作り直さず、マイグレーションとデプロイだけ行う。表示された URL が公開先（反映に数十秒） |
+| 全部消す | `npm run prod:down` | 標準入力で Worker 名（`octopus-scheduler`）を入力しないと止まる。R2 は AWS CLI の profile `r2` で自動的に空にして削除する。profile が無いと空でない R2 で失敗する → 下の「削除」へ |
 
-**全部消すときの流れ**: ① `npm run teardown:cloudflare -- --yes`(profile `r2` の設定は[開発環境を作る](dev-environment.md#r2-の-s3-キーバケットを空にする用)) → R2 で失敗したら ② ダッシュボードの R2 → `octopus-scheduler-assets` → Settings → **Empty Bucket** → ③ もう一度 ① を実行。
+**全部消すときの流れ**: ① `npm run prod:down`(profile `r2` の設定は[開発環境を作る](dev-environment.md#r2-の-s3-キーバケットを空にする用)) → R2 で失敗したら ② ダッシュボードの R2 → `octopus-scheduler-assets` → Settings → **Empty Bucket** → ③ もう一度 ① を実行。
 
 アカウントに初めてデプロイするときだけ、[R2 の有効化と課金通知](#初回だけ必要な手作業)が必要です。
 
 ## 手順
 
 1. `npx wrangler login`、または環境変数 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` で認証する（`wrangler` はリポジトリ内の依存なので、単体で呼ぶときは `npx` が必要。`npm run` 経由なら不要）
-2. `npm run deploy:cloudflare`（完了すると `https://octopus-scheduler.<アカウントのサブドメイン>.workers.dev` が表示される。反映に数十秒かかり、その間は 404 や error 1042 が出ることがある）
-3. `npm run secret:bootstrap`（= `wrangler secret put OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD`）で初回管理者のパスワードを登録する。入力は伏せ字で、履歴・ファイルに残らない（[詳細](authentication.md)）
+2. `npm run build`
+3. `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD=<8文字以上> npm run prod:up`（完了すると `https://octopus-scheduler.<アカウントのサブドメイン>.workers.dev` が表示される。反映に数十秒かかり、その間は 404 や error 1042 が出ることがある）。新規に作ったときだけ、このパスワードが初回管理者（ID は既定 `admin`、変えるなら `OCTOPUS_BOOTSTRAP_ADMIN_ID`）の Worker Secret として登録される。値は標準入力で渡すので履歴・ファイルに残らない（[詳細](authentication.md)）
 
 ### 初回だけ必要な手作業
 
@@ -51,41 +50,34 @@ export CLOUDFLARE_ACCOUNT_ID=<アカウントID>
 npx wrangler whoami
 ```
 
-## `deploy:cloudflare` がやること（すべて冪等）
+## `prod:up` がやること（すべて冪等）
 
-1. ビルド
-2. `scripts/setup-cloudflare.js`: D1 データベースと R2 バケットが無ければ作成し、`wrangler.example.toml` から `wrangler.toml` を生成
+1. `dist` が現在のソースのビルドか確認（古ければ拒否。先に `npm run build`）
+2. `scripts/setup-cloudflare.js`: D1 データベースと R2 バケットが無ければ作成し、`wrangler.example.toml` から `wrangler.prod.toml` を生成
 3. `wrangler d1 migrations apply DB --remote`: `packages/infrastructures/migrations` を適用
 4. `wrangler deploy`
+5. 新規に作ったときだけ、初期管理者のパスワードを Worker Secret に登録
+
+テストデータは入れません（`--with-results` / `--no-seed` / `prod:seed` は無い）。
 
 ## 削除（作り直したいとき・使わない間）
 
-`npm run teardown:cloudflare` で、`deploy:cloudflare` が作ったものをまとめて削除します。次の `deploy:cloudflare` で、また一から作られます。
+`npm run prod:down` で、`prod:up` が作ったものをまとめて削除します。次の `prod:up` で、また一から作られます。実行すると削除対象を表示し、Worker 名を入力するまで進みません（`--yes` のような確認の省略はできません）。
 
-| 操作 | コマンド |
-| --- | --- |
-| 対象を表示するだけ（何も消さない） | `npm run teardown:cloudflare -- --dry-run` |
-| 削除（Worker 名の入力で確認） | `npm run teardown:cloudflare` |
-| 確認なしで削除 | `npm run teardown:cloudflare -- --yes` |
-| R2 は残して削除（管理者アカウントを維持） | `npm run teardown:cloudflare -- --keep-bucket` |
-
-- 削除するのは Worker（Durable Object と secret を含む）、D1、R2 バケット、ローカルの `wrangler.toml` です。
-- 管理者アカウントとセッションは R2 にあるため、バケットを消すと失われます。次回の `deploy:cloudflare` 後に `npm run secret:bootstrap` でやり直してください。`--keep-bucket` なら引き継がれ、ブートストラップは不要です。
-- **R2 バケットは空でないと削除できません。** wrangler にバケットを空にするコマンドが無いため、削除スクリプトは AWS CLI の profile `r2`(S3 互換 API)で空にします。profile が無くて失敗したらダッシュボードの R2 → 対象バケット → Settings → Empty Bucket で空にし、同じコマンドをもう一度実行してください（削除済みのものはスキップされます）。
+- 削除するのは Worker（Durable Object と secret を含む）、D1、R2 バケット、ローカルの `wrangler.prod.toml` です。
+- 管理者アカウントとセッションは R2 にあるため、バケットを消すと失われます。次回の `prod:up` で、渡したパスワードの管理者が作り直されます。
+- **R2 バケットは空でないと削除できません。** wrangler にバケットを空にするコマンドが無いため、削除スクリプトは AWS CLI の profile `r2`(S3 互換 API)で空にします。profile が無くて失敗したらダッシュボードの R2 → 対象バケット → Settings → Empty Bucket で空にし、同じコマンドをもう一度実行してください（削除済みのものはスキップされます）。本番のバケットには自動削除ルールを付けません。
 - 公開だけ止めたい場合は、ダッシュボードの Workers → Settings → Domains & Routes で `workers.dev` を無効にすれば足ります（データは残ります）。
 
 ## 設定
 
-| 項目 | 既定値 | 変更方法 |
-| --- | --- | --- |
-| D1 データベース名 | `octopus-scheduler-db` | 環境変数 `CLOUDFLARE_D1_NAME` |
-| R2 バケット名 | `octopus-scheduler-assets` | 環境変数 `CLOUDFLARE_R2_BUCKET` |
+環境ごとの名前は `scripts/lib/environments.js` の表で決まります（prod: Worker `octopus-scheduler`、D1 `octopus-scheduler-db`、R2 `octopus-scheduler-assets`）。環境変数 `CLOUDFLARE_D1_NAME` / `CLOUDFLARE_R2_BUCKET` による変更はできません。独自ドメインを使うときだけ、ローカルの環境変数 `OCTOPUS_DOMAIN_PROD` にドメインを入れると `wrangler.prod.toml` に `routes` が出力されます（ドメインはリポジトリに書かない）。
 
 ルートフォルダの設定は不要です（R2 のキー接頭辞としてそのまま使われます）。
 
 ## 詳細
 
-### 既存の `wrangler.toml` がある場合
+### 既存の設定ファイルを手で管理している場合
 
 セッション機能に必要な設定を追記してください。`wrangler.example.toml` 末尾の `[[durable_objects.bindings]]`、`[[migrations]]`、`[[ratelimits]]` です。`[[ratelimits]]` が無いとレート制限は無効になります。無い場合は R2 版に自動でフォールバックしますが、大人数には向きません。
 
