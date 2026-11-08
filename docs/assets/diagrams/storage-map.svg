@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 495" role="img" aria-label="データの保存先マップ">
+<defs>
+<marker id="ah7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>データの保存先マップ</title>
+<desc>種類ごとの保存先をGASとCloudflareで比べ、端末側とは同期でつなぐ</desc>
+<rect x="6" y="8" width="468" height="60" rx="10" class="bx app"/>
+<text x="240" y="28.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">あなたの端末（ブラウザ）</text>
+<text x="240" y="47.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">IndexedDB：まず手元から即表示する</text>
+<path d="M60,68 L60,112" class="ln" marker-end="url(#ah7)" marker-start="url(#ah7)"/>
+<text x="74" y="90" text-anchor="start" dominant-baseline="central" class="tx" font-size="13">sync-engine：新しい書き込みが勝つ</text>
+<rect x="2" y="116" width="476" height="372" rx="8" class="fr"/>
+<rect x="122" y="124" width="174" height="32" rx="4" class="bx srv gas"/>
+<text x="209" y="140.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">GAS</text>
+<rect x="302" y="124" width="172" height="32" rx="4" class="bx srv cf"/>
+<text x="388" y="140.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">Cloudflare</text>
+<rect x="8" y="170" width="108" height="60" rx="10" class="bx lab"/>
+<text x="62" y="191.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">単純な値</text>
+<text x="62" y="208.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">名簿・設定</text>
+<path d="M122,175 a87,7 0 0 1 174,0 v52 a87,7 0 0 1 -174,0 z" class="bx gas"/>
+<path d="M122,175 a87,7 0 0 0 174,0" class="bx gas nf"/>
+<text x="209" y="196.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">スクリプト</text>
+<text x="209" y="212.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">プロパティ</text>
+<path d="M302,175 a86,7 0 0 1 172,0 v52 a86,7 0 0 1 -172,0 z" class="bx cf"/>
+<path d="M302,175 a86,7 0 0 0 172,0" class="bx cf nf"/>
+<text x="388" y="196.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">R2</text>
+<text x="388" y="212.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">__scalars__/</text>
+<rect x="8" y="248" width="108" height="60" rx="10" class="bx lab"/>
+<text x="62" y="269.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">ファイルと</text>
+<text x="62" y="286.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">JSON</text>
+<path d="M122,253 a87,7 0 0 1 174,0 v52 a87,7 0 0 1 -174,0 z" class="bx gas"/>
+<path d="M122,253 a87,7 0 0 0 174,0" class="bx gas nf"/>
+<text x="209" y="274.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">Google ドライブ</text>
+<text x="209" y="290.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">ルートフォルダ配下</text>
+<path d="M302,253 a86,7 0 0 1 172,0 v52 a86,7 0 0 1 -172,0 z" class="bx cf"/>
+<path d="M302,253 a86,7 0 0 0 172,0" class="bx cf nf"/>
+<text x="388" y="274.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">R2</text>
+<text x="388" y="290.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">バケット直下のパス</text>
+<rect x="8" y="326" width="108" height="60" rx="10" class="bx lab"/>
+<text x="62" y="347.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">キャッシュ</text>
+<text x="62" y="364.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">と排他</text>
+<path d="M122,331 a87,7 0 0 1 174,0 v52 a87,7 0 0 1 -174,0 z" class="bx gas"/>
+<path d="M122,331 a87,7 0 0 0 174,0" class="bx gas nf"/>
+<text x="209" y="352.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">CacheService</text>
+<text x="209" y="368.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">ScriptLock</text>
+<path d="M302,331 a86,7 0 0 1 172,0 v52 a86,7 0 0 1 -172,0 z" class="bx cf"/>
+<path d="M302,331 a86,7 0 0 0 172,0" class="bx cf nf"/>
+<text x="388" y="352.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">D1</text>
+<text x="388" y="368.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">cache_entries / locks</text>
+<rect x="8" y="404" width="108" height="60" rx="10" class="bx lab"/>
+<text x="62" y="425.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">セッション</text>
+<text x="62" y="442.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">ルーム</text>
+<path d="M122,409 a87,7 0 0 1 174,0 v52 a87,7 0 0 1 -174,0 z" class="bx gas"/>
+<path d="M122,409 a87,7 0 0 0 174,0" class="bx gas nf"/>
+<text x="209" y="430.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">スクリプトプロパティ</text>
+<text x="209" y="446.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">（回答は25件ずつ）</text>
+<path d="M302,409 a86,7 0 0 1 172,0 v52 a86,7 0 0 1 -172,0 z" class="bx cf"/>
+<path d="M302,409 a86,7 0 0 0 172,0" class="bx cf nf"/>
+<text x="388" y="430.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">Durable Object</text>
+<text x="388" y="446.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">SESSION_ROOM</text>
+</svg>

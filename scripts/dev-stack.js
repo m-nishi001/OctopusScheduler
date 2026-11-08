@@ -69,7 +69,7 @@ export function renderBanner({ base, seed, urlsFile, session, withResults = fals
     ...(session ? [`  セッション    : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み${withResults ? "。結果タブにはサンプルの順位・当選履歴を投入済み" : ""}`] : []),
     `  管理者トークン : ${seed.admin.sessionToken}(localStorage の octopus-session-token に入れるとログイン済みになる)`,
     "",
-    "  Ctrl-C で停止。手順は docs/dev-verification.md",
+    "  Ctrl-C で停止。手順は docs/markdown/dev/dev-verification.md",
     "",
   ].join("\n");
 }

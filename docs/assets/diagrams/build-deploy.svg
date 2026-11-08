@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 475" role="img" aria-label="ビルドからデプロイまで">
+<defs>
+<marker id="ah9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>ビルドからデプロイまで</title>
+<desc>buildでdistを作り、GASはclasp、Cloudflareはwranglerでデプロイする</desc>
+<rect x="6" y="8" width="300" height="60" rx="10" class="bx app"/>
+<text x="156" y="28.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">npm run build</text>
+<text x="156" y="47.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">turbo が各パッケージをビルド</text>
+<path d="M156,68 L156,96" class="ln" marker-end="url(#ah9)"/>
+<rect x="6" y="96" width="300" height="60" rx="10" class="bx"/>
+<text x="156" y="116.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">scripts/prepare-dist.js</text>
+<text x="156" y="135.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">成果物を dist/ にまとめる</text>
+<rect x="330" y="96" width="144" height="60" rx="10" class="bx ver"/>
+<text x="402" y="117.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">npm run verify</text>
+<text x="402" y="134.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">契約と dist を確認</text>
+<path d="M306,126 L330,126" class="ln ds" marker-end="url(#ah9)"/>
+<path d="M156,156 L117,190" class="ln" marker-end="url(#ah9)"/>
+<path d="M156,156 L363,190" class="ln" marker-end="url(#ah9)"/>
+<rect x="6" y="190" width="222" height="60" rx="10" class="bx gas"/>
+<text x="117" y="210.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">dist/gas</text>
+<text x="117" y="229.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">clasp が送る一式</text>
+<rect x="252" y="190" width="222" height="60" rx="10" class="bx cf"/>
+<text x="363" y="210.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">dist/cloudflare</text>
+<text x="363" y="229.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">worker.js ＋ assets/</text>
+<path d="M117,250 L117,282" class="ln" marker-end="url(#ah9)"/>
+<path d="M363,250 L363,282" class="ln" marker-end="url(#ah9)"/>
+<rect x="6" y="282" width="222" height="70" rx="10" class="bx srv gas"/>
+<text x="117" y="307.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">npm run deploy:gas</text>
+<text x="117" y="326.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">build → clasp push</text>
+<rect x="252" y="282" width="222" height="84" rx="10" class="bx srv cf"/>
+<text x="363" y="307.2" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">npm run deploy:cloudflare</text>
+<text x="363" y="324.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">build → setup:cloudflare</text>
+<text x="363" y="340.8" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">D1 migrate → wrangler deploy</text>
+<path d="M6,392 L474,392" class="ln ds"/>
+<text x="240" y="380" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">開発・確認用（dist を使って起動）</text>
+<rect x="6" y="406" width="222" height="56" rx="10" class="bx"/>
+<text x="117" y="424.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">npm run dev:stack</text>
+<text x="117" y="443.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">ローカルで丸ごと起動</text>
+<rect x="252" y="406" width="222" height="56" rx="10" class="bx"/>
+<text x="363" y="424.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">npm run staging:up</text>
+<text x="363" y="443.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">Cloudflare検証環境を作る</text>
+</svg>

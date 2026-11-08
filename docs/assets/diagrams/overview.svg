@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 560" role="img" aria-label="全体像">
+<defs>
+<marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>全体像</title>
+<desc>人、同じURLのWebアプリ、GASまたはCloudflareのサーバー、保存先の関係</desc>
+<rect x="6" y="10" width="108" height="62" rx="30" class="bx pill"/>
+<text x="60" y="31.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">管理者</text>
+<text x="60" y="50.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">設定・準備</text>
+<path d="M60,72 L60,130" class="ln" marker-end="url(#ah1)"/>
+<rect x="123" y="10" width="108" height="62" rx="30" class="bx pill"/>
+<text x="177" y="31.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">会場ホストPC</text>
+<text x="177" y="50.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">投影する画面</text>
+<path d="M177,72 L177,130" class="ln" marker-end="url(#ah1)"/>
+<rect x="240" y="10" width="108" height="62" rx="30" class="bx pill"/>
+<text x="294" y="31.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">操作端末</text>
+<text x="294" y="50.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">司会の手元</text>
+<path d="M294,72 L294,130" class="ln" marker-end="url(#ah1)"/>
+<rect x="357" y="10" width="108" height="62" rx="30" class="bx pill"/>
+<text x="411" y="31.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">参加者スマホ</text>
+<text x="411" y="50.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">QRで入室</text>
+<path d="M411,72 L411,130" class="ln" marker-end="url(#ah1)"/>
+<rect x="6" y="130" width="468" height="70" rx="6" class="bx app"/>
+<text x="240" y="155.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">同じURLの1つのWebアプリ</text>
+<text x="240" y="174.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">ブラウザで開く。ログインした人の役割で画面が変わる</text>
+<path d="M117,200 L117,250" class="ln" marker-end="url(#ah1)"/>
+<path d="M363,200 L363,250" class="ln" marker-end="url(#ah1)"/>
+<text x="240" y="225" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">どちらか一方で動く</text>
+<rect x="6" y="250" width="222" height="70" rx="4" class="bx srv gas"/>
+<text x="117" y="275.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">GAS版</text>
+<text x="117" y="294.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">Google Apps Script</text>
+<rect x="252" y="250" width="222" height="70" rx="4" class="bx srv cf"/>
+<text x="363" y="275.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">Cloudflare版</text>
+<text x="363" y="294.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">Worker（Cloudflare Workers）</text>
+<path d="M117,320 L117,345" class="ln" marker-end="url(#ah1)"/>
+<path d="M363,320 L363,345" class="ln" marker-end="url(#ah1)"/>
+<rect x="6" y="345" width="222" height="205" rx="8" class="fr"/>
+<rect x="252" y="345" width="222" height="205" rx="8" class="fr"/>
+<text x="117" y="361" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">保存先</text>
+<text x="363" y="361" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">保存先</text>
+<path d="M14,381 a103,7 0 0 1 206,0 v38 a103,7 0 0 1 -206,0 z" class="bx gas"/>
+<path d="M14,381 a103,7 0 0 0 206,0" class="bx gas nf"/>
+<text x="117" y="395.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">スクリプト プロパティ</text>
+<text x="117" y="411.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">名簿・設定・セッション</text>
+<path d="M14,439 a103,7 0 0 1 206,0 v38 a103,7 0 0 1 -206,0 z" class="bx gas"/>
+<path d="M14,439 a103,7 0 0 0 206,0" class="bx gas nf"/>
+<text x="117" y="453.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">Google ドライブ</text>
+<text x="117" y="469.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">画像・音声・JSON</text>
+<path d="M14,497 a103,7 0 0 1 206,0 v38 a103,7 0 0 1 -206,0 z" class="bx gas"/>
+<path d="M14,497 a103,7 0 0 0 206,0" class="bx gas nf"/>
+<text x="117" y="511.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">Cache / ScriptLock</text>
+<text x="117" y="527.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">キャッシュと排他</text>
+<path d="M260,381 a103,7 0 0 1 206,0 v38 a103,7 0 0 1 -206,0 z" class="bx cf"/>
+<path d="M260,381 a103,7 0 0 0 206,0" class="bx cf nf"/>
+<text x="363" y="395.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">R2</text>
+<text x="363" y="411.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">画像・音声・JSON・単純な値</text>
+<path d="M260,439 a103,7 0 0 1 206,0 v38 a103,7 0 0 1 -206,0 z" class="bx cf"/>
+<path d="M260,439 a103,7 0 0 0 206,0" class="bx cf nf"/>
+<text x="363" y="453.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">D1</text>
+<text x="363" y="469.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">キャッシュと排他</text>
+<path d="M260,497 a103,7 0 0 1 206,0 v38 a103,7 0 0 1 -206,0 z" class="bx cf"/>
+<path d="M260,497 a103,7 0 0 0 206,0" class="bx cf nf"/>
+<text x="363" y="511.1" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">Durable Object</text>
+<text x="363" y="527.9" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">セッションルーム</text>
+</svg>

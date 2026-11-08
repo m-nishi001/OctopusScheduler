@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 578" role="img" aria-label="パッケージの地図">
+<defs>
+<marker id="ah8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>パッケージの地図</title>
+<desc>アプリ本体、機能パッケージ、共通部品、infrastructuresの階層</desc>
+<rect x="130" y="8" width="220" height="50" rx="6" class="bx app"/>
+<text x="240" y="23.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">apps/app-scheduler</text>
+<text x="240" y="42.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">1つのWebアプリ（本体）</text>
+<path d="M240,58 L240,84" class="ln" marker-end="url(#ah8)"/>
+<rect x="6" y="84" width="468" height="150" rx="8" class="fr"/>
+<text x="14" y="100" text-anchor="start" dominant-baseline="central" class="tm" font-size="12">機能パッケージ（feature）</text>
+<rect x="12" y="112" width="148" height="52" rx="10" class="bx"/>
+<text x="86" y="129.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="11.5">accounts</text>
+<text x="86" y="146.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="11.5">名簿・ログイン</text>
+<rect x="166" y="112" width="148" height="52" rx="10" class="bx"/>
+<text x="240" y="129.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="11.5">session-hub</text>
+<text x="240" y="146.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="11.5">当日の進行</text>
+<rect x="320" y="112" width="148" height="52" rx="10" class="bx"/>
+<text x="394" y="129.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="11.5">participant-portal</text>
+<text x="394" y="146.0" text-anchor="middle" dominant-baseline="central" class="tm" font-size="11.5">参加者の画面</text>
+<rect x="12" y="172" width="148" height="52" rx="10" class="bx"/>
+<text x="86" y="189.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">game-jackpot</text>
+<text x="86" y="206.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">ジャックポット抽選</text>
+<rect x="166" y="172" width="148" height="52" rx="10" class="bx"/>
+<text x="240" y="189.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">game-quiz</text>
+<text x="240" y="206.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">クイズ</text>
+<path d="M240,234 L240,262" class="ln" marker-end="url(#ah8)"/>
+<rect x="6" y="262" width="468" height="142" rx="8" class="fr"/>
+<text x="14" y="278" text-anchor="start" dominant-baseline="central" class="tm" font-size="12">共通部品（基盤）</text>
+<rect x="12" y="290" width="148" height="50" rx="10" class="bx"/>
+<text x="86" y="306.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">sync-engine</text>
+<text x="86" y="323.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">同期</text>
+<rect x="166" y="290" width="148" height="50" rx="10" class="bx"/>
+<text x="240" y="306.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">client-common</text>
+<text x="240" y="323.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">共通サービス</text>
+<rect x="320" y="290" width="148" height="50" rx="10" class="bx"/>
+<text x="394" y="306.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">composables</text>
+<text x="394" y="323.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">共通ロジック</text>
+<rect x="12" y="346" width="148" height="50" rx="10" class="bx"/>
+<text x="86" y="362.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">ui-kit</text>
+<text x="86" y="379.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">共通UI部品</text>
+<rect x="166" y="346" width="148" height="50" rx="10" class="bx"/>
+<text x="240" y="362.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">table-io</text>
+<text x="240" y="379.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">CSV入出力</text>
+<path d="M240,404 L240,432" class="ln" marker-end="url(#ah8)"/>
+<rect x="6" y="432" width="468" height="108" rx="8" class="fr"/>
+<text x="14" y="448" text-anchor="start" dominant-baseline="central" class="tm" font-size="12">infrastructures：環境の差はここだけが知る</text>
+<rect x="14" y="462" width="218" height="62" rx="10" class="bx gas"/>
+<text x="123" y="484.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">gas/container.ts</text>
+<text x="123" y="501.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">GAS用の部品を組む</text>
+<rect x="248" y="462" width="218" height="62" rx="10" class="bx cf"/>
+<text x="357" y="484.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">cloudflare/container.ts</text>
+<text x="357" y="501.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">Cloudflare用の部品を組む</text>
+<text x="240" y="560" text-anchor="middle" dominant-baseline="central" class="tx" font-size="12.5">ルール：他のパッケージは src/index.ts と /server だけを見る</text>
+</svg>

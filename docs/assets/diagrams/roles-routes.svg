@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 540" role="img" aria-label="役割ごとの着地先">
+<defs>
+<marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="ahp"/>
+</marker>
+</defs>
+<title>役割ごとの着地先</title>
+<desc>同じURLから入り、ログインした役割で着地する画面が決まる</desc>
+<rect x="140" y="8" width="200" height="40" rx="6" class="bx app"/>
+<text x="240" y="28.0" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="14">同じURLを開く</text>
+<path d="M240,48 L240,56" class="ln" marker-end="url(#ah3)"/>
+<polygon points="240,56 340,101 240,146 140,101" class="bx"/>
+<text x="240" y="93" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">ログイン済み？</text>
+<text x="240" y="112" text-anchor="middle" dominant-baseline="central" class="tx" font-size="13">どの役割？</text>
+<rect x="4" y="78" width="106" height="46" rx="10" class="bx"/>
+<text x="57" y="92.6" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="12">#/login</text>
+<text x="57" y="109.4" text-anchor="middle" dominant-baseline="central" class="tm" font-size="12">未ログインなら</text>
+<path d="M140,101 L110,101" class="ln" marker-end="url(#ah3)"/>
+<path d="M240,146 L240,162 L30,162 L30,482" class="ln"/>
+<rect x="54" y="178" width="420" height="56" rx="10" class="bx app"/>
+<text x="264" y="196.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">管理者  →  #/home</text>
+<text x="264" y="215.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">設定・準備の入口</text>
+<path d="M30,206 L54,206" class="ln" marker-end="url(#ah3)"/>
+<rect x="54" y="248" width="420" height="56" rx="10" class="bx app"/>
+<text x="264" y="266.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">管理者  →  #/settings</text>
+<text x="264" y="285.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">メンバー・景品・クイズ・画面設定</text>
+<path d="M30,276 L54,276" class="ln" marker-end="url(#ah3)"/>
+<rect x="54" y="318" width="420" height="56" rx="10" class="bx app"/>
+<text x="264" y="336.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">会場ホストPC  →  #/session/host/:id</text>
+<text x="264" y="355.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">管理者でログインして投影する</text>
+<path d="M30,346 L54,346" class="ln" marker-end="url(#ah3)"/>
+<rect x="54" y="388" width="420" height="56" rx="10" class="bx app"/>
+<text x="264" y="406.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">操作端末  →  #/session/console/:id</text>
+<text x="264" y="425.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">管理者でログインして進行を操作</text>
+<path d="M30,416 L54,416" class="ln" marker-end="url(#ah3)"/>
+<rect x="54" y="458" width="420" height="56" rx="10" class="bx cf"/>
+<text x="264" y="476.9" text-anchor="middle" dominant-baseline="central" class="tx b" font-size="13">参加者  →  #/p</text>
+<text x="264" y="495.1" text-anchor="middle" dominant-baseline="central" class="tm" font-size="13">受付QRまたはID/パスワードでログイン</text>
+<path d="M30,486 L54,486" class="ln" marker-end="url(#ah3)"/>
+</svg>

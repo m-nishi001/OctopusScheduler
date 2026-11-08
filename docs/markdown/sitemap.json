@@ -1,0 +1,36 @@
+{
+  "title": "OctopusScheduler ドキュメント",
+  "sections": [
+    {
+      "title": "取扱説明書",
+      "pages": [
+        { "path": "manual/index", "title": "はじめに" },
+        { "path": "manual/01-participant", "title": "1. 参加者の方へ" },
+        { "path": "manual/02-prep-people", "title": "2. 事前準備:人と景品" },
+        { "path": "manual/03-prep-quiz", "title": "3. 事前準備:クイズと画面" },
+        { "path": "manual/04-day", "title": "4. 当日の進行" },
+        { "path": "manual/05-faq", "title": "5. 困ったときのQ&A・用語集" },
+        { "path": "manual/architecture", "title": "しくみ(開発者向け)" },
+        { "path": "manual/credits", "title": "出典・参考" }
+      ]
+    },
+    {
+      "title": "開発者向け",
+      "pages": [
+        { "path": "dev/index", "title": "ドキュメント目次" },
+        { "path": "dev/usage", "title": "使い方(設定画面 → 実行画面)" },
+        { "path": "dev/deploy-gas", "title": "GAS へのデプロイ" },
+        { "path": "dev/deploy-cloudflare", "title": "Cloudflare へのデプロイ" },
+        { "path": "dev/authentication", "title": "認証と初回管理者" },
+        { "path": "dev/development", "title": "開発ガイド" },
+        { "path": "dev/dev-environment", "title": "開発環境を作る" },
+        { "path": "dev/dev-verification", "title": "開発中の通し動作確認" },
+        { "path": "dev/architecture", "title": "アーキテクチャ" },
+        { "path": "dev/session-hub", "title": "セッション基盤" },
+        { "path": "dev/design-decisions", "title": "設計の意思決定と学び" },
+        { "path": "dev/load-test", "title": "負荷テスト" },
+        { "path": "dev/ui-state-matrix", "title": "画面 × 状態マトリクス" }
+      ]
+    }
+  ]
+}

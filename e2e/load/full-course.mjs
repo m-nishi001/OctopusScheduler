@@ -2,7 +2,7 @@
 //   ログインの殺到 → 入室 → イベント開始 → エントリー(全員一斉) → クイズ5問(一斉回答・選び直し・締切の競り合い・連打の嵐・手動締切)
 //   → 全員の一斉再接続とホストのリロード → ジャックポット(停止操作の権限) → 結果の一斉取得 → エンディング・ロビー → セッション終了
 // 画面は使わず、実際のクライアントと同じ RPC / WebSocket で動かす(DO と R2 にかかる負荷を再現するため)。
-// 使い方は docs/load-test.md。BASE と E2E_ADMIN_TOKEN は scripts/e2e-local.js(npm run e2e -- load)か staging の出力が渡す。
+// 使い方は docs/markdown/dev/load-test.md。BASE と E2E_ADMIN_TOKEN は scripts/e2e-local.js(npm run e2e -- load)か staging の出力が渡す。
 
 import { Metrics } from "./lib/metrics.mjs";
 import { Report } from "./lib/report.mjs";

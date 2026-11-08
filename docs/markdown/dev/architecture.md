@@ -63,7 +63,7 @@ packages/
 | キャッシュ・ロック | CacheService・ScriptLock | D1（`cache_entries`・`locks` テーブル） |
 | セッションルーム（当日の進行） | スクリプト プロパティ（KV） | Durable Object（`SESSION_ROOM`。1 セッション 1 つ） |
 
-図解は [manual/architecture.html](manual/architecture.html) を参照してください。
+図解は [しくみ(図解)](../manual/architecture.md) を参照してください。
 
 ## 同期（sync-engine）
 

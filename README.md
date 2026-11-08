@@ -6,24 +6,24 @@
 
 前提: Node.js 22、`npm ci` 済み。
 
-1. **デプロイする**: `npm run deploy:gas` または `npm run deploy:cloudflare`（事前準備は [GAS](docs/deploy-gas.md) / [Cloudflare](docs/deploy-cloudflare.md)）
+1. **デプロイする**: `npm run deploy:gas` または `npm run deploy:cloudflare`（事前準備は [GAS](docs/markdown/dev/deploy-gas.md) / [Cloudflare](docs/markdown/dev/deploy-cloudflare.md)）
 2. **初回管理者のパスワードをシークレットに登録する**（再デプロイ不要）
-3. **ログインする**: ログイン画面で ID `admin` とそのパスワードを入力 → [認証と初回管理者](docs/authentication.md)
+3. **ログインする**: ログイン画面で ID `admin` とそのパスワードを入力 → [認証と初回管理者](docs/markdown/dev/authentication.md)
 
 ## 知りたいことから探す
 
 | 知りたいこと | 読むもの |
 | --- | --- |
-| 使い方（アセット・予定イベント・音楽とスクリーン） | [docs/usage.md](docs/usage.md) |
-| デプロイ手順 | [GAS](docs/deploy-gas.md) / [Cloudflare](docs/deploy-cloudflare.md) |
-| ログイン・初回管理者・復旧 | [docs/authentication.md](docs/authentication.md) |
-| 開発の始め方・テスト・CI | [docs/development.md](docs/development.md) |
-| 新しい PC で開発環境を作る | [docs/dev-environment.md](docs/dev-environment.md) |
-| 全体の構成・設計ルール | [docs/architecture.md](docs/architecture.md) |
-| ホスト／管理／参加者のセッション基盤 | [docs/session-hub.md](docs/session-hub.md) |
-| なぜこの設計にしたか | [docs/design-decisions.md](docs/design-decisions.md) |
+| 使い方（アセット・予定イベント・音楽とスクリーン） | [docs/markdown/dev/usage.md](docs/markdown/dev/usage.md) |
+| デプロイ手順 | [GAS](docs/markdown/dev/deploy-gas.md) / [Cloudflare](docs/markdown/dev/deploy-cloudflare.md) |
+| ログイン・初回管理者・復旧 | [docs/markdown/dev/authentication.md](docs/markdown/dev/authentication.md) |
+| 開発の始め方・テスト・CI | [docs/markdown/dev/development.md](docs/markdown/dev/development.md) |
+| 新しい PC で開発環境を作る | [docs/markdown/dev/dev-environment.md](docs/markdown/dev/dev-environment.md) |
+| 全体の構成・設計ルール | [docs/markdown/dev/architecture.md](docs/markdown/dev/architecture.md) |
+| ホスト／管理／参加者のセッション基盤 | [docs/markdown/dev/session-hub.md](docs/markdown/dev/session-hub.md) |
+| なぜこの設計にしたか | [docs/markdown/dev/design-decisions.md](docs/markdown/dev/design-decisions.md) |
 
-全体の目次は [docs/README.md](docs/README.md) にあります。
+全体の目次は [docs/markdown/dev/index.md](docs/markdown/dev/index.md)、ドキュメントの書き方とビルドは [docs/README.md](docs/README.md) にあります。
 
 ## 技術スタック
 

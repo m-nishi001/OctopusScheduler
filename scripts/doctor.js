@@ -43,7 +43,7 @@ export function buildChecks(env) {
       name: "R2 の S3 キー(profile r2、バケットを空にする用)",
       optional: true,
       check: () => env.succeeds("aws", ["configure", "list", "--profile", "r2"]) && env.hasAwsProfile("r2"),
-      fix: "docs/dev-environment.md の「R2 の S3 キー」を参照(aws configure --profile r2)",
+      fix: "docs/markdown/dev/dev-environment.md の「R2 の S3 キー」を参照(aws configure --profile r2)",
     },
     {
       name: "clasp にログイン済み(GAS デプロイ)",
