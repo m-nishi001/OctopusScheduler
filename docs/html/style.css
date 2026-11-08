@@ -1,5 +1,4 @@
-:root{--bg:#fff;--fg:#1c2330;--mut:#566074;--card:#f3f5f9;--line:#d6dbe5;--acc:#1565c0;--red:#d92d20;--note:#e8f1fd;--on-acc:#fff;--warnbg:#fff1e6;--warn:#b54708}
-@media (prefers-color-scheme:dark){:root{--bg:#161a22;--fg:#e8ebf1;--mut:#a3adbf;--card:#1f2530;--line:#343c4c;--acc:#7bb4ff;--note:#1b2a41;--warnbg:#3a2616;--warn:#ffb877;--on-acc:#0b1220}}
+:root{color-scheme:dark;--bg:#161a22;--fg:#e8ebf1;--mut:#a3adbf;--card:#1f2530;--line:#343c4c;--acc:#7bb4ff;--red:#d92d20;--note:#1b2a41;--warnbg:#3a2616;--warn:#ffb877;--on-acc:#0b1220}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:16px}
 body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.85 "Hiragino Sans","Noto Sans JP","Yu Gothic",Meiryo,sans-serif}
 .layout{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:260px 1fr;gap:32px;padding:0 20px}
@@ -66,21 +65,6 @@ blockquote p{margin:.4em 0}
 hr{border:0;border-top:1px solid var(--line);margin:32px 0}
 figure.dia{padding:12px 8px 0}figure.dia svg{display:block;width:100%;max-width:560px;height:auto;margin:0 auto}
 table,figure{max-width:100%}
-/* ---- 図(インライン SVG。色は上の変数を使うので、ライト/ダークに追従する) ---- */
-svg .bx{fill:var(--bg);stroke:var(--line);stroke-width:1.5}
-svg .bx.app{stroke:var(--acc);stroke-width:2.5;fill:var(--note)}
-svg .bx.gas{stroke:var(--acc);fill:var(--note)}
-svg .bx.cf{stroke:var(--warn);fill:var(--warnbg)}
-svg .bx.srv{stroke-width:3;stroke-dasharray:none}
-svg .bx.ver{stroke:var(--fg);stroke-width:2.5}
-svg .bx.lab{fill:var(--card)}
-svg .nf{fill:none}
-svg .fr{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:6 4}
-svg .ln{fill:none;stroke:var(--mut);stroke-width:1.8}svg .ln.ds{stroke-dasharray:5 4}
-svg .ahp{fill:var(--mut)}
-svg .tx{fill:var(--fg)}svg .tx.b{font-weight:700}svg .tm{fill:var(--mut)}
-svg .nm{fill:var(--acc)}svg .nt{fill:var(--on-acc);font-weight:700}
-svg text{font-family:inherit}
 @media (max-width:900px){
 .site-in{padding:10px 16px}.pager a{flex-basis:100%}.layout{display:block;padding:0 16px}
 .menu-btn{display:inline-block}
@@ -90,4 +74,4 @@ body.nav-open nav.toc{display:block;background:var(--card);border-radius:12px;pa
 .trio{grid-template-columns:1fr}h1{font-size:26px}
 figure.phone,.pair>figure.phone{max-width:100%;flex-basis:100%}
 }
-@media print{header.site,nav.toc,.mtoc,nav.pager,#lb{display:none}.layout{display:block}body{font-size:12pt}figure.shot,.note,.warn{break-inside:avoid}:root{--bg:#fff;--fg:#000}}
+@media print{header.site,nav.toc,.mtoc,nav.pager,#lb{display:none}.layout{display:block}body{font-size:12pt}figure.shot,.note,.warn{break-inside:avoid}}

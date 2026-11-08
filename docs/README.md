@@ -12,8 +12,9 @@ docs/
     dev/*.md         開発者向け(dev/index.md が目次)
   assets/
     images/*.webp    取扱説明書の画面写真
-    diagrams/*.svg   図(しくみの図解。色は style.css のクラスで付く)
+    diagrams/*.svg   図(しくみの図解。色は各 SVG に埋め込み、Dark 固定)
   html/              ビューアの枠(本文なし): index.html / style.css / app.js
+  _config.yml, _layouts/  GitHub Pages(Jekyll)用。html/style.css を読み込み Dark で表示
   gas/               生成物(commit する): index.html / Code.gs / appsscript.json
 scripts/build-docs.mjs   ビルド本体
 ```
