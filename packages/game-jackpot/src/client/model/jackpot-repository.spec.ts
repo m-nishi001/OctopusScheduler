@@ -89,10 +89,10 @@ describe("JackpotRepository", () => {
     it("版の無い景品は、景品ランク3にして weight を捨て、版つきに保存し直す", async () => {
       await seedLegacy();
       const record = await repo.readRecord();
-      expect(record.schemaVersion).toBe(1);
+      expect(record.schemaVersion).toBe(2);
       expect(record.prizes).toEqual([{ id: "p1", name: "A", order: 1, rank: 3, kakuhen: false }]);
       const stored = await store().get<{ updatedAt: number; data: unknown }>("record");
-      expect(stored!.data).toEqual({ schemaVersion: 1, prizes: [{ id: "p1", name: "A", order: 1, rank: 3 }], screens: [], media: {} });
+      expect(stored!.data).toEqual({ schemaVersion: 2, prizes: [{ id: "p1", name: "A", order: 1, rank: 3 }], screens: [], media: {} });
       expect(stored!.updatedAt).toBeGreaterThan(10);
     });
 
@@ -109,7 +109,7 @@ describe("JackpotRepository", () => {
       await store().save("record", {
         updatedAt: 10,
         data: {
-          schemaVersion: 1,
+          schemaVersion: 2,
           prizes: [
             { id: "on", name: "A", order: 1, rank: 3, image2: "x.png" },
             { id: "off", name: "B", order: 2, rank: 3 },
@@ -128,10 +128,10 @@ describe("JackpotRepository", () => {
     });
 
     it("何も保存されていない端末は、空のレコードを返すだけで書かない。以後の保存には版が付く", async () => {
-      expect(await repo.readRecord()).toMatchObject({ schemaVersion: 1, prizes: [] });
+      expect(await repo.readRecord()).toMatchObject({ schemaVersion: 2, prizes: [] });
       expect(await store().get("record")).toBeUndefined();
       await repo.addPrizes([prize("p1", { rank: 4 })]);
-      expect((await repo.readRecord()).schemaVersion).toBe(1);
+      expect((await repo.readRecord()).schemaVersion).toBe(2);
     });
   });
 
@@ -200,7 +200,7 @@ describe("JackpotRepository", () => {
 
   it("以前の形式(配列)のレコードは、空のレコードとして扱う", async () => {
     await new LocalStorageService("jackpot-game", "JackpotData").save("record", { data: [{ id: "old" }], updatedAt: 1 });
-    expect(await repo.readRecord()).toEqual({ schemaVersion: 1, prizes: [], screens: [], media: {} });
+    expect(await repo.readRecord()).toEqual({ schemaVersion: 2, prizes: [], screens: [], media: {} });
     await repo.addPrizes([prize("p1")]);
     expect((await repo.getPrizes()).map((p) => p.id)).toEqual(["p1"]);
   });
@@ -214,7 +214,7 @@ describe("JackpotRepository", () => {
       await repo.deletePrizes(["p1"]);
       await sync(repo);
       expect(await server.blobCount()).toBe(0);
-      expect(JSON.parse((await server.api.getRecord()).json!).data).toEqual({ schemaVersion: 1, prizes: [], screens: [], media: {} });
+      expect(JSON.parse((await server.api.getRecord()).json!).data).toEqual({ schemaVersion: 2, prizes: [], screens: [], media: {} });
       await sync(repo);
       expect(await repo.getPrizes()).toEqual([]);
     });

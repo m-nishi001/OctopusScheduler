@@ -67,7 +67,7 @@ export default {
       try {
         const results = await drawStores.current().results();
         const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
-        resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
+        resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("");
         void bgm.load(resultConfig.value.resultBgm).then(() => bgm.play(BGM_DELAY_MS));
 
         // 当選者の写真は、共通の名簿の写真キャッシュから(まとめて読む。取れなければ頭文字のアバター)

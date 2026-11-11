@@ -178,7 +178,7 @@ export async function seedQuizzes(page: Page, quizzes: unknown[]): Promise<void>
 
 /** ジャックポットの景品と画面設定(`{ schemaVersion, prizes, screens, media }` の1件のレコード)に、素材を持たない景品・画面設定を入れる。 */
 export async function seedJackpot(page: Page, record: { prizes?: unknown[]; screens?: unknown[] }): Promise<void> {
-  const data = { schemaVersion: 1, prizes: record.prizes ?? [], screens: record.screens ?? [], media: {} };
+  const data = { schemaVersion: 2, prizes: record.prizes ?? [], screens: record.screens ?? [], media: {} };
   await seedStore(page, "jackpot-game", "JackpotData", [{ id: "record", value: { data, updatedAt: Date.now() } }]);
 }
 
