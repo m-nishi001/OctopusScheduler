@@ -117,8 +117,14 @@ export type HeadersSource = readonly Header[] | ((names: readonly string[]) => r
 /** 見出しの照合用の形: NFKC で正規化し、前後の空白を除いて小文字にする。 */
 export const normalizeHeader = (cell: string): string => cell.normalize("NFKC").trim().toLowerCase();
 
+/** {@link parseTable} の追加の指定。 */
+export interface ParseTableOptions {
+  /** 使えなくなった見出し(照合用の形に正規化して比べる)→ 今の見出し。ファイルにあれば、黙って無視せずエラーにする。 */
+  retired?: Readonly<Record<string, string>>;
+}
+
 /** CSV のバイト列を行にする。必須の列が無ければ `ok: false`。無い任意の列のセルは空文字。 */
-export function parseTable(bytes: Uint8Array, source: HeadersSource): ParsedTable {
+export function parseTable(bytes: Uint8Array, source: HeadersSource, options: ParseTableOptions = {}): ParsedTable {
   let table: CsvRecord[];
   try {
     table = parseCsv(decodeCsvBytes(bytes));
@@ -128,6 +134,11 @@ export function parseTable(bytes: Uint8Array, source: HeadersSource): ParsedTabl
   if (table.length === 0) return { ok: false, errors: ["CSV にデータがありません"] };
   const [head, ...body] = table;
   const names = head.cells.map(normalizeHeader);
+  const retired = new Map(Object.entries(options.retired ?? {}).map(([old, now]) => [normalizeHeader(old), now] as const));
+  const stale = head.cells.filter((cell) => retired.has(normalizeHeader(cell)));
+  if (stale.length > 0) {
+    return { ok: false, errors: stale.map((cell) => `見出し「${cell}」は使えなくなりました。「${retired.get(normalizeHeader(cell))}」に変えてください`) };
+  }
   const headers = typeof source === "function" ? source(names) : source;
   const columns = headers.map((h) => {
     const wanted = [h.label, ...(h.aliases ?? [])].map(normalizeHeader);

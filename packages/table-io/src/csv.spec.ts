@@ -55,6 +55,12 @@ describe("parseTable / stringifyTable", () => {
   ];
   const enc = (s: string) => new TextEncoder().encode(s);
 
+  it("使えなくなった見出し(retired)がファイルにあれば、今の見出しを案内してエラーにする", () => {
+    const t = parseTable(enc("名前,ｐｈｏｔｏ１\nA,x\n"), headers, { retired: { photo1: "写真" } });
+    expect(t).toEqual({ ok: false, errors: ["見出し「ｐｈｏｔｏ１」は使えなくなりました。「写真」に変えてください"] });
+    expect(parseTable(enc("名前,写真\nA,x\n"), headers, { retired: { photo1: "写真" } }).ok).toBe(true);
+  });
+
   it("見出しは NFKC・大文字小文字・別名で照合し、順序が違っても読める。無い任意の列は空", () => {
     const t = parseTable(enc("名前,ｉｄ\nAlice, a1 \n"), headers);
     expect(t).toEqual({ ok: true, headers, rows: [{ line: 2, cells: { id: "a1", name: "Alice", photo: "" } }] });

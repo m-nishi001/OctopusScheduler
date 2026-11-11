@@ -35,10 +35,10 @@ test.describe("ジャックポット管理の景品", () => {
     await page.getByRole("button", { name: "追加", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByPlaceholder("景品名").fill(name);
-    // 画像の欄もBGMの欄も同じ素材選択部品(画像4つ + BGM2つ)。画像1と当選画像2にファイルを選ぶ
+    // 画像の欄もBGMの欄も同じ素材選択部品(画像4つ + BGM2つ)。抽選画像と確変_当選画像にファイルを選ぶ
     const fileInputs = dialog.locator('input[type="file"]');
     await expect(fileInputs).toHaveCount(6);
-    // 当選画像2は「確変対応あり」をONにしたときだけ選べる(OFFの間は無効)
+    // 確変_当選画像は「確変対応あり」をONにしたときだけ選べる(OFFの間は無効)
     await expect(fileInputs.nth(3)).toBeDisabled();
     await dialog.getByTestId("kakuhen-checkbox").check();
     await expect(fileInputs.nth(3)).toBeEnabled();
@@ -53,7 +53,7 @@ test.describe("ジャックポット管理の景品", () => {
     await expect(dialog).toBeHidden();
     // 画像のある景品は、一覧に画像(選んだ2枚)が出て、無い欄は「なし」の表示になる
     await expect(row().locator("img.preview-img")).toHaveCount(2);
-    await expect(row().getByText("画像2なし")).toBeVisible();
+    await expect(row().getByText("確変_抽選画像なし")).toBeVisible();
 
     await page.reload();
     await page.getByRole("tab", { name: "景品" }).click();
