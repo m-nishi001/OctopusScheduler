@@ -144,19 +144,27 @@ describe("accounts isAdmin handling", () => {
     });
   });
 
-  it("applyRoster neither grants nor revokes isAdmin", async () => {
+  it("applyRoster は isAdmin の省略でいまの値を保ち、指定すると付与・剥奪する", async () => {
     const deps = createDeps();
     await addMember(deps, { id: "admin", name: "管理者", isAdmin: true });
-    await applyRoster(deps, {
-      upserts: [
-        { id: "admin", name: "管理者(改)" },
-        { id: "u1", name: "太郎", isAdmin: true } as { id: string; name: string },
-      ],
-      deleteIds: [],
-    });
+    await addMember(deps, { id: "admin2", name: "管理者2", isAdmin: true });
+    await applyRoster(
+      deps,
+      {
+        upserts: [
+          { id: "admin", name: "管理者(改)" },
+          { id: "admin2", name: "管理者2", isAdmin: false },
+          { id: "u1", name: "太郎", isAdmin: true },
+        ],
+        deleteIds: [],
+      },
+      "admin"
+    );
     expect(await listAccounts(deps)).toEqual([
       { id: "admin", name: "管理者(改)", isAdmin: true },
-      { id: "u1", name: "太郎" },
+      { id: "admin2", name: "管理者2" },
+      { id: "u1", name: "太郎", isAdmin: true },
     ]);
   });
+
 });

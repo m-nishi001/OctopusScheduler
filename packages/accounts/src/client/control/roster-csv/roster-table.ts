@@ -2,6 +2,9 @@
  * 名簿の表(CSV)への対応。汎用の判断(差分・往復・エラー)は `@octopus/table-io` に任せ、ここは名簿の列と検証だけを持つ。
  *
  * - 書式: ヘッダー行 `ID,名前,写真`。写真の列は画像のファイル名(書き出しでは `<id>.<拡張子>`)。空なら写真は変えない。
+ * - 設定>メンバーの表({@link ADMIN_ROSTER_TABLE})だけ、`管理者`(あり/なし)の列が付く。空なら管理者かどうかは変えない。
+ *   クイズのメンバー管理・ジャックポットのメンバーの表には、この列を出さない(管理者の付け外しは設定>メンバーだけ)。
+ *   ログイン中のメンバー自身を「なし」にする行はエラー(サーバーも拒否する)。
  * - 削除は置き換えモードのときだけ。管理者とログイン中のメンバーは削除しない。
  */
 import type { HeadersSource, Row, TableAdapter, Header } from "@octopus/table-io";
@@ -12,11 +15,18 @@ const MAX_NAME_LENGTH = 100;
 
 export const ROSTER_CSV_NAME = "members.csv";
 
+/** 管理者のセルの書き方(あり/なしだけ)。 */
+const ADMIN_ON = "あり";
+const ADMIN_OFF = "なし";
+
 export const ROSTER_HEADERS: readonly Header[] = [
   { key: "id", label: "ID", aliases: ["メンバーID"], required: true },
   { key: "name", label: "名前", aliases: ["name", "氏名"], required: true },
   { key: "photo", label: "写真", aliases: ["photo", "画像"], media: true },
 ];
+
+/** 名簿の列に、管理者の列を足したもの(設定>メンバー用)。 */
+export const ROSTER_ADMIN_HEADERS: readonly Header[] = [...ROSTER_HEADERS, { key: "isAdmin", label: "管理者" }];
 
 /**
  * 取込の計画で扱う名簿の1人。`photo` は名簿に記録されている写真のハッシュ、`photoFile` は CSV の写真の列(のファイル名)。
@@ -66,16 +76,23 @@ export interface RosterAdapterOptions {
   currentUserId?: string;
   /** 真なら ID の空の行はエラー(ID を必ず決める画面用)。偽なら空の ID は新規で、名簿が採番する。 */
   idRequired?: boolean;
+  /** 真なら「管理者」の列を持つ(設定>メンバー用)。偽なら管理者かどうかは表に出さず、いまのまま。 */
+  adminColumn?: boolean;
 }
 
 /** 名簿の `TableAdapter`。取込では選ばれた画像の一覧とログイン中のメンバーを渡し、書き出しでは引数なしで使う。 */
 export function rosterAdapter(options: RosterAdapterOptions = {}): TableAdapter<RosterMember> {
   return {
     csvName: ROSTER_CSV_NAME,
-    headers: ROSTER_HEADERS,
+    headers: options.adminColumn ? ROSTER_ADMIN_HEADERS : ROSTER_HEADERS,
     labelKey: "name",
     key: (m) => m.id,
-    toRow: (m): Row => ({ id: m.id, name: m.name, photo: m.photoFile ?? "" }),
+    toRow: (m): Row => ({
+      id: m.id,
+      name: m.name,
+      photo: m.photoFile ?? "",
+      ...(options.adminColumn ? { isAdmin: m.isAdmin ? ADMIN_ON : ADMIN_OFF } : {}),
+    }),
     fromRow(row, existing) {
       if (options.idRequired && !row.id) return "ID が空です";
       if (!row.name) return "名前が空です";
@@ -86,7 +103,14 @@ export function rosterAdapter(options: RosterAdapterOptions = {}): TableAdapter<
         photoFile = photoFileKey(row.photo);
         if (options.files && !options.files.has(photoFile)) return `画像「${row.photo}」が見つかりません`;
       }
-      return { id: row.id, name: row.name, photo: existing?.photo, photoFile, isAdmin: existing?.isAdmin };
+
+      let isAdmin = existing?.isAdmin;
+      if (options.adminColumn && row.isAdmin) {
+        if (row.isAdmin !== ADMIN_ON && row.isAdmin !== ADMIN_OFF) return "管理者は「あり」か「なし」で入力してください";
+        isAdmin = row.isAdmin === ADMIN_ON;
+        if (!isAdmin && existing?.isAdmin && row.id === options.currentUserId) return "ログイン中の自分の管理者権限は外せません";
+      }
+      return { id: row.id, name: row.name, photo: existing?.photo, photoFile, isAdmin };
     },
     protected: (m) => m.isAdmin === true || m.id === options.currentUserId,
   };
@@ -111,8 +135,16 @@ export interface RosterTable<E extends RosterMember = RosterMember> {
   afterApply?(applied: readonly E[]): Promise<void>;
 }
 
+/** 管理者の列を持たない名簿の表(クイズ>メンバー管理が使う。取込・書き出しの既定)。 */
 export const ROSTER_TABLE: RosterTable = {
   headers: ROSTER_HEADERS,
   adapter: rosterAdapter,
+  current: toRosterMembers,
+};
+
+/** 管理者の列を持つ名簿の表(設定>メンバーが使う)。 */
+export const ADMIN_ROSTER_TABLE: RosterTable = {
+  headers: ROSTER_ADMIN_HEADERS,
+  adapter: (options) => rosterAdapter({ ...options, adminColumn: true }),
   current: toRosterMembers,
 };

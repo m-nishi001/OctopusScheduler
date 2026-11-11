@@ -45,7 +45,7 @@ describe("GAS の容量の上限での名簿", () => {
     const deps = createGasLikeDeps();
     await addMember(deps, person(0));
     const tooMany = Array.from({ length: 400 }, (_, i) => person(i + 1));
-    await expect(applyRoster(deps, { upserts: tooMany, deleteIds: [] })).rejects.toBeInstanceOf(StorageCapacityError);
+    await expect(applyRoster(deps, { upserts: tooMany, deleteIds: [] }, "root")).rejects.toBeInstanceOf(StorageCapacityError);
     expect(await listMembers(deps)).toEqual([person(0)]);
   });
 

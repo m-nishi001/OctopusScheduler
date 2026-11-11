@@ -183,22 +183,27 @@ async function purgeMemberData(deps: AccountsUseCaseDeps, id: string): Promise<v
 
 /**
  * CSV 取込の確定。追加・更新(id ベースの upsert)と削除を、名簿のロックの中で1回だけ書く。
- * 管理者が `deleteIds` に含まれていれば、名簿を変えずに全体を拒否する。
+ * 管理者の削除・実行者(`actorId`)が自分の管理者権限を外す・管理者が0人になる、のどれかなら、名簿を変えずに全体を拒否する
+ * (判断は {@link applyRosterChange})。
  * 削除したメンバーの写真・セッション・パスワード・受付QRのキーは、書き込みのあとに片づける。
+ * 管理者にした人の受付QRのキーを消し、管理者でなくした人のセッションを無効にする。
  */
 export async function applyRoster(
   deps: AccountsUseCaseDeps,
-  input: { upserts: MemberInput[]; deleteIds: string[] }
+  input: { upserts: MemberInput[]; deleteIds: string[] },
+  actorId: string
 ): Promise<{ upserted: number; deleted: number }> {
   const deleteIds = [...new Set(input.deleteIds)];
-  const { removed, orphanPhotos } = await withLock(deps, ROSTER_LOCK_KEY, async () => {
+  const { removed, orphanPhotos, grantedAdminIds, revokedAdminIds } = await withLock(deps, ROSTER_LOCK_KEY, async () => {
     const roster = await readMembers(deps.storage);
-    const change = applyRosterChange(roster, { upserts: input.upserts, deleteIds }, deps.generateId);
+    const change = applyRosterChange(roster, { upserts: input.upserts, deleteIds, actorId }, deps.generateId);
     await writeMembers(deps.storage, change.next);
     const existing = new Set(roster.map((m) => m.id));
-    return { removed: deleteIds.filter((id) => existing.has(id)), orphanPhotos: change.orphanPhotos };
+    return { removed: deleteIds.filter((id) => existing.has(id)), ...change };
   });
   await discardPhotos(deps, orphanPhotos);
+  if (grantedAdminIds.length > 0) await deps.storage.deleteScalars(grantedAdminIds.map((id) => LOGIN_KEY_PREFIX + id));
+  for (const id of revokedAdminIds) await revokeMemberSessions(deps, id);
   // 同時に走らせる数を絞る(保存先への同時リクエストが膨らまないように)。
   for (let i = 0; i < removed.length; i += PURGE_CONCURRENCY) {
     await Promise.all(removed.slice(i, i + PURGE_CONCURRENCY).map((id) => purgeMemberData(deps, id)));
