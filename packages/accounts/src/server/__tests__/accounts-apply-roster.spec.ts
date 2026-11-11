@@ -6,6 +6,7 @@ import {
   getSession,
   issueLoginKey,
   listAccounts,
+  loginWithKey,
   listMembers,
   login,
   setPassword,
@@ -44,7 +45,7 @@ async function setup() {
 describe("applyRoster", () => {
   it("追加・更新と削除を1回で反映し、件数を返す", async () => {
     const { deps } = await setup();
-    const result = await applyRoster(deps, { upserts: [{ id: "u3", name: "三郎(改)" }, { id: "n1", name: "新人" }], deleteIds: ["u2"] });
+    const result = await applyRoster(deps, { upserts: [{ id: "u3", name: "三郎(改)" }, { id: "n1", name: "新人" }], deleteIds: ["u2"] }, "root");
     expect(result).toEqual({ upserted: 2, deleted: 1 });
     expect((await listMembers(deps)).map((m) => [m.id, m.name])).toEqual([
       ["root", "管理者"],
@@ -56,7 +57,7 @@ describe("applyRoster", () => {
 
   it("削除したメンバーの写真・セッション・パスワード・受付QRのキーを片づけ、残る人のものは残す", async () => {
     const { deps, token } = await setup();
-    await applyRoster(deps, { upserts: [], deleteIds: ["u1"] });
+    await applyRoster(deps, { upserts: [], deleteIds: ["u1"] }, "root");
     expect(await existsMemberPhotos(deps, [A, B])).toEqual({ existing: [B] });
     expect(await getSession(deps, token)).toBeNull();
     await expect(login(deps, { id: "u1", password: "password-1" })).rejects.toThrow();
@@ -69,7 +70,7 @@ describe("applyRoster", () => {
     const { deps, token } = await setup();
     await setPassword(deps, { id: "u2", password: "password-2" });
     await setPassword(deps, { id: "u3", password: "password-3" });
-    const result = await applyRoster(deps, { upserts: [], deleteIds: ["u1", "u2", "u3", "u1"] });
+    const result = await applyRoster(deps, { upserts: [], deleteIds: ["u1", "u2", "u3", "u1"] }, "root");
     expect(result).toEqual({ upserted: 0, deleted: 3 });
     expect((await listMembers(deps)).map((m) => m.id)).toEqual(["root"]);
     expect(await existsMemberPhotos(deps, [A, B])).toEqual({ existing: [] });
@@ -83,7 +84,7 @@ describe("applyRoster", () => {
   it("管理者を deleteIds に含めると、全体を拒否して名簿を変えない", async () => {
     const { deps } = await setup();
     const before = await listAccounts(deps);
-    await expect(applyRoster(deps, { upserts: [{ id: "new", name: "新人" }], deleteIds: ["u2", "root"] })).rejects.toThrow("管理者は削除できません");
+    await expect(applyRoster(deps, { upserts: [{ id: "new", name: "新人" }], deleteIds: ["u2", "root"] }, "root")).rejects.toThrow("管理者は削除できません");
     expect(await listAccounts(deps)).toEqual(before);
     expect(await existsMemberPhotos(deps, [A, B])).toEqual({ existing: [A, B] });
   });
@@ -93,19 +94,57 @@ describe("applyRoster", () => {
     await setPassword(deps, { id: "root", password: "admin-password" });
     const { token } = await login(deps, { id: "root", password: "admin-password" });
     const me = await getSession(deps, token);
-    await expect(applyRoster(deps, { upserts: [], deleteIds: [me!.id] })).rejects.toThrow();
+    await expect(applyRoster(deps, { upserts: [], deleteIds: [me!.id] }, "root")).rejects.toThrow();
     expect(await getSession(deps, token)).not.toBeNull();
   });
 
   it("同じ ID を追加・更新と削除の両方に指定すると拒否する。無い ID の削除は無視する", async () => {
     const { deps } = await setup();
-    await expect(applyRoster(deps, { upserts: [{ id: "u3", name: "x" }], deleteIds: ["u3"] })).rejects.toThrow();
-    await expect(applyRoster(deps, { upserts: [], deleteIds: ["missing"] })).resolves.toEqual({ upserted: 0, deleted: 0 });
+    await expect(applyRoster(deps, { upserts: [{ id: "u3", name: "x" }], deleteIds: ["u3"] }, "root")).rejects.toThrow();
+    await expect(applyRoster(deps, { upserts: [], deleteIds: ["missing"] }, "root")).resolves.toEqual({ upserted: 0, deleted: 0 });
   });
 
   it("写真を差し替えた人の古い写真は消え、削除と差し替えが同じ写真を指していても整合する", async () => {
     const { deps } = await setup();
-    await applyRoster(deps, { upserts: [{ id: "u1", name: "太郎", photo: B }], deleteIds: ["u2"] });
+    await applyRoster(deps, { upserts: [{ id: "u1", name: "太郎", photo: B }], deleteIds: ["u2"] }, "root");
     expect(await existsMemberPhotos(deps, [A, B])).toEqual({ existing: [B] });
+  });
+
+  describe("管理者の付与・剥奪", () => {
+    it("管理者にした人は、受付QRのキーが消える(キーでログインできなくなる)。パスワードは残る", async () => {
+      const { deps } = await setup();
+      const { key } = await issueLoginKey(deps, { id: "u2" });
+      await setPassword(deps, { id: "u2", password: "password-2" });
+      await applyRoster(deps, { upserts: [{ id: "u2", name: "次郎", isAdmin: true }], deleteIds: [] }, "root");
+      expect((await listAccounts(deps)).find((m) => m.id === "u2")).toMatchObject({ isAdmin: true, hasPassword: true });
+      expect((await listAccounts(deps)).find((m) => m.id === "u2")?.hasLoginKey).toBeFalsy();
+      await expect(loginWithKey(deps, { id: "u2", key })).rejects.toThrow();
+      await expect(login(deps, { id: "u2", password: "password-2" })).resolves.toBeTruthy();
+    });
+
+    it("管理者を外した人は、持っていたセッションが無効になる。ほかの人のセッションは残る", async () => {
+      const { deps, token } = await setup();
+      await applyRoster(deps, { upserts: [{ id: "u3", name: "三郎", isAdmin: true }, { id: "u1", name: "太郎", isAdmin: true }], deleteIds: [] }, "root");
+      await setPassword(deps, { id: "u3", password: "password-3" });
+      const t3 = (await login(deps, { id: "u3", password: "password-3" })).token;
+      expect(await getSession(deps, t3)).not.toBeNull();
+      await applyRoster(deps, { upserts: [{ id: "u3", name: "三郎", isAdmin: false }], deleteIds: [] }, "root");
+      expect(await getSession(deps, t3)).toBeNull();
+      expect(await getSession(deps, token)).toMatchObject({ id: "u1", isAdmin: true });
+    });
+
+    it("自分の管理者権限を外す指定は、名簿を変えずに全体を拒否する", async () => {
+      const { deps } = await setup();
+      await applyRoster(deps, { upserts: [{ id: "u3", name: "三郎", isAdmin: true }], deleteIds: [] }, "root");
+      const before = await listAccounts(deps);
+      await expect(applyRoster(deps, { upserts: [{ id: "u1", name: "太郎(改)" }, { id: "root", name: "管理者", isAdmin: false }], deleteIds: [] }, "root")).rejects.toThrow("自分の管理者権限は外せません");
+      expect(await listAccounts(deps)).toEqual(before);
+    });
+
+    it("管理者が0人になる指定は拒否する(実行者が名簿にいない場合でも)", async () => {
+      const { deps } = await setup();
+      await expect(applyRoster(deps, { upserts: [{ id: "root", name: "管理者", isAdmin: false }], deleteIds: [] }, "ghost")).rejects.toThrow("管理者が0人");
+      expect((await listAccounts(deps)).find((m) => m.id === "root")?.isAdmin).toBe(true);
+    });
   });
 });

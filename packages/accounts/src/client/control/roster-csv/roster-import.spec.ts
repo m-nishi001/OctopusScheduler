@@ -3,6 +3,7 @@ import { RateLimitedError } from "@octopus/infrastructures/interfaces";
 import type { Member } from "../../../server/accounts-api-contract";
 import { buildZip } from "@octopus/table-io";
 import { previewRosterImport } from "./roster-import";
+import { ADMIN_ROSTER_TABLE } from "./roster-table";
 import type { RosterImportDeps } from "./roster-import";
 
 const modeOf = { mode: "upsert" as const };
@@ -182,5 +183,57 @@ describe("previewRosterImport / apply", () => {
     if (preview.ok) expect(preview.plan.counts.add).toBe(1);
     expect(await previewRosterImport({ table: csvFile("名前だけ\nx"), media: [], ...modeOf }, deps(repo))).toMatchObject({ ok: false });
     expect(await previewRosterImport({ table: new File(["not zip"], "x.zip"), media: [], ...modeOf }, deps(repo))).toMatchObject({ ok: false });
+  });
+});
+
+describe("管理者の列つきの取込(設定>メンバー)", () => {
+  const members: Member[] = [
+    { id: "root", name: "管理者", isAdmin: true },
+    { id: "a", name: "アリス" },
+    { id: "b", name: "ボブ" },
+  ];
+  const run = async (csv: string, mode: "upsert" | "replace" = "upsert") => {
+    const { repo, calls } = fakeRepo(members);
+    const preview = await previewRosterImport({ table: csvFile(csv), media: [], mode }, deps(repo, { currentUserId: "root" }), ADMIN_ROSTER_TABLE);
+    return { preview, calls };
+  };
+
+  it("管理者が変わる行だけ isAdmin を送る(名前が同じでも書く)。変わらない行は送らず、書き出した CSV は全行変更なし", async () => {
+    const { preview, calls } = await run("ID,名前,写真,管理者\nroot,管理者,,あり\na,アリス,,あり\nb,ボブ,,なし\nc,カール,,あり\nd,デイヴ,,\n");
+    if (!preview.ok) throw new Error(preview.errors.join());
+    expect(preview.plan.counts).toMatchObject({ add: 2, update: 1, unchanged: 2, error: 0 });
+    await preview.apply();
+    expect(calls.replace).toHaveLength(1);
+    expect(calls.replace[0].upserts).toEqual([
+      { id: "a", name: "アリス", photo: undefined, isAdmin: true },
+      { id: "c", name: "カール", photo: undefined, isAdmin: true },
+      { id: "d", name: "デイヴ", photo: undefined, isAdmin: undefined },
+    ]);
+  });
+
+  it("管理者を外すだけの行(名前も写真も同じ)も、名簿へ書く", async () => {
+    const withTwo: Member[] = [...members, { id: "r2", name: "副管理者", isAdmin: true }];
+    const { repo, calls } = fakeRepo(withTwo);
+    const preview = await previewRosterImport({ table: csvFile("ID,名前,管理者\nr2,副管理者,なし\n"), media: [], ...modeOf }, deps(repo, { currentUserId: "root" }), ADMIN_ROSTER_TABLE);
+    if (!preview.ok) throw new Error(preview.errors.join());
+    await preview.apply();
+    expect(calls.replace[0].upserts).toEqual([{ id: "r2", name: "副管理者", photo: undefined, isAdmin: false }]);
+  });
+
+  it("自分の管理者権限を外す行があると、行がエラーになって確定できない(何も送らない)", async () => {
+    const { preview, calls } = await run("ID,名前,管理者\nroot,管理者,なし\n");
+    if (!preview.ok) throw new Error(preview.errors.join());
+    expect(preview.plan.ok).toBe(false);
+    expect(preview.plan.rows[0]).toMatchObject({ status: "error", message: expect.stringContaining("自分の管理者権限") });
+    await expect(preview.apply()).rejects.toThrow();
+    expect(calls.replace).toHaveLength(0);
+  });
+
+  it("管理者の列を持たない表(クイズ用・既定)では、管理者の列があっても送らない", async () => {
+    const { repo, calls } = fakeRepo(members);
+    const preview = await previewRosterImport({ table: csvFile("ID,名前,管理者\na,アリス改,あり\n"), media: [], ...modeOf }, deps(repo));
+    if (!preview.ok) throw new Error(preview.errors.join());
+    await preview.apply();
+    expect(calls.replace[0].upserts).toEqual([{ id: "a", name: "アリス改", photo: undefined, isAdmin: undefined }]);
   });
 });

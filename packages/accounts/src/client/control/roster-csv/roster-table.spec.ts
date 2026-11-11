@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { exportTable, parseTable, planImport } from "@octopus/table-io";
+import type { ImportMode } from "@octopus/table-io";
 import type { Member } from "../../../server/accounts-api-contract";
-import { photoFileKey, photoFileName, ROSTER_HEADERS, rosterAdapter, toRosterMembers } from "./roster-table";
+import { ADMIN_ROSTER_TABLE, photoFileKey, photoFileName, ROSTER_ADMIN_HEADERS, ROSTER_HEADERS, ROSTER_TABLE, rosterAdapter, toRosterMembers } from "./roster-table";
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 const rowsOf = (text: string) => {
@@ -97,5 +98,57 @@ describe("写真のファイル名", () => {
   it("書き出す名前は <id>.<拡張子>、ファイル名に使えない文字は _", () => {
     expect(photoFileName("a/b:c", "image/jpeg")).toBe("a_b_c.jpg");
     expect(photoFileName("x", "image/unknown")).toBe("x.img");
+  });
+});
+
+describe("管理者の列(設定>メンバーの表だけ)", () => {
+  const members: Member[] = [
+    { id: "root", name: "管理者", isAdmin: true },
+    { id: "me", name: "自分", isAdmin: true },
+    { id: "a", name: "アリス" },
+  ];
+  const adapter = (currentUserId = "me") => ADMIN_ROSTER_TABLE.adapter({ currentUserId });
+  const plan = (csv: string, mode: ImportMode = "upsert", currentUserId = "me") => {
+    const parsed = parseTable(bytes(csv), ROSTER_ADMIN_HEADERS);
+    if (!parsed.ok) throw new Error(parsed.errors.join());
+    return planImport(toRosterMembers(members), parsed.rows, adapter(currentUserId), mode);
+  };
+
+  it("書き出すと「管理者」の列に あり/なし が出て、そのまま取り込むと全行変更なし(置き換えでも削除なし)", () => {
+    const csv = exportTable(toRosterMembers(members), adapter());
+    expect(csv.replace("\uFEFF", "").split("\r\n").slice(0, 4)).toEqual(["ID,名前,写真,管理者", "root,管理者,,あり", "me,自分,,あり", "a,アリス,,なし"]);
+    for (const mode of ["upsert", "replace"] as const) {
+      const p = plan(csv, mode);
+      expect(p.counts).toEqual({ add: 0, update: 0, unchanged: 3, delete: 0, error: 0 });
+    }
+  });
+
+  it("あり/なし で管理者を付け外しでき、空のセル・列なしはいまのまま。新しい行は管理者にならない(ありなら管理者)", () => {
+    const p = plan("ID,名前,管理者\na,アリス,あり\nroot,管理者,なし\nme,自分,\nn1,新人1,\nn2,新人2,あり\n");
+    expect(p.rows.map((r) => r.status)).toEqual(["update", "update", "unchanged", "add", "add"]);
+    expect(p.upserts.map((m) => [m.id, !!m.isAdmin])).toEqual([["a", true], ["root", false], ["n1", false], ["n2", true]]);
+    expect(plan("ID,名前\nroot,管理者\n").upserts).toEqual([]);
+  });
+
+  it("あり/なし 以外(ON・true・1 など)はエラー", () => {
+    for (const v of ["ON", "true", "1", "はい", "管理者"]) expect(plan(`ID,名前,管理者\na,アリス,${v}\n`).rows[0]).toMatchObject({ status: "error", message: expect.stringContaining("あり") });
+  });
+
+  it("ログイン中の自分を「なし」にする行はエラーで、取り込めない。自分以外の管理者は外せる", () => {
+    const p = plan("ID,名前,管理者\nme,自分,なし\nroot,管理者,なし\n");
+    expect(p.rows.map((r) => r.status)).toEqual(["error", "update"]);
+    expect(p.rows[0].message).toContain("自分の管理者権限");
+    expect(p.ok).toBe(false);
+    expect(plan("ID,名前,管理者\nme,自分,あり\n").ok).toBe(true);
+  });
+
+  it("管理者の列を持たない表(クイズ・ジャックポット用の ROSTER_TABLE)は、書き出さず、CSV にあっても読まず、管理者はいまのまま", () => {
+    const plain = ROSTER_TABLE.adapter({});
+    expect(exportTable(toRosterMembers(members), plain).split("\r\n")[0]).toBe("\uFEFFID,名前,写真");
+    expect(plain.headers).toEqual(ROSTER_HEADERS);
+    const parsed = parseTable(bytes("ID,名前,管理者\nroot,管理者,なし\na,アリス,あり\n"), ROSTER_TABLE.headers);
+    if (!parsed.ok) throw new Error();
+    const p = planImport(toRosterMembers(members), parsed.rows, ROSTER_TABLE.adapter({}), "upsert");
+    expect(p.counts).toMatchObject({ unchanged: 2, update: 0, error: 0 });
   });
 });

@@ -206,14 +206,19 @@ async function applyRosterImport<E extends RosterMember>(
   // 3. 名簿を1回だけ書く(追加・更新・削除)。画像を用意できなかった行は書かない。
   const failed = plan.upserts.filter((e) => e.photoFile && changedFiles.has(e.photoFile) && !hashOfFile.has(e.photoFile));
   const applied = plan.upserts.filter((e) => !failed.includes(e));
-  // 名簿に書くのは、名前か写真が変わる人だけ(名簿の外の項目だけが変わる人は書かない)。
+  // 名簿に書くのは、名前・写真・管理者のどれかが変わる人だけ(名簿の外の項目だけが変わる人は書かない)。
+  // 管理者は変わるときだけ送る(省略はサーバーで「いまのまま」)。
   const upserts = applied
-    .map((e) => ({
-      id: e.id || undefined,
-      name: e.name,
-      photo: e.photoFile && changedFiles.has(e.photoFile) ? hashOfFile.get(e.photoFile) : undefined,
-    }))
-    .filter((u) => u.photo !== undefined || u.name !== existing.get(u.id ?? "")?.name);
+    .map((e) => {
+      const before = existing.get(e.id);
+      return {
+        id: e.id || undefined,
+        name: e.name,
+        photo: e.photoFile && changedFiles.has(e.photoFile) ? hashOfFile.get(e.photoFile) : undefined,
+        isAdmin: !!e.isAdmin !== !!before?.isAdmin ? !!e.isAdmin : undefined,
+      };
+    })
+    .filter((u) => u.photo !== undefined || u.isAdmin !== undefined || u.name !== existing.get(u.id ?? "")?.name);
   const deleteIds = plan.deletes.map((e) => e.id);
   onProgress("名簿を更新しています");
   if (upserts.length > 0 || deleteIds.length > 0) await deps.repo.applyRoster({ upserts, deleteIds });
