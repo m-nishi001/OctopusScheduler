@@ -4,6 +4,8 @@
             <UiButton variant="primary" icon="add" @click.prevent="openAddModal">追加</UiButton>
             <UiButton variant="danger" icon="delete" :disabled="!selectedAssets.length"
                 @click="deleteSelectedAssets">選択削除</UiButton>
+            <TableIoToolbar :count="assets.length" :on-export="assetIo.onExport" media-label="素材も含める(ZIP)"
+                @import="importOpen = true" />
         </UiToolbar>
 
         <DataTable :columns="columns" :rows="rows" row-key="id" selectable v-model:selected="selectedAssets"
@@ -25,6 +27,9 @@
                 </div>
             </template>
         </DataTable>
+
+        <TableImportDialog v-model="importOpen" :on-preview="assetIo.onPreviewImport" allow-replace media-label="素材フォルダ"
+            media-hint="CSVの「名前」列と同じファイル名のファイルが入ったフォルダ。ZIPなら不要です。置き換えでも、イベントが使っている素材は削除しません" />
 
         <UiDialog :model-value="showAddModal" title="アセットを追加" size="md" :persistent="uploading"
             confirm-label="追加" :loading="uploading" :confirm-disabled="!selectedFiles.length"
@@ -66,12 +71,15 @@
 </template>
 
 <script setup lang="ts">
-import { DataTable, UiButton, UiDialog, UiToolbar, useConfirm } from '@octopus/ui-kit';
+import { DataTable, TableImportDialog, TableIoToolbar, UiButton, UiDialog, UiToolbar, toast, useConfirm } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../control/asset/asset-service';
+import { AppEventService } from '../../../../control/app-event/app-event-service';
+import { assetTableIo } from '../../../../control/asset-table/asset-table-io';
 import { classifyMedia } from '../../../../model/media/media-kind';
+import { folderOf } from '../../../../model/media/media-catalog';
 
 const assetService = container.resolve(AssetService);
 
@@ -80,11 +88,21 @@ const assets = ref<any[]>([]);
 const objectUrlMap = new Map<string, string>();
 const selectedFiles = ref<File[]>([]);
 const selectedAssets = ref<string[]>([]);
+const importOpen = ref(false);
+
+// CSV の書き出し・取込。取り込んだら一覧を読み直す。
+const assetIo = assetTableIo({
+    assets: assetService,
+    events: container.resolve(AppEventService),
+    afterImport: () => fetchAssets(),
+    warn: (message) => toast.error(message),
+});
 
 const columns: DataTableColumn[] = [
     { key: 'preview', label: 'プレビュー' },
     { key: 'name', label: 'アセット名', sortable: true },
     { key: 'kind', label: '種別', sortable: true },
+    { key: 'folder', label: 'フォルダ', sortable: true },
     { key: 'sizeLabel', label: 'サイズ' },
     { key: 'actions', label: '操作' },
 ];
@@ -94,6 +112,7 @@ const rows = computed(() =>
         id: asset.id,
         name: asset.name,
         kind: deriveAssetKind(asset),
+        folder: folderOf(asset.directoryId),
         sizeLabel: `${(asset.size / 1024 / 1024).toFixed(2)} MB`,
         asset,
     }))

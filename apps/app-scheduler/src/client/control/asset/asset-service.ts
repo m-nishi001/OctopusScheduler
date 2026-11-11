@@ -38,8 +38,8 @@ export class AssetService {
   }
 
   /** 取込の反映(一覧は1回だけ書く)。一覧を開いている画面と同期に知らせる。 */
-  async applyImport(files: readonly ImportedAsset[]): Promise<void> {
-    await this.assetRepository.applyImport(files);
+  async applyImport(files: readonly ImportedAsset[], directories?: ReadonlyMap<string, string | undefined>): Promise<void> {
+    await this.assetRepository.applyImport(files, directories);
     window.dispatchEvent(new CustomEvent("assets:updated", { detail: { added: files.map((f) => f.id) } }));
     eventBus.emit("syncDirty");
   }
