@@ -2,9 +2,10 @@
  * 景品の表(CSV)への対応。汎用の判断(差分・往復・エラー)は `@octopus/table-io` に任せ、ここは列と検証だけを持つ。
  *
  * - 取り込む対象はレコードの景品そのもの({@link Prize})。画像・音声はファイル名(素材の名前)で持つ。
- * - 列: `ID, 名前*, 景品ランク, アニメーション(ルーレット|スロット), 確変対応(あり|なし), 画像1, 画像2, 当選画像1, 当選画像2, BGM1, BGM2`。
+ * - 列: `ID, 名前*, 景品ランク, アニメーション(ルーレット|スロット), 確変対応(あり|なし), 抽選画像, 当選画像, 当選BGM, 確変_抽選画像, 確変_当選画像, 確変_当選BGM`。
+ *   内部の項目との対応: 抽選画像=image、当選画像=winningImage1、当選BGM=bgm1、確変_抽選画像=image2、確変_当選画像=winningImage2、確変_当選BGM=bgm2。
  * - 景品ランクは1〜5(標準3、5=豪華でレア)。古い書き出しの「当選確率の重み」列は意味が違うので読まずに無視する(ランクは既定の3になる)。
- * - 確変対応は あり/なし(ON/OFF・true/false・1/0 も可)。ありの景品だけが確変ターンのフェイク演出に使われ、画像2・当選画像2・BGM2が有効になる。
+ * - 確変対応は あり/なし(それ以外の書き方はエラー)。ありの景品だけが確変ターンのフェイク演出に使われ、確変_ の3列が有効になる。
  *   列が無い・空のセルは、いまのまま(新規は未設定。2枚目の素材があればありとして扱う)。
  * - 空のセル = いまのまま(新規なら未設定)。素材のセルは `-` で外す。
  * - 並び順(`order`)は列に無い。置き換えではファイルの行の順がそのまま並び順、追加・更新では既存の並びを保って新しい景品を末尾に足す
@@ -22,32 +23,39 @@ export const PRIZE_CSV_NAME = "prizes.csv";
 const ANIMATION_LABELS: Readonly<Record<string, string>> = { roulette: "ルーレット", slot: "スロット" };
 const DEFAULT_ANIMATION = "roulette";
 
-/** 確変対応のセルの書き方。 */
-const KAKUHEN_ON = ["あり", "on", "true", "1", "はい", "○"];
-const KAKUHEN_OFF = ["なし", "off", "false", "0", "いいえ", "×"];
+/** 確変対応のセルの書き方(あり/なしだけ)。 */
+const KAKUHEN_ON = "あり";
+const KAKUHEN_OFF = "なし";
+
+/** 素材の列(CSV の列名と内部の項目の対応)。確変_ で始まる列は確変対応ありの景品だけが使う2つ目の素材。 */
+const MEDIA_COLUMNS = [
+  ["image", "抽選画像"],
+  ["winningImage1", "当選画像"],
+  ["bgm1", "当選BGM"],
+  ["image2", "確変_抽選画像"],
+  ["winningImage2", "確変_当選画像"],
+  ["bgm2", "確変_当選BGM"],
+] as const;
 
 export const PRIZE_HEADERS: readonly Header[] = [
-  { key: "id", label: "ID", aliases: ["景品ID", "prizeId"] },
-  { key: "name", label: "名前", aliases: ["name", "景品名"], required: true },
-  { key: "rank", label: "景品ランク", aliases: ["rank", "ランク"] },
-  { key: "animation", label: "アニメーション", aliases: ["animation", "抽選アニメーション"] },
-  { key: "kakuhen", label: "確変対応", aliases: ["kakuhen", "確変"] },
-  { key: "image", label: "画像1", aliases: ["image", "image1", "画像"], media: true },
-  { key: "image2", label: "画像2", aliases: ["image2"], media: true },
-  { key: "winningImage1", label: "当選画像1", aliases: ["winningImage1"], media: true },
-  { key: "winningImage2", label: "当選画像2", aliases: ["winningImage2"], media: true },
-  { key: "bgm1", label: "BGM1", aliases: ["bgm1"], media: true },
-  { key: "bgm2", label: "BGM2", aliases: ["bgm2"], media: true },
+  { key: "id", label: "ID" },
+  { key: "name", label: "名前", required: true },
+  { key: "rank", label: "景品ランク" },
+  { key: "animation", label: "アニメーション" },
+  { key: "kakuhen", label: "確変対応" },
+  ...MEDIA_COLUMNS.map(([key, label]): Header => ({ key, label, media: true })),
 ];
 
-const MEDIA_COLUMNS = [
-  ["image", "画像1"],
-  ["image2", "画像2"],
-  ["winningImage1", "当選画像1"],
-  ["winningImage2", "当選画像2"],
-  ["bgm1", "BGM1"],
-  ["bgm2", "BGM2"],
-] as const;
+/** 使えなくなった古い見出し → 今の見出し。ファイルに残っていれば、黙って無視せずエラーにする。 */
+export const PRIZE_RETIRED_HEADERS: Readonly<Record<string, string>> = {
+  画像1: "抽選画像",
+  画像: "抽選画像",
+  当選画像1: "当選画像",
+  BGM1: "当選BGM",
+  画像2: "確変_抽選画像",
+  当選画像2: "確変_当選画像",
+  BGM2: "確変_当選BGM",
+};
 
 export interface PrizeAdapterOptions {
   /** 使える素材の名前(いまの素材 + 選ばれたファイル)。CSV が指す素材がこの中に無ければエラー。省略すると検査しない(書き出し用)。 */
@@ -69,13 +77,8 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
       name: p.name,
       rank: p.rank === undefined ? "" : String(p.rank),
       animation: ANIMATION_LABELS[p.animation ?? DEFAULT_ANIMATION] ?? p.animation ?? "",
-      kakuhen: isKakuhenPrize(p) ? "あり" : "なし",
-      image: p.image ?? "",
-      image2: p.image2 ?? "",
-      winningImage1: p.winningImage1 ?? "",
-      winningImage2: p.winningImage2 ?? "",
-      bgm1: p.bgm1 ?? "",
-      bgm2: p.bgm2 ?? "",
+      kakuhen: isKakuhenPrize(p) ? KAKUHEN_ON : KAKUHEN_OFF,
+      ...Object.fromEntries(MEDIA_COLUMNS.map(([key]) => [key, p[key] ?? ""])),
     }),
     fromRow(row, existing) {
       if (!row.name) return "名前が空です";
@@ -96,9 +99,9 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
 
       let kakuhen = existing?.kakuhen;
       if (row.kakuhen) {
-        const v = row.kakuhen.trim().toLowerCase();
-        if (KAKUHEN_ON.includes(v)) kakuhen = true;
-        else if (KAKUHEN_OFF.includes(v)) kakuhen = false;
+        const v = row.kakuhen.trim();
+        if (v === KAKUHEN_ON) kakuhen = true;
+        else if (v === KAKUHEN_OFF) kakuhen = false;
         else return "確変対応は「あり」か「なし」で入力してください";
       }
 

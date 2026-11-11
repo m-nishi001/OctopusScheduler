@@ -33,7 +33,7 @@ function mediaDir(tune: Parameters<typeof makeWav>[0], color = "#3b82f6"): strin
   return dir;
 }
 
-const header = "ID,名前,景品ランク,アニメーション,画像1,BGM1";
+const header = "ID,名前,景品ランク,アニメーション,抽選画像,当選BGM";
 const csvOf = () =>
   [header, ...Array.from({ length: COUNT }, (_, i) => `${idOf(i + 1)},${nameOf(i + 1)},4,スロット,${SHARED_IMAGE},${SHARED_BGM}`)].join("\r\n") + "\r\n";
 const table = (text: string, name = "prizes.csv") => ({ name, mimeType: "text/csv", buffer: Buffer.from(text, "utf-8") });
@@ -121,7 +121,7 @@ test.describe("景品の CSV 取込・書き出し", () => {
     const csvFile = await csvDownload;
     expect(csvFile.suggestedFilename()).toBe("prizes.csv");
     const csvText = readFileSync(await csvFile.path(), "utf-8");
-    expect(csvText.startsWith("﻿ID,名前,景品ランク,アニメーション,確変対応,画像1,画像2,当選画像1,当選画像2,BGM1,BGM2")).toBe(true);
+    expect(csvText.startsWith("﻿ID,名前,景品ランク,アニメーション,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM")).toBe(true);
     expect(csvText).toContain(`${idOf(1)},${nameOf(1)},4,スロット,なし,${SHARED_IMAGE},`);
 
     await admin.page.getByTestId("table-export-media").check();

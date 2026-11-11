@@ -8,24 +8,24 @@
             <div class="preview-half">
               <img v-if="prize.image" :src="urlOf(prize.image) || BLANK_IMAGE"
                 alt="image1" class="preview-img" @error="onImageError" />
-              <div v-else class="preview-placeholder small">画像1なし</div>
+              <div v-else class="preview-placeholder small">抽選画像なし</div>
             </div>
             <div class="preview-half">
               <img v-if="prize.image2" :src="urlOf(prize.image2) || BLANK_IMAGE"
                 alt="image2" class="preview-img" @error="onImageError" />
-              <div v-else class="preview-placeholder small">画像2なし</div>
+              <div v-else class="preview-placeholder small">確変_抽選画像なし</div>
             </div>
             <div class="preview-half">
               <img v-if="prize.winningImage1"
                 :src="urlOf(prize.winningImage1) || BLANK_IMAGE" alt="winning1"
                 class="preview-img" @error="onImageError" />
-              <div v-else class="preview-placeholder small">当選1なし</div>
+              <div v-else class="preview-placeholder small">当選画像なし</div>
             </div>
             <div class="preview-half">
               <img v-if="prize.winningImage2"
                 :src="urlOf(prize.winningImage2) || BLANK_IMAGE" alt="winning2"
                 class="preview-img" @error="onImageError" />
-              <div v-else class="preview-placeholder small">当選2なし</div>
+              <div v-else class="preview-placeholder small">確変_当選画像なし</div>
             </div>
           </template>
           <template v-else>

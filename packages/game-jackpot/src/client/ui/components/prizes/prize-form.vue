@@ -22,7 +22,7 @@
         </label>
         <p class="kakuhen-hint">
           ONにすると確変ターンで『当たり…だが！』のフェイク演出に使われます。1枚目＝フェイク、2枚目＝本当の結果。
-          OFFの間は、画像2・当選画像2・BGM2は使えません（入力済みの内容は消さずに残しますが、抽選・演出では使いません）。
+          OFFの間は、確変_抽選画像・確変_当選画像・確変_当選BGMは使えません（入力済みの内容は消さずに残しますが、抽選・演出では使いません）。
         </p>
       </div>
 
@@ -58,14 +58,14 @@ import { DEFAULT_PRIZE_RANK, MAX_PRIZE_RANK, MIN_PRIZE_RANK, prizeRankToWeight }
 /** 景品の素材欄(画像4つ・BGM2つ)。どの項目に入るか・表示名・画面上の位置。 */
 type MediaField = 'image' | 'image2' | 'winningImage1' | 'winningImage2' | 'bgm1' | 'bgm2';
 const IMAGE_SLOTS: { field: MediaField; label: string; area: string; second?: boolean }[] = [
-  { field: 'image', label: '画像1', area: 'image1-preview' },
-  { field: 'image2', label: '画像2', area: 'image2-section', second: true },
-  { field: 'winningImage1', label: '当選画像1', area: 'winning-image1-section' },
-  { field: 'winningImage2', label: '当選画像2', area: 'winning-image2-section', second: true },
+  { field: 'image', label: '抽選画像', area: 'image1-preview' },
+  { field: 'image2', label: '確変_抽選画像', area: 'image2-section', second: true },
+  { field: 'winningImage1', label: '当選画像', area: 'winning-image1-section' },
+  { field: 'winningImage2', label: '確変_当選画像', area: 'winning-image2-section', second: true },
 ];
 const BGM_SLOTS: { field: MediaField; label: string; second?: boolean }[] = [
-  { field: 'bgm1', label: 'BGM1' },
-  { field: 'bgm2', label: 'BGM2', second: true },
+  { field: 'bgm1', label: '当選BGM' },
+  { field: 'bgm2', label: '確変_当選BGM', second: true },
 ];
 const MEDIA_FIELDS = [...IMAGE_SLOTS, ...BGM_SLOTS].map((s) => s.field);
 
@@ -177,7 +177,7 @@ function cancel() {
   min-height: 0;
 }
 
-/* 確変対応のチェックと、それに連動する2枚目の欄(画像2・当選画像2・BGM2)。連動する欄は点線の枠でまとめる */
+/* 確変対応のチェックと、それに連動する2枚目の欄(確変_抽選画像・確変_当選画像・確変_当選BGM)。連動する欄は点線の枠でまとめる */
 .kakuhen-field {
   grid-column: 1 / -1;
   grid-row: 2;
