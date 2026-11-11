@@ -6,7 +6,7 @@ import { AccountsRepository } from "@octopus/accounts";
 import type { Member as DirectoryMember } from "@octopus/accounts";
 import type { Member } from "./member";
 import type { JackpotMemberExtra } from "./jackpot-member-extra";
-import { JACKPOT_SCHEMA_VERSION, migrateMemberExtraData } from "../schema-migration";
+import { MEMBER_EXTRA_SCHEMA_VERSION, migrateMemberExtraData } from "../schema-migration";
 import type { MemberExtraData } from "../schema-migration";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
@@ -64,7 +64,7 @@ export class MemberRepository {
     await this.extraStore.update((current) => {
       const extras = new Map(migrateMemberExtraData(current).data.extras.map((e) => [e.memberId, e] as const));
       change(extras);
-      return { schemaVersion: JACKPOT_SCHEMA_VERSION, extras: Array.from(extras.values()) };
+      return { schemaVersion: MEMBER_EXTRA_SCHEMA_VERSION, extras: Array.from(extras.values()) };
     });
     eventBus.emit("syncDirty");
   }

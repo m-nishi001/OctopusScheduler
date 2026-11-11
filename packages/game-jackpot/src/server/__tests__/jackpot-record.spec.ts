@@ -34,8 +34,8 @@ describe("screenMediaNames", () => {
   });
 
   it("デモ・結果画面の BGM と効果音、本抽選のメンバー抽選 BGM の一覧を集める(空は含めない)", () => {
-    expect(screenMediaNames(screen({ demoBgm: "d.mp3", demoSe1: "", demoSe2: "e.mp3" })).sort()).toEqual(["d.mp3", "e.mp3"]);
-    expect(screenMediaNames(screen({ resultBgm: "r.mp3", resultSe1: "s1.mp3" })).sort()).toEqual(["r.mp3", "s1.mp3"]);
+    expect(screenMediaNames(screen({ demoBgm: "d.mp3", demoDrawSe: "e.mp3" })).sort()).toEqual(["d.mp3", "e.mp3"]);
+    expect(screenMediaNames(screen({ resultBgm: "r.mp3" })).sort()).toEqual(["r.mp3"]);
     expect(screenMediaNames(screen({ memberLotteryBgms: ["m1.mp3", "", "m2.mp3"], prizeStopSec: 3 })).sort()).toEqual(["m1.mp3", "m2.mp3"]);
   });
 
