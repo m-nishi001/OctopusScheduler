@@ -113,23 +113,35 @@ export class AssetRepository {
 
   /**
    * 取込の反映: 中身を端末に並列に入れ、一覧を1回だけ書く。
-   * 一覧に同じ `id` があればその素材の中身を差し替え(名前・フォルダ・登録日時は残す)、無ければ新しい素材として追加する。
+   * 一覧に同じ `id` があればその素材の中身を差し替え(名前・登録日時は残す)、無ければ新しい素材として追加する。
+   * `directories` に `id` があれば、その素材の置き場所(`directoryId`)をそれにする(値が undefined = 置き場直下)。
+   * 中身を差し替えずに置き場所だけを変える素材は、`files` に入れず `directories` だけに入れる。
    */
-  async applyImport(files: readonly ImportedAsset[], pool?: PoolOptions): Promise<void> {
-    if (files.length === 0) return;
+  async applyImport(files: readonly ImportedAsset[], directories: ReadonlyMap<string, string | undefined> = new Map(), pool?: PoolOptions): Promise<void> {
+    if (files.length === 0 && directories.size === 0) return;
     await this.clearLegacy();
     await mapPool(files, (f) => this.blobs.put(f.hash, f.blob), pool);
     const now = new Date().toISOString();
     const incoming = new Map(files.map((f) => [f.id, f] as const));
     await this.list.update((current) => {
       const known = new Set((current ?? []).map((e) => e.id));
+      const place = (e: AssetRecordEntry): AssetRecordEntry => {
+        if (!directories.has(e.id)) return e;
+        const directoryId = directories.get(e.id);
+        if (directoryId === (e.directoryId || undefined)) return e;
+        const moved: AssetRecordEntry = { ...e, directoryId, lastUpdated: now };
+        if (!directoryId) delete moved.directoryId;
+        return moved;
+      };
       const replaced = (current ?? []).map((e): AssetRecordEntry => {
         const f = incoming.get(e.id);
-        return f ? { ...e, mime: f.blob.type || "application/octet-stream", hash: f.hash, size: f.blob.size, lastUpdated: now } : e;
+        return place(f ? { ...e, mime: f.blob.type || "application/octet-stream", hash: f.hash, size: f.blob.size, lastUpdated: now } : e);
       });
       const added = files
         .filter((f) => !known.has(f.id))
-        .map((f): AssetRecordEntry => ({ id: f.id, name: f.name, mime: f.blob.type || "application/octet-stream", hash: f.hash, size: f.blob.size, uploadedAt: now, lastUpdated: now }));
+        .map((f): AssetRecordEntry =>
+          place({ id: f.id, name: f.name, mime: f.blob.type || "application/octet-stream", hash: f.hash, size: f.blob.size, uploadedAt: now, lastUpdated: now })
+        );
       return [...replaced, ...added];
     });
   }
