@@ -9,15 +9,24 @@
     <template v-if="activeKey === 'screens'" #subtabs>
       <router-link v-for="s in screenTabs" :key="s.path" :to="`${BASE}/screens/${s.path}`" class="sub-link"
         active-class="active-sub">{{ s.label }}</router-link>
+      <!-- 画面設定の全画面をまとめて書き出す・取り込む(取り込んだら、開いている画面の入力欄も読み直す) -->
+      <TableIoToolbar :count="rowCount" :on-export="screenIo.onExport" media-label="素材も含める(ZIP)" @import="importOpen = true" />
     </template>
-    <router-view />
+    <router-view :key="reloadKey" />
+    <TableImportDialog v-model="importOpen" :on-preview="screenIo.onPreviewImport" media-label="素材フォルダ"
+      media-hint="CSVの素材・効果音の列のファイル名と同じファイルが入ったフォルダ。ZIPなら不要です。ファイルに出てくる画面だけを、まるごと置き換えます" />
   </PageShell>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { HeaderActions, PageShell, UiButton, toast } from '@octopus/ui-kit';
+import { container } from 'tsyringe';
+import { eventBus } from '@octopus/client-common/events/event-bus';
+import { HeaderActions, PageShell, TableImportDialog, TableIoToolbar, UiButton, toast } from '@octopus/ui-kit';
+import { JackpotRepository } from '@model/jackpot-repository';
+import { screenTableIo } from '../../../../control/screen-table/screen-table-io';
+import { screensToRows } from '../../../../control/screen-table/screen-table';
 import { DEMO_QUERY_KEY, setJackpotScope } from '@model/jackpot-session';
 import { SYNC_KIND_LABELS, useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
@@ -32,6 +41,21 @@ setJackpotScope('live');
 
 // 設定画面からの動作確認用。抽選結果・確変状態はデモ専用ストアに分離される。
 const startDemo = () => router.push({ path: '/jackpot-opening', query: { [DEMO_QUERY_KEY]: '1' } });
+
+// 画面設定の CSV/ZIP の書き出し・取込。取り込んだら、開いている画面を作り直して読み直す。
+const repo = container.resolve(JackpotRepository);
+const importOpen = ref(false);
+const reloadKey = ref(0);
+const rowCount = ref(0);
+const refreshCount = async () => { rowCount.value = screensToRows(await repo.getScreenSettings()).length; };
+const screenIo = screenTableIo({
+  repo,
+  afterImport: async () => { reloadKey.value++; await refreshCount(); },
+  warn: (message) => toast.error(message),
+});
+onMounted(() => { void refreshCount(); eventBus.on('syncPulled', refreshCount); });
+watch(() => route.path, () => { void refreshCount(); });
+onBeforeUnmount(() => eventBus.off('syncPulled', refreshCount));
 
 const tabs = [
   { key: 'members', label: 'メンバー' },
