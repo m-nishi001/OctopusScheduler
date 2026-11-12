@@ -18,7 +18,7 @@ const ALL: ScreenSettingRecord[] = [
   }),
   rec("description", "description-screen-settings", { bgm: "", contents: [{ type: "text", content: "説明", effect: "fade", duration: 500 }] }),
   rec("demo", "demo-screen-settings", { demoBgm: "a.mp3", demoDrawSe: "se.wav" }),
-  rec("main", "main-screen-settings", { memberLotteryBgms: ["a.mp3", "b.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [3, 7], prizeStopSec: 6 }),
+  rec("main", "main-screen-settings", { memberLotteryBgms: ["a.mp3", "b.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [3, 7], prizeStopSec: 6, participantStop: false }),
   rec("result", "result-screen-settings", { resultBgm: "b.mp3" }),
   rec("ending", "ending-screen-settings", { bgm: "", contents: [] }),
 ];
@@ -30,7 +30,7 @@ describe("画面設定 -> 行", () => {
       "オープニング/BGM", "オープニング/コンテンツ", "オープニング/コンテンツ", "オープニング/コンテンツ",
       "説明/コンテンツ",
       "デモ抽選/BGM", "デモ抽選/抽選SE",
-      "本抽選/メンバー抽選BGM", "本抽選/メンバー抽選BGM", "本抽選/確変の回", "本抽選/停止秒数",
+      "本抽選/メンバー抽選BGM", "本抽選/メンバー抽選BGM", "本抽選/確変の回", "本抽選/停止秒数", "本抽選/参加者の停止",
       "最終結果/BGM",
     ]);
     expect(rows[1]).toMatchObject({ type: "テキスト", text: "ようこそ\n二行目", effect: "スクロール", seconds: "3", se: "se.wav", name: "題" });
@@ -38,12 +38,13 @@ describe("画面設定 -> 行", () => {
     expect(rows[3]).toMatchObject({ type: "HTML", text: "<b>太字</b>", effect: "静止" });
     expect(rows[9]).toMatchObject({ text: "3, 7" });
     expect(rows[10]).toMatchObject({ text: "6" });
+    expect(rows[11]).toMatchObject({ item: "参加者の停止", text: "不可" });
   });
 
   it("設定が無い画面は行が無い。確変はおまかせ・なしの書き方になる", () => {
     expect(screensToRows([])).toEqual([]);
     const auto = screensToRows([rec("main", "main-screen-settings", {})]);
-    expect(auto.map((r) => r.text)).toEqual(["おまかせ", "4"]);
+    expect(auto.map((r) => r.text)).toEqual(["おまかせ", "4", "可"]);
     const none = screensToRows([rec("main", "main-screen-settings", { kakuhenMode: "fixed", kakuhenFixedTimings: [] })]);
     expect(none[0].text).toBe("なし");
   });
@@ -55,6 +56,7 @@ describe("行 -> 画面設定(往復)", () => {
     const back = toScreens(rows);
     expect(back.errors.every((e) => e === null)).toBe(true);
     expect(screensToRows(back.records).map(rowText)).toEqual(rows.map(rowText));
+    expect(JSON.parse(back.records.find((r) => r.settingName === "main-screen-settings")!.settingValue).participantStop).toBe(false);
     expect(back.records.map((r) => r.settingName)).toEqual(["opening-screen-settings", "description-screen-settings", "demo-screen-settings", "main-screen-settings", "result-screen-settings"]);
   });
 
@@ -63,7 +65,7 @@ describe("行 -> 画面設定(往復)", () => {
     expect(records).toHaveLength(1);
     expect(JSON.parse(records[0].settingValue)).toEqual({ demoBgm: "", demoDrawSe: "se.wav" });
     const main = toScreens([{ screen: "本抽選", item: "確変の回", text: "おまかせ" }]).records[0];
-    expect(JSON.parse(main.settingValue)).toEqual({ memberLotteryBgms: [], kakuhenMode: "auto", kakuhenFixedTimings: [], prizeStopSec: 4 });
+    expect(JSON.parse(main.settingValue)).toEqual({ memberLotteryBgms: [], kakuhenMode: "auto", kakuhenFixedTimings: [], prizeStopSec: 4, participantStop: true });
   });
 
   it("コンテンツは行の順。秒数が空なら3秒、効果が空ならスクロール。テキストは text、HTML は content に入る", () => {
@@ -147,5 +149,14 @@ describe("行のエラー", () => {
     expect(e[0]).toContain("確変の回は");
     expect(e[1]).toContain("停止秒数は2〜15");
     expect(errorsOf([{ screen: "本抽選", item: "確変の回", text: "3, 7" }, { screen: "本抽選", item: "停止秒数", text: "6" }])).toEqual([null, null]);
+  });
+
+  it("参加者の停止は 可・不可 のどちらか。空欄は可。読めない値はエラー", () => {
+    const stopOf = (text: string) => JSON.parse(toScreens([{ screen: "本抽選", item: "参加者の停止", text }]).records[0].settingValue).participantStop;
+    expect(stopOf("可")).toBe(true);
+    expect(stopOf("不可")).toBe(false);
+    expect(stopOf("")).toBe(true);
+    
+    expect(errorsOf([{ screen: "本抽選", item: "参加者の停止", text: "たぶん" }])[0]).toContain("参加者の停止は 可・不可");
   });
 });

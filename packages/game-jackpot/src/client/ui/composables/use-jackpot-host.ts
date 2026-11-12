@@ -24,6 +24,14 @@ export interface JackpotHost {
   hold(): void;
 }
 
+export interface JackpotHostOptions {
+  /**
+   * 景品抽選で、当選した参加者が停止できるか(本抽選画面設定)。公開のたびに読むので、設定の変更はその場で効く。
+   * false のときは参加者に停止ボタンを出さず、参加者からの stopRoulette も無視する。管理端末とホスト画面の Enter は変わらない。
+   */
+  participantStop?: () => boolean;
+}
+
 const NAMESPACE = JACKPOT_NS;
 
 /**
@@ -39,7 +47,8 @@ let owner: symbol | null = null;
  *
  * 必ずコンポーネントの setup() の同期実行中に呼ぶ(コンポーネントの破棄時に後片付けを登録するため)。
  */
-export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
+export function useJackpotHost(handlers: JackpotHostHandlers, options: JackpotHostOptions = {}): JackpotHost {
+  const participantStop = options.participantStop ?? (() => true);
   if (!container.isRegistered(HostAgent)) return { publish: () => undefined, hold: () => undefined };
   const agent = container.resolve(HostAgent);
   let canStop = false;
@@ -58,7 +67,7 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
         break;
       case "stopRoulette":
         // 止められる場面でだけ受け付ける。参加者の押下が遅れて届いても、次の場面を誤って進めない。
-        if (canStop) handlers.stopRoulette();
+        if (canStop && (command.issuerRole !== "client" || participantStop())) handlers.stopRoulette();
         break;
       default:
         break;
@@ -86,7 +95,7 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
       }
       canStop = state.canStop;
       // メンバー抽選は管理者が進行する。景品抽選の停止は、当選した本人だけが送れる(宛先を当選者に絞る。管理者は常に可)。
-      const winnerId = state.canStop && state.stage === "prize" ? state.memberId : null;
+      const winnerId = state.canStop && state.stage === "prize" && participantStop() ? state.memberId : null;
       void agent.publishSlice(NAMESPACE, state, winnerId ? [{ key: JACKPOT_STOP_COMMAND, memberIds: [winnerId] }] : []);
     },
     hold() {

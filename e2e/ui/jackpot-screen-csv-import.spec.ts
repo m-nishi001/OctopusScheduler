@@ -39,6 +39,7 @@ const ROWS = [
   `本抽選,メンバー抽選BGM,${BGM},,,,,,`,
   `本抽選,確変の回,,"3, 7",,,,,`,
   `本抽選,停止秒数,,6,,,,,`,
+  `本抽選,参加者の停止,,不可,,,,,`,
   `最終結果,BGM,${SE},,,,,,`,
 ];
 const csvOf = (...lines: string[]) => [HEADER, ...lines].join("\r\n") + "\r\n";
@@ -84,6 +85,7 @@ test.describe("ジャックポット画面設定の CSV 取込・書き出し", 
     await page.getByRole("link", { name: "本抽選" }).click();
     await expect(page.getByTestId("kakuhen-mode")).toHaveValue("fixed");
     await expect(page.getByTestId("kakuhen-timings")).toHaveValue("3, 7");
+    await expect(page.getByTestId("participant-stop-checkbox")).not.toBeChecked();
 
     // 書き出し(CSV): 取込と同じ書式
     const csvDownload = page.waitForEvent("download");
@@ -95,6 +97,7 @@ test.describe("ジャックポット画面設定の CSV 取込・書き出し", 
     expect(csvText).toContain(`オープニング,BGM,${BGM},,,,,,\r\n`);
     expect(csvText).toContain(`オープニング,コンテンツ,,ようこそ,テキスト,フェード,2,${SE},あいさつ\r\n`);
     expect(csvText).toContain("本抽選,確変の回,,\"3, 7\",,,,,\r\n");
+    expect(csvText).toContain("本抽選,参加者の停止,,不可,,,,,\r\n");
 
     // 書き出し(ZIP): 参照されている素材が media/ に入る
     await page.getByTestId("table-export-media").check();

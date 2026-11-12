@@ -6,6 +6,7 @@ import { DrawApplicationService } from "@control/draw/draw-application-service";
 import { JackpotRepository } from "@model/jackpot-repository";
 import { MemberRepository } from "@model/member/member-repository";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
+import { parseParticipantStop, DEFAULT_PARTICIPANT_STOP } from "@model/draw/participant-stop";
 import { parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC } from "@model/draw/prize-stop-sec";
 import { parseKakuhenPlan, AUTO_KAKUHEN_PLAN, type KakuhenPlan } from "@model/draw/kakuhen-plan";
 import { DrawConflictError } from "@model/errors";
@@ -223,9 +224,11 @@ export function useDrawOrchestrator() {
   // セッションのホストとして接続している場合、管理端末の「次へ」と、ホストが許可した
   // 参加者のスマホからの「止める」をEnterキー押下と同じ扱いにし、抽選の状態を公開する。
   // onUnmountedを登録するため、必ずonMountedの外(setup()の同期実行中)で呼び出す。
+  /** 本抽選画面設定「参加者が景品ルーレットを止めることができる」。設定を読み込むまでは既定(止められる)。 */
+  let participantStop = DEFAULT_PARTICIPANT_STOP;
   let flow: DrawFlowController;
   const advance = () => void flow.advance();
-  const host = useJackpotHost({ advance, stopRoulette: advance });
+  const host = useJackpotHost({ advance, stopRoulette: advance }, { participantStop: () => participantStop });
   const publishHostState = createHostPublisher({
     host,
     tracker: revealTracker,
@@ -278,6 +281,7 @@ export function useDrawOrchestrator() {
       const mainSettings = await container.resolve(ScreenSettingsService).fetchScreenSetting("main", "main-screen-settings");
       kakuhenPlan = parseKakuhenPlan(mainSettings);
       ctx.prizeStopSec = parsePrizeStopSec(mainSettings);
+      participantStop = parseParticipantStop(mainSettings);
       await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
       // 確定済みで公開されていない抽選(再読み込み前に演出の途中だったもの)は、引き直さずに同じ結果で演出し直す
       const pending = await store.pending();
