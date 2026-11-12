@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { exportTable, parseTable, planImport } from "@octopus/table-io";
 import type { ImportMode } from "@octopus/table-io";
 import type { Prize } from "../../../server/jackpot-api-contract";
-import { orderImportedPrizes, PRIZE_HEADERS, prizeAdapter } from "./prize-table";
+import { orderImportedPrizes, PRIZE_HEADERS, PRIZE_RETIRED_HEADERS, prizeAdapter } from "./prize-table";
 
 const prize = (id: string, extra: Partial<Prize> = {}): Prize => ({ id, name: `景品${id}`, order: 1, ...extra });
 const plan = (current: Prize[], csv: string, mode: ImportMode = "upsert", available?: string[], changed: string[] = []) => {
-  const parsed = parseTable(new TextEncoder().encode(csv), PRIZE_HEADERS);
+  const parsed = parseTable(new TextEncoder().encode(csv), PRIZE_HEADERS, { retired: PRIZE_RETIRED_HEADERS });
   if (!parsed.ok) throw new Error(parsed.errors.join());
   return planImport(current, parsed.rows, prizeAdapter({ available: available ? new Set(available) : undefined, newId: () => "gen" }), mode, new Set(changed));
 };
@@ -37,7 +37,7 @@ describe("prizeAdapter", () => {
     const current = [prize("a", { rank: 5, animation: "slot", image: "a.png", bgm1: "b.mp3" })];
     const keep = plan(current, "ID,名前\na,景品a\n");
     expect(keep.rows[0].status).toBe("unchanged");
-    const removed = plan(current, "ID,名前,画像1,BGM1\na,景品a,-,\n");
+    const removed = plan(current, "ID,名前,抽選画像,当選BGM\na,景品a,-,\n");
     expect(removed.rows[0].status).toBe("update");
     expect(removed.upserts[0].image).toBeUndefined();
     expect(removed.upserts[0].bgm1).toBe("b.mp3");
@@ -49,7 +49,7 @@ describe("prizeAdapter", () => {
   });
 
   it("名前が空・景品ランクが範囲外・素材が見つからない行はエラーで、取り込めない", () => {
-    const p = plan([], "ID,名前,景品ランク,画像1\n1,,5,\n2,B,0,\n3,C,5,none.png\n4,D,6,\n5,E,1.5,\n", "upsert", []);
+    const p = plan([], "ID,名前,景品ランク,抽選画像\n1,,5,\n2,B,0,\n3,C,5,none.png\n4,D,6,\n5,E,1.5,\n", "upsert", []);
     expect(p.rows.map((r) => r.status)).toEqual(["error", "error", "error", "error", "error"]);
     expect(p.ok).toBe(false);
     expect(p.upserts).toEqual([]);
@@ -71,13 +71,14 @@ describe("prizeAdapter", () => {
     expect(p.upserts[0]).not.toHaveProperty("weight");
   });
 
-  it("確変対応の列を あり/なし(ON/OFF・true/false・1/0 も可)で読み書きする。列が無い・空なら、いまのまま", () => {
+  it("確変対応の列を あり/なしだけで読み書きする(ON・true・1 などはエラー)。列が無い・空なら、いまのまま", () => {
     const csv = exportTable([prize("a", { kakuhen: true }), prize("b", { kakuhen: false, image2: "x.png" }), prize("c", { image2: "legacy.png" }), prize("d")], prizeAdapter());
     const lines = csv.split("\r\n");
     expect(lines[0]).toContain("確変対応");
     expect(lines.slice(1, 5).map((l) => l.split(",")[4])).toEqual(["あり", "なし", "あり", "なし"]);
-    const p = plan([], "名前,確変対応\nA,あり\nB,なし\nC,ON\nD,off\nE,true\nF,0\nG,\n");
-    expect(p.upserts.map((x) => x.kakuhen)).toEqual([true, false, true, false, true, false, undefined]);
+    const p = plan([], "名前,確変対応\nA,あり\nB,なし\nC,\n");
+    expect(p.upserts.map((x) => x.kakuhen)).toEqual([true, false, undefined]);
+    for (const v of ["ON", "off", "true", "1", "はい"]) expect(plan([], `名前,確変対応\nA,${v}\n`).rows[0]).toMatchObject({ status: "error" });
     const current = [prize("a", { kakuhen: true })];
     expect(plan(current, "ID,名前\na,景品a\n").rows[0].status).toBe("unchanged");
     expect(plan(current, "ID,名前,確変対応\na,景品a,\n").rows[0].status).toBe("unchanged");
@@ -85,14 +86,37 @@ describe("prizeAdapter", () => {
     expect(plan([], "名前,確変対応\nA,たぶん\n").rows[0]).toMatchObject({ status: "error", message: expect.stringContaining("確変対応") });
   });
 
+  it("書き出しの見出しは新しい列名の順で、確変あり/なしの素材が内部の項目へ正しく対応する", () => {
+    const withKakuhen = prize("k", { kakuhen: true, image: "i1.png", winningImage1: "w1.png", bgm1: "b1.mp3", image2: "i2.png", winningImage2: "w2.png", bgm2: "b2.mp3" });
+    const plain = prize("p", { kakuhen: false, image: "pi.png", winningImage1: "pw.png", bgm1: "pb.mp3" });
+    const lines = exportTable([withKakuhen, plain], prizeAdapter()).replace("\uFEFF", "").split("\r\n");
+    expect(lines[0]).toBe("ID,名前,景品ランク,アニメーション,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM");
+    expect(lines[1].split(",").slice(4)).toEqual(["あり", "i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3"]);
+    expect(lines[2].split(",").slice(4)).toEqual(["なし", "pi.png", "pw.png", "pb.mp3", "", "", ""]);
+    const names = ["i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3", "pi.png", "pw.png", "pb.mp3"];
+    const csv = "ID,名前,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM\n,K,あり,i1.png,w1.png,b1.mp3,i2.png,w2.png,b2.mp3\n,P,なし,pi.png,pw.png,pb.mp3,,,\n";
+    const p = plan([], csv, "upsert", names);
+    expect(p.upserts[0]).toMatchObject({ kakuhen: true, image: "i1.png", winningImage1: "w1.png", bgm1: "b1.mp3", image2: "i2.png", winningImage2: "w2.png", bgm2: "b2.mp3" });
+    expect(p.upserts[1]).toMatchObject({ kakuhen: false, image: "pi.png", winningImage1: "pw.png", bgm1: "pb.mp3" });
+    expect(p.upserts[1].image2).toBeUndefined();
+  });
+
+  it("古い列名(画像1・当選画像2・BGM1 など)は、黙って無視せずエラーにする", () => {
+    for (const [old, now] of Object.entries(PRIZE_RETIRED_HEADERS)) {
+      const parsed = parseTable(new TextEncoder().encode(`ID,名前,${old}\n,A,x.png\n`), PRIZE_HEADERS, { retired: PRIZE_RETIRED_HEADERS });
+      expect(parsed).toMatchObject({ ok: false, errors: [expect.stringContaining(`「${old}」`)] });
+      expect(parsed.ok ? "" : parsed.errors[0]).toContain(`「${now}」`);
+    }
+  });
+
   it("素材のフォルダ付きの書き方(images/a.png)でもファイル名で照合する", () => {
-    const p = plan([], "名前,画像1\nA,images/a.png\n", "upsert", ["a.png"]);
+    const p = plan([], "名前,抽選画像\nA,images/a.png\n", "upsert", ["a.png"]);
     expect(p.upserts[0].image).toBe("a.png");
   });
 
   it("差し替える素材を参照している行は、文字列が同じでも更新になる", () => {
     const current = [prize("a", { image: "a.png" })];
-    expect(plan(current, "ID,名前,画像1\na,景品a,a.png\n", "upsert", ["a.png"], ["a.png"]).rows[0].status).toBe("update");
+    expect(plan(current, "ID,名前,抽選画像\na,景品a,a.png\n", "upsert", ["a.png"], ["a.png"]).rows[0].status).toBe("update");
   });
 });
 

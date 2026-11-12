@@ -117,7 +117,7 @@ test("buildJackpotRecord: 景品と画面設定が参照する素材の名前は
   for (const s of screens) {
     assert.equal(typeof s.settingValue, "string");
     const v = JSON.parse(s.settingValue);
-    const names = [v.bgm, v.demoBgm, v.demoSe1, v.resultBgm, v.resultSe1, ...(v.memberLotteryBgms ?? []), ...(v.contents ?? []).flatMap((c) => [c.media, c.se])].filter(Boolean);
+    const names = [v.bgm, v.demoBgm, v.demoDrawSe, v.resultBgm, ...(v.memberLotteryBgms ?? []), ...(v.contents ?? []).flatMap((c) => [c.media, c.se])].filter(Boolean);
     for (const name of names) {
       assert.ok(media[name], `${s.screenName}: ${name}`);
       used.add(name);

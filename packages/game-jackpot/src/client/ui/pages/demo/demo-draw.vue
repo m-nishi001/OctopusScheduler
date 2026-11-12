@@ -63,7 +63,7 @@ export default {
 
     onMounted(async () => {
       const config = await screenSettingsService.fetchScreenSetting('demo', 'demo-screen-settings');
-      demoConfig.value = (config as DemoScreenSetting) ?? new DemoScreenSetting("", "", "");
+      demoConfig.value = (config as DemoScreenSetting) ?? new DemoScreenSetting("", "");
       await bgm.load(demoConfig.value.demoBgm);
       bgm.play();
       await fetchPrizes();
@@ -72,7 +72,7 @@ export default {
 
     const playSE = async (se: string) => {
       if (!demoConfig.value) return;
-      const name = se === 'draw' ? demoConfig.value.demoSe1 : undefined;
+      const name = se === 'draw' ? demoConfig.value.demoDrawSe : undefined;
       if (!name) return;
       const blob = await prizeRepo.blobOf(name);
       if (blob) {

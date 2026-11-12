@@ -99,6 +99,7 @@ import { container } from 'tsyringe';
 import { DataTable, TableImportDialog, TableIoToolbar, UiButton, UiDialog, UiField, toast, useConfirm } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
 import {
+    ADMIN_ROSTER_TABLE,
     AccountsRepository,
     MemberPhotoCache,
     preparePhoto,
@@ -351,6 +352,7 @@ const importOpen = ref(false);
 const roster = rosterTableIo({
     repo,
     photos,
+    table: ADMIN_ROSTER_TABLE,
     currentUserId: () => currentMember.value?.id,
     afterImport: load,
     warn: (message) => toast.error(message),

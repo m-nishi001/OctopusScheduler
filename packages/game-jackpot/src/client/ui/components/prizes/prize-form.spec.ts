@@ -34,7 +34,7 @@ describe("PrizeForm", () => {
   it("画像4つ・BGM2つを、同じ素材選択部品で並べる", async () => {
     const wrapper = await mountForm({ mode: "add" });
     expect(wrapper.findAllComponents(MediaPicker)).toHaveLength(6);
-    for (const label of ["画像1", "画像2", "当選画像1", "当選画像2", "BGM1", "BGM2"]) expect(wrapper.text()).toContain(label);
+    for (const label of ["抽選画像", "確変_抽選画像", "当選画像", "確変_当選画像", "当選BGM", "確変_当選BGM"]) expect(wrapper.text()).toContain(label);
   });
 
   it("登録済みの素材は、種類(画像 / 音声)に合う欄の選択肢に出る", async () => {
@@ -74,9 +74,9 @@ describe("PrizeForm", () => {
 
   describe("確変対応あり", () => {
     const pickers = (wrapper: Awaited<ReturnType<typeof mountForm>>) => wrapper.findAllComponents(MediaPicker);
-    const secondIdx = [1, 3, 5]; // 画像2・当選画像2・BGM2
+    const secondIdx = [1, 3, 5]; // 確変_抽選画像・確変_当選画像・確変_当選BGM
 
-    it("チェックはOFFが既定で、説明文を出す。OFFの間は画像2・当選画像2・BGM2が無効(それ以外は有効)", async () => {
+    it("チェックはOFFが既定で、説明文を出す。OFFの間は確変_の3つが無効(それ以外は有効)", async () => {
       const wrapper = await mountForm({ mode: "add" });
       const box = wrapper.find('[data-testid="kakuhen-checkbox"]');
       expect((box.element as HTMLInputElement).checked).toBe(false);

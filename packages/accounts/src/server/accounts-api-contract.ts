@@ -94,10 +94,14 @@ export interface DeleteMemberArgs {
   id: string;
 }
 
-/** CSV 取込の確定。追加・更新と削除を1回で反映する。管理者を `deleteIds` に含めると全体が拒否される。 */
+/**
+ * CSV 取込の確定。追加・更新と削除を1回で反映する。次のときは全体が拒否される。
+ * 管理者を `deleteIds` に含める / 実行者が自分の管理者権限を外す / 反映後に管理者が0人になる。
+ * 管理者にした人の受付QRのキーは消え、管理者でなくした人のセッションは無効になる。
+ */
 export interface ApplyRosterArgs {
-  /** `photo` は省略=保つ、空文字=外す、値=写真のハッシュ。`id` を省略すると自動採番。 */
-  upserts: { id?: string; name: string; photo?: string }[];
+  /** `photo` は省略=保つ、空文字=外す、値=写真のハッシュ。`isAdmin` は省略=保つ。`id` を省略すると自動採番。 */
+  upserts: { id?: string; name: string; photo?: string; isAdmin?: boolean }[];
   deleteIds: string[];
 }
 

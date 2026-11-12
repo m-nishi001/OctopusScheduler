@@ -207,8 +207,8 @@ test.describe("名簿の CSV 取込・書き出し", () => {
     expect(csvFile.suggestedFilename()).toBe("members.csv");
     const { readFileSync } = await import("node:fs");
     const csvText = readFileSync(await csvFile.path(), "utf-8");
-    expect(csvText.startsWith("﻿ID,名前,写真")).toBe(true);
-    expect(csvText).toContain(`${idOf(1)},${nameOf(1)},\r\n`);
+    expect(csvText.startsWith("﻿ID,名前,写真,管理者")).toBe(true);
+    expect(csvText).toContain(`${idOf(1)},${nameOf(1)},,なし\r\n`);
 
     // 写真つき ZIP: members.csv と media/<id>.<拡張子>(40枚)
     await admin.page.getByTestId("table-export-media").check();

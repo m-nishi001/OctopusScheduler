@@ -110,6 +110,20 @@ describe("AssetRepository", () => {
     expect(await repo.readEntries()).toHaveLength(3);
   });
 
+  it("applyImport: directories で置き場所だけを変えられる(中身は触らない)。未指定は置き場直下に戻す", async () => {
+    await repo.addAssets([asset("a1", "one"), asset("a2", "two")]);
+    const before = (await repo.readEntries()).find((e) => e.id === "a1")!;
+    const dir = "octopus-scheduler/assets/BGM";
+    await repo.applyImport([], new Map([["a1", dir]]));
+    expect((await repo.readEntries()).find((e) => e.id === "a1")).toMatchObject({ directoryId: dir, hash: before.hash });
+    const novel = new Blob(["n"], { type: "image/png" });
+    await repo.applyImport([{ id: "n1", name: "n.png", blob: novel, hash: await hashBlob(novel) }], new Map([["n1", dir], ["a1", undefined]]));
+    const entries = await repo.readEntries();
+    expect(entries.find((e) => e.id === "n1")?.directoryId).toBe(dir);
+    expect("directoryId" in entries.find((e) => e.id === "a1")!).toBe(false);
+    expect(entries.find((e) => e.id === "a2")!.directoryId).toBeUndefined();
+  });
+
   it("同期でサーバーにファイルと一覧が上がり、削除 → 同期でどちらからも消えて、再同期しても戻らない", async () => {
     await repo.addAssets([asset("a1", "one"), asset("a2", "two"), asset("a3", "three")]);
     expect((await sync(repo)).map((r) => r.result)).toEqual(["pushed"]);

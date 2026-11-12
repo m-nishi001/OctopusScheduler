@@ -11,7 +11,7 @@ import { buildZip, diffMedia, exportTable, parseTable, planImport, readImportFil
 import type { ImportMode } from "@octopus/table-io";
 import type { JackpotRecord, Prize } from "../../../server/jackpot-api-contract";
 import type { ImportedFile } from "../../model/jackpot-repository";
-import { orderImportedPrizes, PRIZE_CSV_NAME, PRIZE_HEADERS, prizeAdapter } from "./prize-table";
+import { orderImportedPrizes, PRIZE_CSV_NAME, PRIZE_HEADERS, PRIZE_RETIRED_HEADERS, prizeAdapter } from "./prize-table";
 
 /** 書き出し・取込が使う景品の窓口(`JackpotRepository` がそのまま満たす)。 */
 export interface PrizeTableRepository {
@@ -66,7 +66,7 @@ export async function previewPrizeImport(input: PrizeImportInput, deps: PrizeTab
   if (!read.ok) return read;
   const { csv, files } = read.value;
 
-  const parsed = parseTable(csv, PRIZE_HEADERS);
+  const parsed = parseTable(csv, PRIZE_HEADERS, { retired: PRIZE_RETIRED_HEADERS });
   if (!parsed.ok) return parsed;
 
   // CSV が指していて、選ばれたファイルにある素材だけ、ハッシュを並列に計算する。

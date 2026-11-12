@@ -39,7 +39,7 @@ import type {
   UpdateMemberArgs,
 } from "./accounts-api-contract";
 import { ACCOUNTS_PREFIX } from "./accounts-api-contract";
-import { secure, secureMember } from "./secure";
+import { secure, secureAdminWithMember, secureMember } from "./secure";
 import { existsMemberPhotos, getMemberPhotos, putMemberPhoto } from "./member-photos";
 import {
   addMember,
@@ -115,10 +115,6 @@ _accounts_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
   });
 };
 
-_accounts_applyRoster = async (args: ApplyRosterArgs): Promise<string> => {
-  return respond(() => applyRoster(resolveDeps(), args));
-};
-
 _accounts_putMemberPhoto = async (args: PutMemberPhotoArgs): Promise<string> => {
   return respond(() => putMemberPhoto(resolveDeps(), args));
 };
@@ -190,7 +186,10 @@ _accounts_getRosterUsage = secure("admin", _accounts_getRosterUsage);
 _accounts_addMember = secure("admin", _accounts_addMember);
 _accounts_updateMember = secure("admin", _accounts_updateMember);
 _accounts_deleteMember = secure("admin", _accounts_deleteMember);
-_accounts_applyRoster = secure("admin", _accounts_applyRoster);
+// 一括反映は「誰が実行したか」で自分の管理者権限の剥奪を拒否するので、実行者を受け取る。
+_accounts_applyRoster = secureAdminWithMember(async (args: ApplyRosterArgs, member) =>
+  respond(() => applyRoster(resolveDeps(), args, member.id))
+);
 // 写真は書き込み・存在確認が管理者のみ。読み取りはログイン済みなら参加者も(エントリー画面などで顔を出すため)。
 _accounts_putMemberPhoto = secure("admin", _accounts_putMemberPhoto);
 _accounts_existsMemberPhotos = secure("admin", _accounts_existsMemberPhotos);

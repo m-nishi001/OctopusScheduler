@@ -116,7 +116,7 @@ describe("名簿の変更に伴う孤児写真の削除", () => {
   it("一括反映で写真を差し替えると古い写真が消え、反映に含まれないメンバーの写真は残る", async () => {
     const d = await withPhotos();
     await addMember(d, { id: "u2", name: "花子", photo: B });
-    await applyRoster(d, { upserts: [{ id: "u1", name: "太郎", photo: B }], deleteIds: [] });
+    await applyRoster(d, { upserts: [{ id: "u1", name: "太郎", photo: B }], deleteIds: [] }, "root");
     expect(await existing(d)).toEqual([B]);
   });
 });

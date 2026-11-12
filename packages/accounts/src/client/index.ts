@@ -21,6 +21,8 @@ export {
   photoFileKey,
   photoFileName,
   toRosterMembers,
+  ADMIN_ROSTER_TABLE,
+  ROSTER_ADMIN_HEADERS,
   ROSTER_HEADERS,
   ROSTER_TABLE,
 } from "./control/roster-csv";

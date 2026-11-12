@@ -1,29 +1,22 @@
-/** デモ画面の設定(BGM・効果音)。 */
+/** デモ画面の設定(BGM・抽選の効果音)。 */
 export class DemoScreenSetting {
   readonly type = "demo" as const;
   demoBgm: string;
-  demoSe1: string;
-  demoSe2: string;
+  demoDrawSe: string;
 
-  constructor(demoBgm: string, demoSe1: string, demoSe2: string) {
+  constructor(demoBgm: string, demoDrawSe: string) {
     this.demoBgm = demoBgm;
-    this.demoSe1 = demoSe1;
-    this.demoSe2 = demoSe2;
+    this.demoDrawSe = demoDrawSe;
   }
 
   toRecords(): Map<string, string> {
     const records = new Map<string, string>();
     records.set("demoBgm", this.demoBgm);
-    records.set("demoSe1", this.demoSe1);
-    records.set("demoSe2", this.demoSe2);
+    records.set("demoDrawSe", this.demoDrawSe);
     return records;
   }
 
   static fromRecords(records: Map<string, string>): DemoScreenSetting {
-    return new DemoScreenSetting(
-      records.get("demoBgm") || "",
-      records.get("demoSe1") || "",
-      records.get("demoSe2") || ""
-    );
+    return new DemoScreenSetting(records.get("demoBgm") || "", records.get("demoDrawSe") || "");
   }
 }

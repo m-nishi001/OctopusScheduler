@@ -103,7 +103,7 @@ describe("accounts-use-cases", () => {
         { id: "u2", name: "次郎" },
       ],
       deleteIds: [],
-    });
+    }, "root");
     expect(result).toEqual({ upserted: 2, deleted: 0 });
     expect(await listMembers(deps)).toEqual([
       { id: "u1", name: "太郎(改)" },
@@ -114,7 +114,7 @@ describe("accounts-use-cases", () => {
 
   it("auto-generates ids for replaced members that omit one", async () => {
     const deps = createDeps();
-    const result = await applyRoster(deps, { upserts: [{ id: "", name: "太郎" }], deleteIds: [] });
+    const result = await applyRoster(deps, { upserts: [{ id: "", name: "太郎" }], deleteIds: [] }, "root");
     expect(result).toEqual({ upserted: 1, deleted: 0 });
     expect(await listMembers(deps)).toEqual([{ id: "generated-1", name: "太郎" }]);
   });
@@ -140,7 +140,7 @@ describe("accounts-use-cases", () => {
       await Promise.all([
         ...ids.slice(0, 10).map((id) => deleteMember(deps, id)),
         ...ids.slice(10, 15).map((id) => updateMember(deps, { id, name: `${id}(改)` })),
-        applyRoster(deps, { upserts: [{ id: "extra", name: "追加" }], deleteIds: [] }),
+        applyRoster(deps, { upserts: [{ id: "extra", name: "追加" }], deleteIds: [] }, "root"),
       ]);
       const members = await listMembers(deps);
       expect(members.map((m) => m.id).sort()).toEqual([...ids.slice(10), "extra"].sort());

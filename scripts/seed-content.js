@@ -221,8 +221,8 @@ export function buildScreenSettings() {
       kakuhenMode: "auto",
       kakuhenFixedTimings: [],
     }),
-    screen("demo", "demo-screen-settings", { demoBgm: "draw.wav", demoSe1: "fanfare.wav", demoSe2: "" }),
-    screen("result", "result-screen-settings", { resultBgm: "ending.wav", resultSe1: "fanfare.wav", resultSe2: "" }),
+    screen("demo", "demo-screen-settings", { demoBgm: "draw.wav", demoDrawSe: "fanfare.wav" }),
+    screen("result", "result-screen-settings", { resultBgm: "ending.wav" }),
     screen("ending", "ending-screen-settings", {
       bgm: "ending.wav",
       contents: [
@@ -313,7 +313,7 @@ export function buildQuizAssets() {
 }
 
 /** ジャックポットの素材の名前(景品と画面設定が参照している名前)。 */
-const SCREEN_MEDIA_KEYS = new Set(["bgm", "media", "se", "demoBgm", "demoSe1", "demoSe2", "resultBgm", "resultSe1", "resultSe2"]);
+const SCREEN_MEDIA_KEYS = new Set(["bgm", "media", "se", "demoBgm", "demoDrawSe", "resultBgm"]);
 function screenMediaNames(settingValue) {
   const names = [];
   const walk = (v) => {

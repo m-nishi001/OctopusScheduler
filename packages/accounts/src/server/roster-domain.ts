@@ -99,7 +99,7 @@ export function deleteMemberFromRoster(roster: Member[], id: string): RosterChan
 /**
  * id をキーに追加または更新する(一括反映・CSV 取込用)。入力に含まれない既存メンバーは消さない
  * (名簿は他モジュールとも共有されているので、一括置換で消してはいけない)。
- * 管理者権限は付与も剥奪もしない(既存値を保つ。新規は管理者にならない)。
+ * `isAdmin` の省略は、いまの値を保つ(新規は管理者にならない)。管理者にしてよいかの判断は {@link applyRosterChange} が持つ。
  * 同じ id が入力に複数あれば、後のものが勝つ。
  */
 export function upsertMembers(roster: Member[], rows: MemberInput[], newId: () => string): RosterChange {
@@ -109,22 +109,33 @@ export function upsertMembers(roster: Member[], rows: MemberInput[], newId: () =
     const current = byId.get(id);
     byId.set(
       id,
-      toStored({ id, name: row.name, isAdmin: current?.isAdmin, photo: resolvePhoto(row.photo, current?.photo) })
+      toStored({ id, name: row.name, isAdmin: row.isAdmin ?? current?.isAdmin, photo: resolvePhoto(row.photo, current?.photo) })
     );
   }
   return change(roster, Array.from(byId.values()));
 }
 
+/** 一括反映の結果。管理者権限が変わった人の ID も返す(受付QRのキー・セッションの片づけは use case の仕事)。 */
+export interface RosterApplyChange extends RosterChange {
+  /** 新しく管理者になった人(新規に追加された管理者を含む)。 */
+  grantedAdminIds: string[];
+  /** 管理者でなくなった人。 */
+  revokedAdminIds: string[];
+}
+
 /**
  * CSV 取込の確定: 追加・更新(`upserts`)と削除(`deleteIds`)を、1回の組み直しで行う。
- * 管理者は削除できない(含まれていれば、名簿を変えずに例外)。upsert と同じ id を削除することもできない。
- * 管理者権限は付与も剥奪もしない({@link upsertMembers} と同じ)。
+ * 次のときは、名簿を変えずに例外を投げる。
+ * - 管理者を削除しようとした。upsert と同じ id を削除しようとした。
+ * - 実行者(`actorId`)が自分の管理者権限を外そうとした。
+ * - 反映後に管理者が 0 人になる(もともと管理者がいる名簿のとき)。
+ * `upserts` の `isAdmin` の省略は、いまの値を保つ({@link upsertMembers} と同じ)。
  */
 export function applyRosterChange(
   roster: Member[],
-  input: { upserts: MemberInput[]; deleteIds: string[] },
+  input: { upserts: MemberInput[]; deleteIds: string[]; actorId: string },
   newId: () => string
-): RosterChange {
+): RosterApplyChange {
   const drop = new Set(input.deleteIds);
   const protectedIds = roster.filter((m) => m.isAdmin && drop.has(m.id)).map((m) => m.id);
   if (protectedIds.length > 0) throw new Error(`管理者は削除できません: ${protectedIds.join(", ")}`);
@@ -132,7 +143,14 @@ export function applyRosterChange(
   if (conflict) throw new Error(`追加・更新と削除で同じ ID が指定されています: ${conflict.id}`);
   const kept = roster.filter((m) => !drop.has(m.id));
   const upserted = upsertMembers(kept, input.upserts, newId).next;
-  return change(roster, upserted);
+
+  const adminsBefore = new Set(roster.filter((m) => m.isAdmin).map((m) => m.id));
+  const adminsAfter = new Set(upserted.filter((m) => m.isAdmin).map((m) => m.id));
+  const revokedAdminIds = [...adminsBefore].filter((id) => !adminsAfter.has(id));
+  const grantedAdminIds = [...adminsAfter].filter((id) => !adminsBefore.has(id));
+  if (revokedAdminIds.includes(input.actorId)) throw new Error("自分の管理者権限は外せません");
+  if (adminsBefore.size > 0 && adminsAfter.size === 0) throw new Error("管理者が0人になる変更はできません");
+  return { ...change(roster, upserted), grantedAdminIds, revokedAdminIds };
 }
 
 /** 指定の id を管理者にする。いなければ `fallbackName` で作る(初回管理者の用意)。名簿のほかの項目は変えない。 */
