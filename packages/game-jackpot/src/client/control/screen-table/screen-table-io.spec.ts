@@ -43,7 +43,7 @@ describe("画面設定の書き出し・取込", () => {
           contents: [{ type: "text", text: "ようこそ", effect: "fade", duration: 2500, se: "se.wav" }, { type: "image", media: "pic.png", effect: "static", duration: 1000 }],
         }),
         setting("demo", "demo-screen-settings", { demoBgm: "o.mp3", demoDrawSe: "se.wav" }),
-        setting("main", "main-screen-settings", { memberLotteryBgms: ["o.mp3", "se.wav"], kakuhenMode: "fixed", kakuhenFixedTimings: [2, 5], prizeStopSec: 8 }),
+        setting("main", "main-screen-settings", { memberLotteryBgms: ["o.mp3", "se.wav"], kakuhenMode: "fixed", kakuhenFixedTimings: [2, 5], prizeStopSec: 8, participantStop: false }),
         setting("result", "result-screen-settings", { resultBgm: "se.wav" }),
       ],
       new Map([["o.mp3", file("o.mp3", "BGM")], ["se.wav", file("se.wav", "SE", "audio/wav")], ["pic.png", file("pic.png", "IMG", "image/png")]])
@@ -56,11 +56,11 @@ describe("画面設定の書き出し・取込", () => {
     expect(zip.filename).toBe("screens.zip");
     expect([...readZip(zip.bytes).media.keys()].sort()).toEqual(["o.mp3", "pic.png", "se.wav"]);
     const p1 = await previewScreenImport({ table: new File([zip.bytes as BlobPart], "screens.zip"), media: [], mode: "upsert" }, { repo });
-    expect(p1).toMatchObject({ ok: true, counts: { unchanged: 10, add: 0, update: 0, error: 0 }, media: { added: 0, replaced: 0 } });
+    expect(p1).toMatchObject({ ok: true, counts: { unchanged: 11, add: 0, update: 0, error: 0 }, media: { added: 0, replaced: 0 } });
     const csv = await exportScreens(repo, { includeMedia: false });
     expect(csv.filename).toBe("screens.csv");
     const p2 = await previewScreenImport({ table: csvFile(new TextDecoder().decode(csv.bytes)), media: [], mode: "upsert" }, { repo });
-    expect(p2).toMatchObject({ ok: true, counts: { unchanged: 10, update: 0, error: 0 } });
+    expect(p2).toMatchObject({ ok: true, counts: { unchanged: 11, update: 0, error: 0 } });
   });
 
   it("まっさらな状態に取り込むと、画面が追加され(書き込みは1回)、素材も入る。書き出し直すと同じ", async () => {
@@ -72,13 +72,14 @@ describe("画面設定の書き出し・取込", () => {
     const fresh = new JackpotRepository({} as never);
     const update = vi.spyOn(fresh, "updateScreenSettings");
     const preview = await previewScreenImport({ table: new File([out.bytes as BlobPart], "screens.zip"), media: [], mode: "upsert" }, { repo: fresh });
-    expect(preview).toMatchObject({ ok: true, counts: { add: 10, update: 0, unchanged: 0, error: 0 }, media: { added: 3, replaced: 0 } });
+    expect(preview).toMatchObject({ ok: true, counts: { add: 11, update: 0, unchanged: 0, error: 0 }, media: { added: 3, replaced: 0 } });
     if (!preview.ok) return;
     const result = await preview.apply(() => undefined);
-    expect(result.summary).toBe("追加 10 / 更新 0 / 変更なし 0");
+    expect(result.summary).toBe("追加 11 / 更新 0 / 変更なし 0");
     expect(update).toHaveBeenCalledTimes(1);
     const record = await fresh.readRecord();
     expect(record.screens.map((s) => s.screenName).sort()).toEqual(["demo", "main", "opening", "result"]);
+    expect(JSON.parse(record.screens.find((s) => s.screenName === "main")!.settingValue).participantStop).toBe(false);
     expect(Object.keys(record.media).sort()).toEqual(["o.mp3", "pic.png", "se.wav"]);
     const back = await exportFrom({ readRecord: () => fresh.readRecord(), updateScreenSettings: (...a) => fresh.updateScreenSettings(...a), blobOf: async (n) => created.get(n) ?? null }, { includeMedia: false });
     expect(new TextDecoder().decode(back.bytes).replace(/^\uFEFF/, "")).toBe(text.replace(/^\uFEFF/, ""));
@@ -103,8 +104,8 @@ describe("画面設定の書き出し・取込", () => {
     const preview = await previewScreenImport({ table: csvFile(csv), media: [file("se.wav", "CHANGED-SE!", "audio/wav")], mode: "upsert" }, { repo });
     if (!preview.ok) throw new Error("preview");
     expect(preview.media).toEqual({ added: 0, replaced: 1 });
-    // se.wav を使うのは オープニング・デモ・本抽選・最終結果 の4画面(10行すべてがこの4画面の行)
-    expect(preview.counts.update).toBe(10);
+    // se.wav を使うのは オープニング・デモ・本抽選・最終結果 の4画面(11行すべてがこの4画面の行)
+    expect(preview.counts.update).toBe(11);
     await preview.apply(() => undefined);
     expect((await repo.readRecord()).media["se.wav"].size).toBe(11);
   });

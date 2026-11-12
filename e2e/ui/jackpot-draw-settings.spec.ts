@@ -90,4 +90,33 @@ test.describe("ジャックポットの管理画面の設定", () => {
     await expect(page.getByTestId("prize-stop-sec")).toHaveValue("4");
     await dev.context.close();
   });
+
+  test("「参加者が景品ルーレットを止めることができる」は既定で入っていて、外して保存すると開き直しても外れたまま", async ({ browser }) => {
+    const dev = await newDevice(browser, { signedIn: true });
+    const page = dev.page;
+    await page.goto("/#/execute/jackpot-admin/screens/draw");
+    const box = page.getByTestId("participant-stop-checkbox");
+    await expect(box).toBeChecked();
+
+    // 画面設定は同期でサーバーへ送られる。外した値が届くのを待ってから、最後に必ず入れ直して送る(ほかのテストに影響させない)
+    const pushedWith = (on: boolean) =>
+      page.waitForResponse((r) => new RegExp(`participantStop[^a-z]*${on}`).test(r.request().postData() ?? ""), { timeout: 20_000 });
+
+    const pushedOff = pushedWith(false);
+    await box.uncheck();
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByText("保存しました")).toBeVisible();
+    await pushedOff;
+    await page.reload();
+    await expect(page.getByTestId("participant-stop-checkbox")).not.toBeChecked();
+
+    const pushedOn = pushedWith(true);
+    await page.getByTestId("participant-stop-checkbox").check();
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByText("保存しました")).toBeVisible();
+    await pushedOn;
+    await page.reload();
+    await expect(page.getByTestId("participant-stop-checkbox")).toBeChecked();
+    await dev.context.close();
+  });
 });

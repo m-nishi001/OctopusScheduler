@@ -31,6 +31,16 @@
                 </div>
 
                 <div class="config-item">
+                    <label class="kakuhen-check">
+                        <input type="checkbox" v-model="localConfig.participantStop" data-testid="participant-stop-checkbox" />
+                        <span>参加者が景品ルーレットを止めることができる</span>
+                    </label>
+                    <div class="hint">
+                        外すと、当選した参加者のスマホに停止ボタンが出ません。会場の端末の Enter キー(物理ボタン)や管理者コンソールの「止める」では止められます。
+                    </div>
+                </div>
+
+                <div class="config-item">
                     <label>確変の起こし方</label>
                     <select v-model="localConfig.kakuhenMode" class="admin-input" data-testid="kakuhen-mode">
                         <option value="auto">おまかせ（景品の真ん中あたりで、確変対応ありの景品の数だけ続けて）</option>
@@ -99,6 +109,7 @@ import { kakuhenCountWarning, parseKakuhenPlan, parseTimingsText } from '@model/
 import { JackpotRepository } from '@model/jackpot-repository';
 import { countKakuhenPrizes } from '@model/prize/prize-kakuhen';
 import type { KakuhenMode } from '@model/draw/kakuhen-plan';
+import { parseParticipantStop, DEFAULT_PARTICIPANT_STOP } from '@model/draw/participant-stop';
 import { clampPrizeStopSec, parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC } from '@model/draw/prize-stop-sec';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
@@ -130,6 +141,7 @@ const localConfig = ref({
     memberLotteryBgms: [] as string[],
     kakuhenMode: 'auto' as KakuhenMode,
     prizeStopSec: DEFAULT_PRIZE_STOP_SEC as number | string,
+    participantStop: DEFAULT_PARTICIPANT_STOP,
 });
 /** 確変にする回の入力欄の文字（カンマ区切り）。保存時に回の一覧にする。 */
 const kakuhenTimingsText = ref('');
@@ -157,6 +169,7 @@ const loadConfig = async () => {
         const plan = parseKakuhenPlan(cfg);
         localConfig.value.kakuhenMode = plan.mode;
         localConfig.value.prizeStopSec = parsePrizeStopSec(cfg);
+        localConfig.value.participantStop = parseParticipantStop(cfg);
         kakuhenTimingsText.value = plan.fixedTimings.join(', ');
     } catch (error) {
         console.error('Failed to load main config:', error);
@@ -205,6 +218,7 @@ const handleSaveClick = async () => {
             kakuhenMode: localConfig.value.kakuhenMode,
             kakuhenFixedTimings: parseTimingsText(kakuhenTimingsText.value),
             prizeStopSec: clampPrizeStopSec(localConfig.value.prizeStopSec),
+            participantStop: localConfig.value.participantStop,
         };
         await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor(payload.memberLotteryBgms));
         await loadConfig();
@@ -246,6 +260,14 @@ const removeMemberBgm = (index: number) => {
 </script>
 
 <style scoped>
+.kakuhen-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 .status-text {
     font-size: var(--ui-font-sm, 0.875rem);
     color: var(--ui-text-muted, #cfd6dd);
