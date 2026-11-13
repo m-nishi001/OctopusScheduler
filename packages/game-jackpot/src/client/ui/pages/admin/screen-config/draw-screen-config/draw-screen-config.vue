@@ -7,9 +7,10 @@
 
                 <div class="config-item">
                     <label>メンバー抽選のBGM:</label>
-                    <div v-for="(_, index) in localConfig.memberLotteryBgms" :key="index" class="bgm-item">
-                        <MediaPicker :label="`BGM${index + 1}`" kind="audio" v-model="localConfig.memberLotteryBgms[index]"
-                            :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(localConfig.memberLotteryBgms[index])"
+                    <div v-for="(bgm, index) in localConfig.memberLotteryBgms" :key="index" class="bgm-item">
+                        <MediaPicker :label="`BGM${index + 1}`" kind="audio" :model-value="bgm"
+                            @update:model-value="setMemberBgm(index, $event)"
+                            :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(bgm)"
                             @pick="draft.pick" />
                         <button @click="removeMemberBgm(index)" class="remove-btn">削除</button>
                     </div>
@@ -22,7 +23,7 @@
 
                 <div class="config-item">
                     <label>景品抽選が止まるまでの時間(秒)</label>
-                    <input type="number" v-model.number="localConfig.prizeStopSec" class="admin-input"
+                    <input type="number" v-model.number="prizeStopSec" class="admin-input"
                         :min="MIN_PRIZE_STOP_SEC" :max="MAX_PRIZE_STOP_SEC" step="0.5" data-testid="prize-stop-sec" />
                     <div class="hint">
                         停止ボタンを押してから、最後の景品が止まるまでの長さ。スロット・ルーレット共通。確変の演出は変わりません。
@@ -32,7 +33,7 @@
 
                 <div class="config-item">
                     <label class="kakuhen-check">
-                        <input type="checkbox" v-model="localConfig.participantStop" data-testid="participant-stop-checkbox" />
+                        <input type="checkbox" v-model="participantStop" data-testid="participant-stop-checkbox" />
                         <span>参加者が景品ルーレットを止めることができる</span>
                     </label>
                     <div class="hint">
@@ -42,7 +43,7 @@
 
                 <div class="config-item">
                     <label>確変の起こし方</label>
-                    <select v-model="localConfig.kakuhenMode" class="admin-input" data-testid="kakuhen-mode">
+                    <select v-model="kakuhenMode" class="admin-input" data-testid="kakuhen-mode">
                         <option value="auto">おまかせ（景品の真ん中あたりで、確変対応ありの景品の数だけ続けて）</option>
                         <option value="fixed">回を指定する</option>
                     </select>
@@ -96,12 +97,13 @@
 
 <script setup lang="ts">
 import { UiBusyOverlay, UiButton } from '@octopus/ui-kit';
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { useMediaDraft } from '@ui/composables/use-media-draft';
+import { useFormDraft } from '@ui/composables/use-form-draft';
 import MediaPicker from '@ui/components/media-picker.vue';
 import SimulationDialog from './simulation-dialog.vue';
 import UnsavedChangesDialog from '../unsaved-changes-dialog.vue';
@@ -125,7 +127,6 @@ const saveStatus = ref('');
 
 const testDialogVisible = ref(false);
 
-const hasUnsavedChanges = ref(false);
 const showUnsavedDialog = ref(false);
 const pendingRoute = ref<(() => void) | null>(null);
 
@@ -137,14 +138,42 @@ const closeTestDialog = () => {
     testDialogVisible.value = false;
 };
 
-const localConfig = ref({
-    memberLotteryBgms: [] as string[],
-    kakuhenMode: 'auto' as KakuhenMode,
-    prizeStopSec: DEFAULT_PRIZE_STOP_SEC as number | string,
+/** サーバーの値(読み込み・同期で更新)に、利用者が触った項目だけを重ねて持つ。入力欄は読み込み前から操作できる。 */
+interface DrawConfigForm {
+    memberLotteryBgms: string[];
+    kakuhenMode: KakuhenMode;
+    prizeStopSec: number | string;
+    participantStop: boolean;
+    /** 確変にする回の入力欄の文字（カンマ区切り）。保存時に回の一覧にする。 */
+    kakuhenTimingsText: string;
+}
+
+const fetchConfig = async (): Promise<DrawConfigForm> => {
+    const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
+    const plan = parseKakuhenPlan(cfg);
+    return {
+        memberLotteryBgms: cfg?.memberLotteryBgms || [],
+        kakuhenMode: plan.mode,
+        prizeStopSec: parsePrizeStopSec(cfg),
+        participantStop: parseParticipantStop(cfg),
+        kakuhenTimingsText: plan.fixedTimings.join(', '),
+    };
+};
+
+const form = useFormDraft<DrawConfigForm>({
+    memberLotteryBgms: [],
+    kakuhenMode: 'auto',
+    prizeStopSec: DEFAULT_PRIZE_STOP_SEC,
     participantStop: DEFAULT_PARTICIPANT_STOP,
-});
-/** 確変にする回の入力欄の文字（カンマ区切り）。保存時に回の一覧にする。 */
-const kakuhenTimingsText = ref('');
+    kakuhenTimingsText: '',
+}, fetchConfig);
+const localConfig = form.view;
+const hasUnsavedChanges = form.dirty;
+
+const prizeStopSec = computed({ get: () => localConfig.value.prizeStopSec, set: (v) => form.set('prizeStopSec', v) });
+const participantStop = computed({ get: () => localConfig.value.participantStop, set: (v) => form.set('participantStop', v) });
+const kakuhenMode = computed({ get: () => localConfig.value.kakuhenMode, set: (v) => form.set('kakuhenMode', v) });
+const kakuhenTimingsText = computed({ get: () => localConfig.value.kakuhenTimingsText, set: (v) => form.set('kakuhenTimingsText', v) });
 draft.track(() => localConfig.value.memberLotteryBgms);
 
 /** 確変対応ありの景品の数。確変の回数はこれに合わせる。 */
@@ -159,44 +188,23 @@ const loadKakuhenPrizeCount = async () => {
 /** 回を指定したとき、その回数が確変対応ありの景品の数と違えば警告する(保存はできる)。 */
 const kakuhenWarning = computed(() =>
     localConfig.value.kakuhenMode === 'fixed'
-        ? kakuhenCountWarning(parseTimingsText(kakuhenTimingsText.value).length, kakuhenPrizeCount.value)
+        ? kakuhenCountWarning(parseTimingsText(localConfig.value.kakuhenTimingsText).length, kakuhenPrizeCount.value)
         : null);
 
-const loadConfig = async () => {
-    try {
-        const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
-        localConfig.value.memberLotteryBgms = cfg?.memberLotteryBgms || [];
-        const plan = parseKakuhenPlan(cfg);
-        localConfig.value.kakuhenMode = plan.mode;
-        localConfig.value.prizeStopSec = parsePrizeStopSec(cfg);
-        localConfig.value.participantStop = parseParticipantStop(cfg);
-        kakuhenTimingsText.value = plan.fixedTimings.join(', ');
-    } catch (error) {
-        console.error('Failed to load main config:', error);
-    }
-};
-
-// 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。編集中なら読み直さない
+// 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。
+// 読み込みは「サーバーの値」だけを更新し、入力の途中の項目には触れない
 const reloadAfterSync = async () => {
-    if (hasUnsavedChanges.value) return; // 入力の途中は消さない(保存すれば、新しいほうとして残る)
-    await Promise.all([loadConfig(), loadKakuhenPrizeCount()]);
-    await nextTick();
-    hasUnsavedChanges.value = false;
+    await Promise.all([form.load(), loadKakuhenPrizeCount()]);
 };
 
 onMounted(async () => {
     eventBus.on('syncPulled', reloadAfterSync);
-    await Promise.all([loadConfig(), draft.reload(), loadKakuhenPrizeCount()]);
-    hasUnsavedChanges.value = false;
+    await Promise.all([form.load(), draft.reload(), loadKakuhenPrizeCount()]);
 });
 
 onBeforeUnmount(() => {
     eventBus.off('syncPulled', reloadAfterSync);
 });
-
-watch([localConfig, kakuhenTimingsText], () => {
-    hasUnsavedChanges.value = true;
-}, { deep: true });
 
 onBeforeRouteLeave((_to, _from, next) => {
     if (hasUnsavedChanges.value) {
@@ -213,18 +221,18 @@ const handleSaveClick = async () => {
     saving.value = true;
     saveStatus.value = '保存中...';
     try {
-        const payload = {
-            memberLotteryBgms: localConfig.value.memberLotteryBgms,
-            kakuhenMode: localConfig.value.kakuhenMode,
-            kakuhenFixedTimings: parseTimingsText(kakuhenTimingsText.value),
-            prizeStopSec: clampPrizeStopSec(localConfig.value.prizeStopSec),
-            participantStop: localConfig.value.participantStop,
-        };
-        await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor(payload.memberLotteryBgms));
-        await loadConfig();
+        await form.save(async (cfg) => {
+            const payload = {
+                memberLotteryBgms: cfg.memberLotteryBgms,
+                kakuhenMode: cfg.kakuhenMode,
+                kakuhenFixedTimings: parseTimingsText(cfg.kakuhenTimingsText),
+                prizeStopSec: clampPrizeStopSec(cfg.prizeStopSec),
+                participantStop: cfg.participantStop,
+            };
+            await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor(payload.memberLotteryBgms));
+        });
         await draft.reload();
         saveStatus.value = '保存しました';
-        hasUnsavedChanges.value = false;
     } catch (err) {
         console.error('Failed to save main config', err);
         saveStatus.value = '保存に失敗しました';
@@ -235,7 +243,7 @@ const handleSaveClick = async () => {
 
 const handleDiscardChanges = () => {
     showUnsavedDialog.value = false;
-    hasUnsavedChanges.value = false;
+    form.discard();
     if (pendingRoute.value) {
         pendingRoute.value();
     }
@@ -247,11 +255,15 @@ const handleCancelDiscard = () => {
 };
 
 const addMemberBgm = () => {
-    localConfig.value.memberLotteryBgms.push("");
+    form.edit('memberLotteryBgms', (list) => { list.push(""); });
+};
+
+const setMemberBgm = (index: number, name: string) => {
+    form.edit('memberLotteryBgms', (list) => { list[index] = name; });
 };
 
 const removeMemberBgm = (index: number) => {
-    localConfig.value.memberLotteryBgms.splice(index, 1);
+    form.edit('memberLotteryBgms', (list) => { list.splice(index, 1); });
 };
 
 // Per-prize music/animation helpers removed

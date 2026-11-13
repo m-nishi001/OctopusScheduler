@@ -2,7 +2,7 @@
 	<div class="screen-config">
 		<h3>{{ title }}</h3>
 		<div class="config-item">
-			<MediaPicker label="BGM" kind="audio" v-model="localConfig.bgm" :options="draft.optionsOf('audio')"
+			<MediaPicker label="BGM" kind="audio"   :model-value="localConfig.bgm" @update:model-value="form.set('bgm', $event)" :options="draft.optionsOf('audio')"
 				:preview-url="draft.urlOf(localConfig.bgm)" @pick="draft.pick" />
 		</div>
 
@@ -86,11 +86,12 @@
 
 <script setup lang="ts">
 import { UiBusyOverlay, UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
-import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { useMediaDraft } from '@ui/composables/use-media-draft';
+import { useFormDraft } from '@ui/composables/use-form-draft';
 import MediaPicker from '@ui/components/media-picker.vue';
 import type { OpeningContent } from '@model/screen-config/opening-screen-setting';
 import UnsavedChangesDialog from './unsaved-changes-dialog.vue';
@@ -120,47 +121,34 @@ const draft = useMediaDraft();
 const saving = ref(false);
 const saveStatus = ref('');
 
-const hasUnsavedChanges = ref(false);
 const showUnsavedDialog = ref(false);
 const pendingRoute = ref<(() => void) | null>(null);
 
-const localConfig = ref({
-	bgm: "",
-	contents: [] as OpeningContent[],
-});
+/** サーバーの値(読み込み・同期で更新)に、利用者が触った項目だけを重ねて持つ。入力は読み込み前から操作できる。 */
+interface ContentForm {
+	bgm: string;
+	contents: OpeningContent[];
+}
+
+const fetchConfig = async (): Promise<ContentForm> => {
+	const cfg = await screenSettingsService.fetchScreenSetting(props.screenName, props.settingName);
+	return { bgm: cfg?.bgm || '', contents: cfg?.contents || [] };
+};
+const form = useFormDraft<ContentForm>({ bgm: '', contents: [] }, fetchConfig);
+const localConfig = form.view;
+const hasUnsavedChanges = form.dirty;
 
 // 参照している素材(BGM・コンテンツの画像と効果音)のプレビューを用意する
 draft.track(() => [localConfig.value.bgm, ...localConfig.value.contents.flatMap((c) => [c.media, c.se])]);
 
-const loadConfig = async () => {
-	try {
-		const cfg = await screenSettingsService.fetchScreenSetting(props.screenName, props.settingName);
-		if (cfg) {
-			localConfig.value.bgm = cfg.bgm || '';
-			localConfig.value.contents = cfg.contents || [];
-		}
-	} catch (error) {
-		console.error(`Failed to load ${props.screenName} config:`, error);
-	}
-};
-
-// 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。編集中なら読み直さない
-const reloadAfterSync = async () => {
-	if (hasUnsavedChanges.value) return; // 入力の途中は消さない(保存すれば、新しいほうとして残る)
-	await loadConfig();
-	await nextTick();
-	hasUnsavedChanges.value = false;
-};
+// 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。
+// 読み込みは「サーバーの値」だけを更新し、入力の途中の項目には触れない
+const reloadAfterSync = () => form.load();
 
 onMounted(async () => {
 	eventBus.on('syncPulled', reloadAfterSync);
-	await Promise.all([loadConfig(), draft.reload()]);
-	hasUnsavedChanges.value = false; // 初期ロード後リセット
+	await Promise.all([form.load(), draft.reload()]);
 });
-
-watch(localConfig, () => {
-	hasUnsavedChanges.value = true;
-}, { deep: true });
 
 onBeforeRouteLeave((_to, _from, next) => {
 	if (hasUnsavedChanges.value) {
@@ -173,6 +161,7 @@ onBeforeRouteLeave((_to, _from, next) => {
 
 const discardChanges = () => {
 	showUnsavedDialog.value = false;
+	form.discard();
 	if (pendingRoute.value) {
 		pendingRoute.value();
 	}
@@ -221,23 +210,24 @@ const closeDialog = () => {
 
 const saveDialog = async () => {
 	if (editingIndex.value === -1) {
-		localConfig.value.contents.push(JSON.parse(JSON.stringify(dialogContent.value)));
+		const added = JSON.parse(JSON.stringify(dialogContent.value));
+		form.edit('contents', (list) => { list.push(added); });
 	} else {
-		localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
+		const index = editingIndex.value;
+		const edited = JSON.parse(JSON.stringify(dialogContent.value));
+		form.edit('contents', (list) => { list.splice(index, 1, edited); });
 	}
 	closeDialog();
 };
 
 const moveUp = async (idx: number) => {
 	if (idx <= 0) return;
-	const arr = localConfig.value.contents;
-	[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+	form.edit('contents', (arr) => { [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]; });
 };
 
 const moveDown = async (idx: number) => {
-	const arr = localConfig.value.contents;
-	if (idx >= arr.length - 1) return;
-	[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+	if (idx >= localConfig.value.contents.length - 1) return;
+	form.edit('contents', (arr) => { [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]; });
 };
 
 const getContentTitle = (c: OpeningContent) => {
@@ -262,15 +252,13 @@ const isAllSelected = computed({
 const deleteSelectedContents = async () => {
 	if (!selectedIndices.value.length) return;
 	const sorted = [...selectedIndices.value].sort((a, b) => b - a);
-	for (const idx of sorted) {
-		localConfig.value.contents.splice(idx, 1);
-	}
+	form.edit('contents', (list) => { for (const idx of sorted) list.splice(idx, 1); });
 	selectedIndices.value = [];
 	if (props.autoSaveOnDelete) await handleSaveClick();
 };
 
 const removeContent = async (idx: number) => {
-	localConfig.value.contents.splice(idx, 1);
+	form.edit('contents', (list) => { list.splice(idx, 1); });
 	if (props.autoSaveOnDelete) await handleSaveClick();
 };
 
@@ -278,17 +266,14 @@ const handleSaveClick = async () => {
 	saving.value = true;
 	saveStatus.value = '保存中...';
 	try {
-		const payload = {
-			bgm: localConfig.value.bgm || '',
-			contents: localConfig.value.contents,
-		};
-		// 選んだばかりのファイルは、設定が参照している名前の分だけ、設定と一緒に保存する(素材の索引は保存のたびに作り直される)
-		const files = draft.filesFor([payload.bgm, ...payload.contents.flatMap((c) => [c.media, c.se])]);
-		await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload, files);
-		await loadConfig();
+		await form.save(async (cfg) => {
+			const payload = { bgm: cfg.bgm || '', contents: cfg.contents };
+			// 選んだばかりのファイルは、設定が参照している名前の分だけ、設定と一緒に保存する(素材の索引は保存のたびに作り直される)
+			const files = draft.filesFor([payload.bgm, ...payload.contents.flatMap((c) => [c.media, c.se])]);
+			await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload, files);
+		});
 		await draft.reload();
 		saveStatus.value = '保存しました';
-		hasUnsavedChanges.value = false;
 	} catch (err) {
 		console.error(`Failed to save ${props.screenName} config`, err);
 		saveStatus.value = '保存に失敗しました';
