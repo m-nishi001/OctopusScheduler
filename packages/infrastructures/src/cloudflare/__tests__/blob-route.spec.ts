@@ -48,8 +48,8 @@ describe("/blobs/<module>/<hash>", () => {
     const hash = await hashBytes(bytes);
     await send("PUT", hash, { body: bytes });
     const got = await send("GET", hash);
-    expect(got.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
-    expect(BLOB_CACHE_CONTROL).toBe("public, max-age=31536000, immutable");
+    expect(got.headers.get("Cache-Control")).toBe("private, max-age=31536000, immutable");
+    expect(BLOB_CACHE_CONTROL).toBe("private, max-age=31536000, immutable");
     expect(got.headers.get("ETag")).toBe(`"${hash}"`);
     const again = await send("GET", hash, { headers: { "If-None-Match": `"${hash}"` } });
     expect(again.status).toBe(304);

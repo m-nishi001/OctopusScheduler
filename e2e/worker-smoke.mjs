@@ -228,7 +228,7 @@ check("ファイルをバイナリで上げられる", (await putBlob("quiz-game
 check("ファイルをバイナリで上げられる(2つ目)", (await putBlob("quiz-game", blobHashB, "v2")).status === 204);
 const blobNow = await getBlob("quiz-game", blobHashA);
 check("ハッシュのファイルは保存した内容がそのまま取れる(バイナリ)", (await blobNow.text()) === "v1" && blobNow.headers.get("content-type") === "image/png");
-check("ファイルの取得には長期キャッシュと ETag が付く", blobNow.headers.get("cache-control") === "public, max-age=31536000, immutable" && blobNow.headers.get("etag") === `"${blobHashA}"`);
+check("ファイルの取得には長期キャッシュと ETag が付く", blobNow.headers.get("cache-control") === "private, max-age=31536000, immutable" && blobNow.headers.get("etag") === `"${blobHashA}"`);
 check("ファイルの取得にも管理者のトークンが要る", (await getBlob("quiz-game", blobHashA, null)).status === 401);
 await rpc("quizGame_saveRecord", { json: quizRecord(blobHashA, blobHashB) }, ADMIN_TOKEN);
 await rpc("quizGame_saveRecord", { json: quizRecord(blobHashB) }, ADMIN_TOKEN);

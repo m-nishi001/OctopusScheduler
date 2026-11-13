@@ -13,8 +13,8 @@ import type { createHashedBlobStore } from "../compositions/hashed-blobs";
 
 export const BLOBS_PATH_PREFIX = "/blobs/";
 
-/** 長期キャッシュ。ファイルの名前(ハッシュ)が中身で決まり、同じ名前で中身が変わらないので安全。 */
-export const BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable";
+/** 長期キャッシュ。ファイルの名前(ハッシュ)が中身で決まり、同じ名前で中身が変わらないので安全。管理者の認証の内側にある内容なので、共有キャッシュには載せず、ブラウザだけに持たせる(`private`)。 */
+export const BLOB_CACHE_CONTROL = "private, max-age=31536000, immutable";
 
 type HashedBlobStore = ReturnType<typeof createHashedBlobStore>;
 
@@ -60,6 +60,9 @@ export function createBlobRoute(deps: BlobRouteDeps): (request: Request) => Prom
 async function put(store: HashedBlobStore, deps: { storage: IKeyValueStorage }, hash: string, request: Request): Promise<Response> {
   const declared = Number(request.headers.get("Content-Length"));
   if (Number.isFinite(declared) && declared > MAX_BLOB_BYTES) return text(413, `Blob is too large (max ${MAX_BLOB_BYTES} bytes)`);
+  // ストリームのまま R2 に流さず、全部読んでから書く(上限 30MB なのでメモリは足りる)。
+  // ハッシュは中身を全部読まないと確かめられず、先に書いてから消す方式だと、同じハッシュの正しいファイルを、
+  // 中身の違うアップロードが(消すまでの間でも)上書きしてしまうため。
   const bytes = new Uint8Array(await request.arrayBuffer());
   if (bytes.byteLength > MAX_BLOB_BYTES) return text(413, `Blob is too large (max ${MAX_BLOB_BYTES} bytes)`);
   await store.putBytes(deps, { hash, bytes, mime: request.headers.get("Content-Type") });
