@@ -6,6 +6,7 @@ import { AccountsRepository } from "@octopus/accounts";
 import type { Member as DirectoryMember } from "@octopus/accounts";
 import type { Member } from "./member";
 import type { JackpotMemberExtra } from "./jackpot-member-extra";
+import { DEFAULT_ELIGIBLE } from "./eligibility";
 import { MEMBER_EXTRA_SCHEMA_VERSION, migrateMemberExtraData } from "../schema-migration";
 import type { MemberExtraData } from "../schema-migration";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
@@ -41,6 +42,7 @@ export class MemberRepository {
       id: directoryMember.id,
       name: directoryMember.name,
       weight: extra?.weight,
+      eligible: extra?.eligible ?? DEFAULT_ELIGIBLE,
       photo: directoryMember.photo,
     };
   }
@@ -101,6 +103,7 @@ export class MemberRepository {
       const extra: JackpotMemberExtra = {
         memberId: directoryMember.id,
         weight: member.weight,
+        eligible: member.eligible ?? DEFAULT_ELIGIBLE,
       };
       extras.push(extra);
       added.push(this.toMember(directoryMember, extra));
@@ -113,12 +116,12 @@ export class MemberRepository {
    * 名簿にいるメンバーの当選しやすさを、id をキーにまとめて設定する(省略した項目は今の値を保つ)。
    * 名簿にいない id は何もせず、その id を返す(メンバーの作成は名簿の仕事)。保存・同期の記録は1回だけ。
    */
-  async setExtras(rows: { id: string; weight?: number }[]): Promise<{ updated: number; unknown: string[] }> {
+  async setExtras(rows: { id: string; weight?: number; eligible?: boolean }[]): Promise<{ updated: number; unknown: string[] }> {
     const directoryMembers = await this.directory.listMembers();
     const known = new Set(directoryMembers.map((m) => m.id));
     const unknown: string[] = [];
     let updated = 0;
-    const changes: { id: string; weight?: number }[] = [];
+    const changes: { id: string; weight?: number; eligible?: boolean }[] = [];
     for (const row of rows) {
       if (!known.has(row.id)) {
         unknown.push(row.id);
@@ -134,6 +137,7 @@ export class MemberRepository {
           all.set(row.id, {
             memberId: row.id,
             weight: row.weight ?? current?.weight,
+            eligible: row.eligible ?? current?.eligible ?? DEFAULT_ELIGIBLE,
           });
         }
       });
@@ -152,7 +156,7 @@ export class MemberRepository {
       if (updated.name !== current.name) {
         await this.directory.updateMember({ id: update.id, name: updated.name });
       }
-      extras.push({ memberId: update.id, weight: updated.weight });
+      extras.push({ memberId: update.id, weight: updated.weight, eligible: updated.eligible });
     }
     await this.saveExtras((all) => extras.forEach((e) => all.set(e.memberId, e)));
   }

@@ -6,6 +6,7 @@
       <span v-else>-</span>
     </template>
     <template #cell-weight="{ row }">{{ resolveWeight(row.weight) }}</template>
+    <template #cell-eligible="{ row }"><span :data-testid="`member-eligible-${row.id}`">{{ row.eligible ? '対象' : '対象外' }}</span></template>
     <template #cell-actions="{ row }">
       <div class="row-actions">
         <UiButton size="sm" icon="edit" icon-only aria-label="詳細" title="詳細" @click="$emit('edit', row)" />
@@ -24,6 +25,7 @@ const columns: DataTableColumn[] = [
   { key: 'photo', label: '写真' },
   { key: 'name', label: '名前', sortable: true },
   { key: 'weight', label: 'メンバー抽選の当選しやすさ（1〜10）' },
+  { key: 'eligible', label: '抽選対象' },
   { key: 'actions', label: '操作' },
 ];
 

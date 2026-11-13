@@ -311,7 +311,10 @@ describe("registerEventHost: エントリー受付", () => {
 });
 
 describe("抽選の対象（ジャックポット）", () => {
-  async function poolScene(faults?: FaultInjector, loadAdminIds?: () => Promise<ReadonlySet<string>>) {
+  type Extras = ReadonlyMap<string, { eligible?: boolean }>;
+  /** 抽選対象のフラグ。「boss」は管理者だが抽選対象 ON、「off」は一般のメンバーだが抽選対象 OFF。 */
+  const defaultExtras = (): Extras => new Map([["boss", { eligible: true }], ["off", { eligible: false }]]);
+  async function poolScene(faults?: FaultInjector, loadEligibility?: () => Promise<Extras>) {
     const storage = memoryStorage();
     const meta = await env.repo.create({ name: "受付会場" });
     await env.repo.setPortalSession(meta.id, true);
@@ -320,14 +323,14 @@ describe("抽選の対象（ジャックポット）", () => {
     await agent.connection.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
     const admin = makeDevice(env.hub, { memberId: "admin2" });
     await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
-    const adminLoads = { count: 0 };
+    const eligibilityLoads = { count: 0 };
     const pool = createSessionDrawPool(agent, {
       storage,
-      loadAdminIds:
-        loadAdminIds ??
+      loadEligibility:
+        loadEligibility ??
         (async () => {
-          adminLoads.count++;
-          return new Set(["boss"]);
+          eligibilityLoads.count++;
+          return defaultExtras();
         }),
     });
     const command = async (type: string, payload?: unknown) => {
@@ -347,34 +350,35 @@ describe("抽選の対象（ジャックポット）", () => {
       const d = await join(id, name);
       await d.conn.answer(await currentKey(), 1);
     };
-    return { meta, agent, admin, pool, command, published, join, enter, storage, adminLoads };
+    return { meta, agent, admin, pool, command, published, join, enter, storage, eligibilityLoads };
   }
 
   it("セッションに接続していなければ絞り込まない（null。リハーサル用）", async () => {
     const storage = memoryStorage();
     const { agent } = registerHostAgent(env);
-    const pool = createSessionDrawPool(agent, { storage, loadAdminIds: async () => new Set() });
+    const pool = createSessionDrawPool(agent, { storage, loadEligibility: async () => new Map() });
     expect(await pool.getEligibleMemberIds()).toBeNull();
   });
 
-  it("イベント開始で対象は auto。auto なら、入室した管理者以外の全員が対象で、エントリーは要らない", async () => {
+  it("イベント開始で対象は auto。auto なら、入室した抽選対象の全員(管理者でも ON なら含む。OFF の人は除く)が対象で、エントリーは要らない", async () => {
     const s = await poolScene();
     await s.command("start", { title: "抽選" });
     expect((await s.published())?.pool).toBe("auto");
     await s.join("alice", "アリス");
     await s.join("bob", "ボブ");
     await s.join("boss", "管理者");
-    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+    await s.join("off", "対象外の人");
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob", "boss"]);
   });
 
-  it("auto は抽選のたびに名簿を取り直す（途中参加の人も対象になる）。管理者の一覧は取得し直さない", async () => {
+  it("auto は抽選のたびに名簿を取り直す（途中参加の人も対象になる）。抽選対象のフラグも抽選のたびに読み直す", async () => {
     const s = await poolScene();
     await s.command("start", { title: "抽選" });
     await s.join("alice", "アリス");
     expect(await s.pool.getEligibleMemberIds()).toEqual(["alice"]);
     await s.join("late", "遅れた人");
     expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "late"]);
-    expect(s.adminLoads.count).toBe(1);
+    expect(s.eligibilityLoads.count).toBe(2);
   });
 
   it("エントリー受付を開いても対象は auto のまま（entrants に切り替わらない）。誰も入室していなければ空", async () => {
@@ -393,7 +397,7 @@ describe("抽選の対象（ジャックポット）", () => {
     expect(await s.pool.getEligibleMemberIds()).toEqual(["alice"]);
   });
 
-  it("entrants なら、エントリーした人から管理者を除く。受付を始める前は空", async () => {
+  it("entrants なら、エントリーした人から抽選対象でない人(OFF)を除く。管理者でも ON なら残る。受付を始める前は空", async () => {
     const s = await poolScene();
     await s.command("start", { title: "抽選" });
     await s.command("setPool", { mode: "entrants" });
@@ -405,13 +409,14 @@ describe("抽選の対象（ジャックポット）", () => {
     await s.join("carol", "入室だけの人");
     await s.enter("alice", "アリス");
     await s.enter("boss", "管理者");
+    await s.enter("off", "対象外の人");
     await s.enter("bob", "ボブ");
-    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob", "boss"]);
 
     await s.command("setPool", { mode: "auto" });
-    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob", "carol"]);
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob", "boss", "carol"]);
     await s.command("setPool", { mode: "entrants" });
-    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob", "boss"]);
   });
 
   it("不正な対象の指定や、イベントが無いときの指定は無視する", async () => {
@@ -481,16 +486,27 @@ describe("抽選の対象（ジャックポット）", () => {
     expect((await pending)?.message).toContain("参加者の一覧を取得できませんでした");
   });
 
-  it("管理者の一覧を取得できないときは例外にし、次の抽選で取り直す", async () => {
+  it("管理者でも抽選対象が OFF なら除かれ、一般のメンバーでも ON なら残る。フラグが無い人は既定(対象)", async () => {
+    let extras: Extras = new Map([["boss", { eligible: false }]]);
+    const s = await poolScene(undefined, async () => extras);
+    await s.command("start", { title: "抽選" });
+    await s.join("alice", "アリス");
+    await s.join("boss", "管理者");
+    expect(await s.pool.getEligibleMemberIds()).toEqual(["alice"]);
+    extras = new Map([["alice", { eligible: false }]]);
+    expect(await s.pool.getEligibleMemberIds()).toEqual(["boss"]);
+  });
+
+  it("抽選対象の設定を取得できないときは例外にし、次の抽選で取り直す", async () => {
     let failing = true;
     const s = await poolScene(undefined, async () => {
       if (failing) throw new Error("boom");
-      return new Set(["boss"]);
+      return new Map([["boss", { eligible: false }]]);
     });
     await s.command("start", { title: "抽選" });
     await s.join("alice", "アリス");
     await s.join("boss", "管理者");
-    await expect(s.pool.getEligibleMemberIds()).rejects.toThrow("管理者の一覧を取得できませんでした");
+    await expect(s.pool.getEligibleMemberIds()).rejects.toThrow("抽選対象の設定を取得できませんでした");
     failing = false;
     expect(await s.pool.getEligibleMemberIds()).toEqual(["alice"]);
   });

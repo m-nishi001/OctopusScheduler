@@ -5,6 +5,7 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import { defineComponent, h } from "vue";
 import { RouterView } from "vue-router";
 import { AccountsRepository, MemberPhotoCache } from "@octopus/accounts";
+import { MemberRepository } from "@octopus/game-jackpot/eligibility";
 import { entryRoundKey, readPortalEvent } from "@octopus/session-hub";
 import { registerEventHost } from "../../../control/session/event-host";
 import type { EventStorage } from "../../../control/session/event-host";
@@ -20,7 +21,14 @@ const members = [
   { id: "alice", name: "アリス" },
   { id: "bob", name: "ボブ" },
   { id: "carol", name: "キャロル" },
+  { id: "dave", name: "デイブ" },
 ];
+
+/** 抽選対象のフラグ: 管理者(admin2)でも ON なら対象、一般のデイブは OFF で対象外。載っていない人は既定(対象)。 */
+const extras = new Map<string, { eligible?: boolean }>([
+  ["admin2", { eligible: true }],
+  ["dave", { eligible: false }],
+]);
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -31,6 +39,7 @@ beforeEach(() => {
     listAccounts: async () => members,
     listMembers: async () => members,
   } as unknown as AccountsRepository);
+  container.registerInstance(MemberRepository, { readExtras: async () => extras } as unknown as MemberRepository);
   container.registerInstance(MemberPhotoCache, new MemberPhotoCache({ fetchPhotos: async () => ({}) }));
 });
 afterEach(() => vi.useRealTimers());
@@ -83,19 +92,20 @@ async function scene() {
 }
 
 describe("jackpot-entry-view", () => {
-  it("自動: 管理者を除く、ポータルに参加した人が自動でエントリー済みとして並び、途中参加の人も増える。受付は始めない", async () => {
+  it("自動: 抽選対象(管理者でも ON なら含む。OFF の人は除く)のうち、ポータルに参加した人が自動でエントリー済みとして並び、途中参加の人も増える。受付は始めない", async () => {
     const s = await scene();
     await s.join("admin2", "管理者2");
     await s.join("alice", "アリス");
     await s.join("bob", "ボブ");
+    await s.join("dave", "デイブ");
 
     expect(s.text("stage-label")).toBe("参加者は自動でエントリーされます");
-    expect(s.names().sort()).toEqual(["アリス", "ボブ"]);
-    expect(s.text("stage-count")).toBe("2");
+    expect(s.names().sort()).toEqual(["アリス", "ボブ", "管理者2"].sort());
+    expect(s.text("stage-count")).toBe("3");
 
     await s.join("carol", "キャロル");
-    expect(s.names().sort()).toEqual(["アリス", "キャロル", "ボブ"]);
-    expect(s.text("stage-count")).toBe("3");
+    expect(s.names().sort()).toEqual(["アリス", "キャロル", "ボブ", "管理者2"].sort());
+    expect(s.text("stage-count")).toBe("4");
 
     // 書き込みは無い: エントリー受付は始まらない
     expect(s.published()?.entry).toBeUndefined();

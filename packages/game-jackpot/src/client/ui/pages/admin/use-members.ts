@@ -4,6 +4,7 @@ import { MemberRepository } from "@model/member/member-repository";
 import { MemberService } from "@control/member/member-service";
 import { AccountsRepository, MemberPhotoCache } from "@octopus/accounts";
 import type { Member as DirectoryMember } from "@octopus/accounts";
+import { DEFAULT_ELIGIBLE } from "@model/member/eligibility";
 import type { MemberDto } from "@control/member/dto/member-dto";
 
 const STORAGE_KEY = "jackpot-game-members-json";
@@ -14,6 +15,8 @@ export interface MemberFormInput {
   name: string;
   /** メンバー抽選の当選しやすさ(1〜10)。省略時は既定値。 */
   weight?: number;
+  /** ジャックポットの抽選の対象か。省略時は既定(対象)。 */
+  eligible?: boolean;
 }
 
 /** メンバーの管理画面の状態と操作(一覧・選択・削除・アカウントの名簿からの取り込み)。 */
@@ -102,6 +105,7 @@ export function useMembers(
       id: input.id || "",
       name: input.name,
       weight: input.weight,
+      eligible: input.eligible ?? DEFAULT_ELIGIBLE,
     };
     const addedMember = await memberService.saveMember(newMember);
     members.value.push(addedMember);
@@ -110,7 +114,7 @@ export function useMembers(
   };
 
   const updateMember = async (original: any, input: MemberFormInput) => {
-    const updated: any = { ...original, name: input.name, weight: input.weight };
+    const updated: any = { ...original, name: input.name, weight: input.weight, eligible: input.eligible ?? original.eligible };
     await memberRepo.updateMembers([{ id: updated.id, updateFn: () => updated }]);
     await fetchMembers();
     await saveMembersToLocalJson();

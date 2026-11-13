@@ -5,4 +5,6 @@ export interface Member {
   photo?: string;
   /** メンバー抽選の当選しやすさ（1〜10、標準5。大きいほど選ばれやすい）。省略時は既定値（全員同じなら均等）。 */
   weight?: number;
+  /** ジャックポットの抽選の対象か(省略・既定は true)。管理者かどうかとは無関係。 */
+  eligible?: boolean;
 }

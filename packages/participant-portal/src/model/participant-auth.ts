@@ -6,7 +6,7 @@ import type { InjectionKey, Ref } from "vue";
  * このパッケージはアプリに依存しない)。アプリの起動時に `app.provide(PARTICIPANT_AUTH_KEY, …)` する。
  */
 export interface ParticipantAuth {
-  currentMember: Readonly<Ref<{ id: string; name: string } | null>>;
+  currentMember: Readonly<Ref<{ id: string; name: string; isAdmin?: boolean } | null>>;
   signOut(): Promise<void>;
 }
 

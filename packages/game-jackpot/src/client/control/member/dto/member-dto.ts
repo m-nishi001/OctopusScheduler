@@ -5,6 +5,7 @@ export interface MemberDto {
   name: string;
   photo?: string;
   weight?: number;
+  eligible?: boolean;
 }
 
 /** 画面用の `MemberDto` を、モデルの `Member` にする。 */
@@ -13,6 +14,7 @@ export const toMember = (dto: MemberDto): Member => ({
   name: dto.name,
   photo: dto.photo,
   weight: dto.weight,
+  eligible: dto.eligible,
 });
 
 /** モデルの `Member` を、画面用の `MemberDto` にする。 */
@@ -21,4 +23,5 @@ export const fromMember = (member: Member): MemberDto => ({
   name: member.name,
   photo: member.photo,
   weight: member.weight,
+  eligible: member.eligible,
 });

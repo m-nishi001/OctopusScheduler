@@ -2,6 +2,7 @@ import { onUnmounted, ref, watch } from "vue";
 import type { Ref } from "vue";
 import { container } from "tsyringe";
 import { AccountsRepository } from "@octopus/accounts";
+import { MemberRepository, filterEligibleIds } from "@octopus/game-jackpot/eligibility";
 import type { HostAgent } from "@octopus/session-hub";
 
 export interface AutoEntrant {
@@ -22,27 +23,27 @@ export interface AutoEntrantsOptions {
 }
 
 /**
- * 「参加者全員(自動)」のとき、自動でエントリーされている人(今日ポータルから参加した管理者以外のメンバー)を取得する。
- * 読み取りだけで、サーバーへの書き込みは無い。管理者は `listAccounts().isAdmin` で除く。
- * 取得に失敗したときは、直前の一覧を残す(管理者を除けない一覧を出さない)。
+ * 「参加者全員(自動)」のとき、自動でエントリーされている人(今日ポータルから参加した、抽選対象のメンバー)を取得する。
+ * 読み取りだけで、サーバーへの書き込みは無い。抽選対象かどうかは、抽選と同じ `filterEligibleIds` で判定する(管理者かどうかは見ない)。
+ * 取得に失敗したときは、直前の一覧を残す(対象外の人を含む一覧を出さない)。
  */
 export function useAutoEntrants(options: AutoEntrantsOptions): { entrants: Ref<AutoEntrant[]>; refresh: () => Promise<void> } {
   const entrants = ref<AutoEntrant[]>([]);
-  let accounts = new Map<string, { name: string; isAdmin: boolean }>();
+  let names = new Map<string, string>();
   let running: Promise<void> | null = null;
   let again = false;
   let disposed = false;
 
   const load = async (): Promise<void> => {
     const { memberIds } = await options.agent.listParticipants();
-    if (memberIds.some((id) => !accounts.has(id))) {
+    if (memberIds.some((id) => !names.has(id))) {
       const members = await container.resolve(AccountsRepository).listAccounts();
-      accounts = new Map(members.map((m) => [m.id, { name: m.name, isAdmin: !!m.isAdmin }]));
+      names = new Map(members.map((m) => [m.id, m.name]));
     }
+    // 抽選対象のフラグは管理画面で変わるので、毎回読み直す。
+    const extras = await container.resolve(MemberRepository).readExtras();
     if (disposed || !options.active.value) return;
-    entrants.value = [...new Set(memberIds)]
-      .filter((id) => !accounts.get(id)?.isAdmin)
-      .map((id) => ({ memberId: id, name: accounts.get(id)?.name ?? id }));
+    entrants.value = filterEligibleIds(memberIds, extras).map((id) => ({ memberId: id, name: names.get(id) ?? id }));
   };
 
   /** 同時に1回だけ読む。読んでいる最中に呼ばれたら、終わったあともう1回読む。 */

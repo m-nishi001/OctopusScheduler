@@ -32,6 +32,11 @@
       "import": "./src/client/index.ts",
       "default": "./src/client/index.ts"
     },
+    "./eligibility": {
+      "types": "./src/client/eligibility.ts",
+      "import": "./src/client/eligibility.ts",
+      "default": "./src/client/eligibility.ts"
+    },
     "./server": {
       "types": "./src/server/endpoints.ts",
       "import": "./src/server/endpoints.ts",

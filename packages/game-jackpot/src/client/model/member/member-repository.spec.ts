@@ -103,7 +103,29 @@ describe("MemberRepository (jackpot)", () => {
     expect(members.find((m) => m.id === "s2")?.photo).toBeUndefined();
     const record = await new LocalStorageService("jackpot-game", "MemberExtraData").get<{ data: { schemaVersion: number; extras: Record<string, unknown>[] } }>("record");
     const stored = record?.data.extras.find((e) => e.memberId === "s1");
-    expect(Object.keys(stored ?? {}).sort()).toEqual(["memberId", "weight"]);
+    expect(Object.keys(stored ?? {}).sort()).toEqual(["eligible", "memberId", "weight"]);
+  });
+
+  it("抽選対象(eligible)は既定で true。保存して読み出せ、updateMembers で外せ、setExtras の省略は今の値を保つ。管理者かどうかは関係しない", async () => {
+    mockDirectory = createMockDirectory([{ id: "s1", name: "A" }, { id: "adm", name: "管理者", isAdmin: true }]);
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
+    repo = container.resolve(MemberRepository);
+    // 何も保存していなくても、全員が対象(管理者も)
+    expect((await repo.getMembers()).map((m) => m.eligible)).toEqual([true, true]);
+
+    await repo.updateMembers([{ id: "s1", updateFn: (m) => ({ ...m, eligible: false }) }]);
+    expect((await repo.getMemberById("s1"))?.eligible).toBe(false);
+    expect((await repo.getMemberById("adm"))?.eligible).toBe(true);
+
+    await repo.setExtras([{ id: "s1", weight: 7 }]);
+    expect(await repo.getMemberById("s1")).toMatchObject({ weight: 7, eligible: false });
+    await repo.setExtras([{ id: "s1", eligible: true }, { id: "adm", eligible: false }]);
+    expect(await repo.getMemberById("s1")).toMatchObject({ weight: 7, eligible: true });
+    expect((await repo.getMemberById("adm"))?.eligible).toBe(false);
+
+    // 設定を初期値に戻すと、対象に戻る
+    await repo.deleteMembers(["adm"]);
+    expect((await repo.getMemberById("adm"))?.eligible).toBe(true);
   });
 
   it("setExtras: 名簿にいる id の weight を設定し(省略は保つ)、名簿にいない id は作らずに返す", async () => {
@@ -178,7 +200,7 @@ describe("MemberRepository.listSyncTargets", () => {
     expect(mockJackpotApi.addJson).toHaveBeenCalledOnce();
     const payload = mockJackpotApi.addJson.mock.calls[0][0];
     expect(payload.fileName).toBe("member-extras.json");
-    expect(JSON.parse(payload.json)).toEqual({ updatedAt: local.updatedAt, data: { schemaVersion: 1, extras: [{ memberId: "shared-1", weight: 4 }] } });
+    expect(JSON.parse(payload.json)).toEqual({ updatedAt: local.updatedAt, data: { schemaVersion: 1, extras: [{ memberId: "shared-1", weight: 4, eligible: true }] } });
     expect(await target.getLocal()).toEqual(local);
   });
 
@@ -238,7 +260,7 @@ describe("MemberRepository.listSyncTargets", () => {
     it("古い形式のまま編集しても、先に初期値へ戻してから反映する", async () => {
       await seedLegacy();
       await repo.setExtras([{ id: "shared-1" }]);
-      expect((await store().get<{ data: unknown }>("record"))!.data).toEqual({ schemaVersion: 1, extras: [{ memberId: "shared-1", weight: 5 }] });
+      expect((await store().get<{ data: unknown }>("record"))!.data).toEqual({ schemaVersion: 1, extras: [{ memberId: "shared-1", weight: 5, eligible: true }] });
     });
   });
 });
