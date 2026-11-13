@@ -63,12 +63,10 @@ _quizGame_putBlob = secure("admin", _quizGame_putBlob);
 _quizGame_getBlob = secure("admin", _quizGame_getBlob);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
-export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Promise<string>> = {
+export const QUIZ_GAME_HANDLERS: Record<Exclude<QuizGameEndpointName, "putBlob" | "getBlob">, (args: any) => Promise<string>> = {
   getRecord: _quizGame_getRecord,
   saveRecord: _quizGame_saveRecord,
   existsBlobs: _quizGame_existsBlobs,
-  putBlob: _quizGame_putBlob,
-  getBlob: _quizGame_getBlob,
 };
 
 export { QUIZ_GAME_PREFIX };

@@ -5,3 +5,4 @@ export * from "./in-memory-database";
 export * from "./in-memory-form-repository";
 export * from "./fixed-concurrency-policy";
 export * from "./fake-google-script-run";
+export * from "./fake-blob-api-client";

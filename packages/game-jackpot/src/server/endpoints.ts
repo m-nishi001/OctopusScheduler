@@ -66,13 +66,11 @@ _jackpotGame_getBlob = secure("admin", _jackpotGame_getBlob);
 _jackpotGame_addJson = secure("admin", _jackpotGame_addJson);
 _jackpotGame_getJson = secure("admin", _jackpotGame_getJson);
 
-/** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
-export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) => Promise<string>> = {
+/** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。putBlob / getBlob(base64 のデータURL)は GAS 専用で、Cloudflare はバイナリの `/blobs` で送受信するため含めない。 */
+export const JACKPOT_GAME_HANDLERS: Record<Exclude<JackpotGameEndpointName, "putBlob" | "getBlob">, (args: any) => Promise<string>> = {
   getRecord: _jackpotGame_getRecord,
   saveRecord: _jackpotGame_saveRecord,
   existsBlobs: _jackpotGame_existsBlobs,
-  putBlob: _jackpotGame_putBlob,
-  getBlob: _jackpotGame_getBlob,
   addJson: _jackpotGame_addJson,
   getJson: _jackpotGame_getJson,
 };

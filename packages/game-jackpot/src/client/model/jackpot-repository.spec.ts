@@ -1,6 +1,6 @@
 import "reflect-metadata";
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { FixedConcurrencyPolicy, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
+import { describe, it, expect, beforeEach } from "vitest";
+import { FixedConcurrencyPolicy, InMemoryKeyValueStorage, createFakeBlobApiClient } from "@octopus/infrastructures/testing";
 import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { SyncRunner, hashBlob } from "@octopus/sync-engine";
@@ -10,11 +10,6 @@ import { JACKPOT_RECORD_FILE, jackpotRecordHashes } from "../../server/jackpot-a
 import type { Prize, ScreenSettingRecord } from "../../server/jackpot-api-contract";
 
 installMediaTestEnv();
-
-// jsdom + localforage では保存した Blob を読み戻すと本物の Blob ではなくなり FileReader で読めないので、データURL化だけ差し替える
-vi.mock("@octopus/client-common/blob/blob-to-data-url", () => ({
-  blobToDataUrl: async () => "data:audio/mpeg;base64,QUJD",
-}));
 
 /** サーバーの実装(ハッシュのファイル置き場とレコードの保存)をそのまま使う、メモリ上のサーバー。 */
 function makeServer() {
@@ -31,7 +26,7 @@ function makeServer() {
   };
   /** サーバーに残っているハッシュのファイルの数。 */
   const blobCount = async () => (await deps.storage.listByPrefix("jackpot-game/assets/")).length;
-  return { api, blobCount };
+  return { api, client: createFakeBlobApiClient(store, deps, "audio/mpeg"), blobCount };
 }
 
 const prize = (id: string, extra: Partial<Prize> = {}): Prize => ({ id, name: id, order: 1, ...extra });
@@ -59,7 +54,7 @@ describe("JackpotRepository", () => {
   beforeEach(async () => {
     await clearLocal();
     server = makeServer();
-    repo = new JackpotRepository(server.api as never);
+    repo = new JackpotRepository(server.api as never, server.client);
   });
 
   it("景品の追加・上書き・削除ができ、景品と画面設定は1件のレコードに入る", async () => {
@@ -225,7 +220,7 @@ describe("JackpotRepository", () => {
       await sync(repo);
 
       await clearLocal();
-      const other = new JackpotRepository(server.api as never);
+      const other = new JackpotRepository(server.api as never, server.client);
       expect((await sync(other)).map((r) => r.result)).toEqual(["pulled"]);
       expect((await other.getPrizes()).map((p) => p.id)).toEqual(["p1"]);
       expect(await other.blobOf("a.png")).not.toBeNull();

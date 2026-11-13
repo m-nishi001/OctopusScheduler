@@ -64,6 +64,12 @@ export interface IKeyValueStorage {
   /** バイナリセーフな内容(base64)を key に書く(既存があれば上書き)。 */
   putBinary(key: string, contentBase64: string, mimeType: string): Promise<StoredItemMeta>;
 
+  /** バイト列そのものを key に書く(既存があれば上書き)。base64 を経由しないので、大きなファイルを速く書ける。 */
+  putBytes(key: string, bytes: Uint8Array, mimeType: string): Promise<StoredItemMeta>;
+
+  /** key の内容をバイト列そのもので取得する。存在しない場合は null。 */
+  getBytes(key: string): Promise<{ meta: StoredItemMeta; bytes: Uint8Array } | null>;
+
   /** key の内容をメタデータ付きで取得する。存在しない場合は null。 */
   getContent(key: string): Promise<StoredItemContent | null>;
 

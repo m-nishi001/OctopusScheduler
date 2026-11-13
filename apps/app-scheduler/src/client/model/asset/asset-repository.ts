@@ -1,4 +1,4 @@
-import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
+import { dataUrlToBlob } from "@octopus/client-common/blob/data-url-to-blob";
 import { injectable, inject } from "tsyringe";
 import {
   BLOB_HASH_PATTERN,
@@ -11,7 +11,9 @@ import {
   withHashedBlobs,
 } from "@octopus/sync-engine";
 import type { HashedBlobRemote, PoolOptions, SyncTarget } from "@octopus/sync-engine";
-import { IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/scheduler-api-contract";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { ASSET_BLOB_ROUTE, IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/scheduler-api-contract";
 import type { AssetRecordEntry, OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
 import type { DriveMetadata } from "@octopus/infrastructures/compositions";
@@ -26,14 +28,6 @@ export interface ImportedAsset {
 }
 
 const RECORD_SYNC_KIND = "asset";
-
-/** データURLを Blob にする。 */
-function dataUrlToBlob(dataUrl: string): Blob {
-  const [header, base64] = dataUrl.split(",");
-  const mime = /data:([^;]+)/.exec(header)?.[1] ?? "application/octet-stream";
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  return new Blob([bytes], { type: mime });
-}
 
 /**
  * 素材の保存先。正となるのは、この端末(IndexedDB)の「素材の一覧1件」(`{ data, updatedAt }`)だけ。
@@ -50,7 +44,9 @@ export class AssetRepository {
 
   constructor(
     @inject(IOctopusSchedulerApiToken)
-    private readonly schedulerApi: OctopusSchedulerApi
+    private readonly schedulerApi: OctopusSchedulerApi,
+    @inject(IApiClientToken)
+    private readonly apiClient: IApiClient
   ) {}
 
   /** 以前の形式(素材1件ずつの行)のデータを、(初回だけ)使わずに消す。移行はしない。 */
@@ -206,9 +202,8 @@ export class AssetRepository {
     if (!entry) throw new Error(`素材がサーバーにありません: ${id}`);
     let blob = await this.blobs.get(entry.hash);
     if (!blob) {
-      const { dataUrl } = await this.schedulerApi.getAssetBlob({ hash: entry.hash });
-      if (!dataUrl) throw new Error(`素材を取得できませんでした: ${id}`);
-      blob = dataUrlToBlob(dataUrl);
+      blob = await this.apiClient.getBlob(ASSET_BLOB_ROUTE, entry.hash);
+      if (!blob) throw new Error(`素材を取得できませんでした: ${id}`);
       if (!blob.size) throw new Error(`素材の中身を取得できませんでした: ${id}`);
       await this.blobs.put(entry.hash, blob);
     }
@@ -255,11 +250,8 @@ export class AssetRepository {
   private blobRemote(): HashedBlobRemote {
     return {
       exists: async (hashes) => (await this.schedulerApi.existsAssetBlobs({ hashes })).existing,
-      put: async (hash, blob) => this.schedulerApi.putAssetBlob({ hash, dataUrl: await blobToDataUrl(blob) }),
-      get: async (hash) => {
-        const { dataUrl } = await this.schedulerApi.getAssetBlob({ hash });
-        return dataUrl ? dataUrlToBlob(dataUrl) : null;
-      },
+      put: (hash, blob) => this.apiClient.putBlob(ASSET_BLOB_ROUTE, hash, blob),
+      get: (hash) => this.apiClient.getBlob(ASSET_BLOB_ROUTE, hash),
     };
   }
 }

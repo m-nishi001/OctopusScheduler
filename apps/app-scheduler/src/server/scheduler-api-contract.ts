@@ -1,8 +1,9 @@
 /**
  * octopus-scheduler(ホスト本体)の GAS エンドポイント契約(唯一の正準定義)。
  */
-import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
+import type { ApiCallOptions, BlobRoute } from "@octopus/infrastructures/interfaces";
 import type { DriveData, DriveMetadata } from "@octopus/infrastructures/compositions";
+import { StorageModule } from "@octopus/infrastructures/compositions";
 
 export const OCTOPUS_SCHEDULER_PREFIX = "octopusScheduler" as const;
 
@@ -23,6 +24,16 @@ export const OCTOPUS_SCHEDULER_ENDPOINTS = [
  * `octopusScheduler_doGet` ではなく素の `doGet` として公開する必要がある。
  */
 export const OCTOPUS_SCHEDULER_UNPREFIXED_ENDPOINTS = ["doGet"] as const;
+
+/**
+ * 素材のファイルの送受信先。Cloudflare はバイナリの `/blobs`、GAS は下の `putAssetBlob` / `getAssetBlob`(base64 のデータURL)。
+ * この2つのエンドポイントは GAS 専用(Cloudflare の `/rpc` には載せない)。
+ */
+export const ASSET_BLOB_ROUTE: BlobRoute = {
+  module: StorageModule.Scheduler,
+  gasPut: "octopusScheduler_putAssetBlob",
+  gasGet: "octopusScheduler_getAssetBlob",
+};
 
 export type OctopusSchedulerEndpointName =
   (typeof OCTOPUS_SCHEDULER_ENDPOINTS)[number];

@@ -62,9 +62,13 @@ async function openPrizeList(page: Page, request: APIRequestContext) {
 function watchRpc(page: Page) {
   const counts = new Map<string, number>();
   page.on("request", (r) => {
+    // ファイルの送信を "putBlob" として数える。Cloudflare はバイナリの PUT /blobs/<module>/<hash>、GAS は /rpc の `<接頭辞>_putBlob`(base64)
+    const bump = (key: string) => counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (r.method() === "PUT" && r.url().includes("/blobs/")) bump("putBlob");
     if (!r.url().endsWith("/rpc")) return;
     const name = String(r.postDataJSON()?.name);
-    counts.set(name, (counts.get(name) ?? 0) + 1);
+    bump(name);
+    if (name.endsWith("_putBlob")) bump("putBlob");
   });
   return { count: (name: string) => counts.get(name) ?? 0, reset: () => counts.clear() };
 }
@@ -104,7 +108,7 @@ test.describe("景品の CSV 取込・書き出し", () => {
     const record = await serverRecord(request);
     expect(Object.keys(record.media).sort()).toEqual(expect.arrayContaining([SHARED_BGM, SHARED_IMAGE]));
     expect(myPrizes(record).every((p) => p.image === SHARED_IMAGE && p.bgm1 === SHARED_BGM)).toBe(true);
-    expect(rpc.count("jackpotGame_putBlob")).toBe(2);
+    expect(rpc.count("putBlob")).toBe(2);
     expect(rpc.count("jackpotGame_saveRecord")).toBe(1);
     expect(await blobExists(request, "jackpotGame_existsBlobs", record.media[SHARED_BGM].hash)).toBe(true);
     await admin.context.close();

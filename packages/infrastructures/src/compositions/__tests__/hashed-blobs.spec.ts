@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryKeyValueStorage } from "../../testing/in-memory-key-value-storage";
-import { createHashedBlobStore, MissingBlobsError } from "../hashed-blobs";
+import { createHashedBlobStore, hashBytes, MAX_BLOB_BYTES, MissingBlobsError } from "../hashed-blobs";
 import { StorageModule } from "../storage-paths";
 
 const A = "a".repeat(32);
@@ -81,5 +81,60 @@ describe("一覧の保存(saveRecord)", () => {
     ]);
     await store.saveRecord(d, { fileName: "list.json", json: record(C) }, hashesOf);
     expect((await store.exists(d, { hashes: [A, B, C] })).existing).toEqual([C]);
+  });
+});
+
+describe("バイナリのファイル(putBytes / getBytes。Cloudflare の /blobs)", () => {
+  const bytesOf = (...values: number[]) => new Uint8Array(values);
+  const everyByte = Uint8Array.from({ length: 256 }, (_, i) => i);
+
+  it("バイト列のまま保存して、そのまま取り出せる(同じ種類つき)。存在確認にも載る", async () => {
+    const d = deps();
+    const hash = await hashBytes(everyByte);
+    await store.putBytes(d, { hash, bytes: everyByte, mime: "audio/mpeg" });
+    const got = await store.getBytes(d, { hash });
+    expect(Array.from(got!.bytes)).toEqual(Array.from(everyByte));
+    expect(got!.mime).toBe("audio/mpeg");
+    expect(await store.exists(d, { hashes: [hash, A] })).toEqual({ existing: [hash] });
+    expect(await store.getBytes(d, { hash: A })).toBeNull();
+  });
+
+  it("ハッシュが中身と違えば断り、保存しない(同じハッシュの正しいファイルも上書きしない)", async () => {
+    const d = deps();
+    const good = bytesOf(1, 2, 3);
+    const hash = await hashBytes(good);
+    await expect(store.putBytes(d, { hash, bytes: bytesOf(9, 9, 9), mime: "image/png" })).rejects.toThrow(/does not match/);
+    expect(await store.getBytes(d, { hash })).toBeNull();
+    await store.putBytes(d, { hash, bytes: good, mime: "image/png" });
+    await expect(store.putBytes(d, { hash, bytes: bytesOf(9, 9, 9), mime: "image/png" })).rejects.toThrow(/does not match/);
+    expect(Array.from((await store.getBytes(d, { hash }))!.bytes)).toEqual([1, 2, 3]);
+  });
+
+  it("30MB を超えるものと、形の違うハッシュは断る", async () => {
+    const d = deps();
+    await expect(store.putBytes(d, { hash: A, bytes: new Uint8Array(MAX_BLOB_BYTES + 1), mime: "video/mp4" })).rejects.toThrow(/too large/);
+    await expect(store.putBytes(d, { hash: "../x", bytes: bytesOf(1) })).rejects.toThrow(/Invalid blob hash/);
+    await expect(store.getBytes(d, { hash: "../x" })).rejects.toThrow(/Invalid blob hash/);
+  });
+
+  it("上限ちょうどの大きさは受け付ける", async () => {
+    const d = deps();
+    const big = new Uint8Array(MAX_BLOB_BYTES);
+    await store.putBytes(d, { hash: await hashBytes(big), bytes: big, mime: "video/mp4" });
+    expect((await store.getBytes(d, { hash: await hashBytes(big) }))!.bytes.byteLength).toBe(MAX_BLOB_BYTES);
+  });
+
+  it("種類(MIME)が変な形なら、中身を問わない種類にする", async () => {
+    const d = deps();
+    const hash = await hashBytes(bytesOf(7));
+    await store.putBytes(d, { hash, bytes: bytesOf(7), mime: "text/html; <script>" });
+    expect((await store.getBytes(d, { hash }))!.mime).toBe("application/octet-stream");
+  });
+
+  it("バイナリで入れたファイルは、GAS 用のデータURLの入口からも同じ中身で読める(保存先は共通)", async () => {
+    const d = deps();
+    const hash = await hashBytes(bytesOf(65, 66, 67));
+    await store.putBytes(d, { hash, bytes: bytesOf(65, 66, 67), mime: "image/png" });
+    expect(await store.get(d, { hash })).toEqual({ dataUrl: "data:image/png;base64,QUJD" });
   });
 });

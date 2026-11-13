@@ -1,17 +1,12 @@
 import "reflect-metadata";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { FixedConcurrencyPolicy, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
+import { FixedConcurrencyPolicy, InMemoryKeyValueStorage, createFakeBlobApiClient } from "@octopus/infrastructures/testing";
 import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { SyncRunner, hashBlob } from "@octopus/sync-engine";
 import { QuizRepository } from "./quiz-repository";
 import { Quiz } from "./quiz";
 import { QUIZ_RECORD_FILE, quizRecordHashes } from "../../server/quiz-api-contract";
-
-// jsdom + localforage では保存した Blob を読み戻すと本物の Blob ではなくなり FileReader で読めないので、データURL化だけ差し替える
-vi.mock("@octopus/client-common/blob/blob-to-data-url", () => ({
-  blobToDataUrl: async () => "data:image/png;base64,QUJD",
-}));
 
 /** サーバーの実装(ハッシュのファイル置き場と一覧の保存)をそのまま使う、メモリ上のサーバー。 */
 function makeServer() {
@@ -26,7 +21,7 @@ function makeServer() {
   };
   /** サーバーに残っているハッシュのファイルの数。 */
   const blobCount = async () => (await deps.storage.listByPrefix("quiz-game/assets/")).length;
-  return { api, blobCount };
+  return { api, client: createFakeBlobApiClient(store, deps), blobCount };
 }
 
 function makeQuiz(overrides: Partial<ConstructorParameters<typeof Quiz>[0]> = {}): Quiz {
@@ -63,7 +58,7 @@ describe("QuizRepository", () => {
   beforeEach(async () => {
     await clearLocal();
     server = makeServer();
-    repo = new QuizRepository(server.api as any);
+    repo = new QuizRepository(server.api as any, server.client);
   });
 
   it("保存したクイズを読み戻せ、同じ id は置き換わる", async () => {
@@ -108,7 +103,7 @@ describe("QuizRepository", () => {
     await sync(repo);
 
     await clearLocal();
-    const other = new QuizRepository(server.api as any);
+    const other = new QuizRepository(server.api as any, server.client);
     expect((await sync(other)).map((r) => r.result)).toEqual(["pulled"]);
     const pulled = await other.getQuizById("x");
     expect(pulled!.options[0].image).not.toBeNull();
@@ -116,7 +111,7 @@ describe("QuizRepository", () => {
     await other.deleteQuizzes(["x"]);
     await sync(other);
     await clearLocal();
-    const third = new QuizRepository(server.api as any);
+    const third = new QuizRepository(server.api as any, server.client);
     await sync(third);
     expect(await third.getAllQuizzes()).toEqual([]);
     expect(await server.blobCount()).toBe(0);

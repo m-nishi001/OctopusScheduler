@@ -109,15 +109,19 @@ export async function uploadMissingBlobs(
   if (wanted.length === 0) return { uploaded: 0, skipped: 0 };
   const existing = new Set(await remote.exists(wanted));
   const missing = wanted.filter((h) => !existing.has(h));
-  await mapPool(
+  // 小さいファイルから送る(画面の「アップロード済み」が先に増え、大きい動画が詰まっても小さいものは先に揃う)。
+  // 中身は手元から先に取り出す(IndexedDB の Blob は、読むまで中身をメモリに載せない)。
+  const blobs = await mapPool(
     missing,
     async (hash) => {
       const blob = await local.get(hash);
       if (!blob) throw new Error(`blob ${hash} is not on this device`);
-      await remote.put(hash, blob);
+      return { hash, blob };
     },
     options
   );
+  blobs.sort((a, b) => a.blob.size - b.blob.size);
+  await mapPool(blobs, ({ hash, blob }) => remote.put(hash, blob), options);
   return { uploaded: missing.length, skipped: wanted.length - missing.length };
 }
 

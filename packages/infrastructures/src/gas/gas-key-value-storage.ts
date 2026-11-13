@@ -235,6 +235,22 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     return this.upsert(key, Utilities.newBlob(bytes, mimeType, localName));
   }
 
+  /** GAS のバイトは符号つき(-128〜127)なので、符号つきにして渡す。 */
+  async putBytes(key: string, bytes: Uint8Array, mimeType: string): Promise<StoredItemMeta> {
+    const { localName } = this.splitKey(key);
+    const signed = Array.from(bytes, (b) => (b > 127 ? b - 256 : b));
+    return this.upsert(key, Utilities.newBlob(signed, mimeType, localName));
+  }
+
+  async getBytes(key: string): Promise<{ meta: StoredItemMeta; bytes: Uint8Array } | null> {
+    const found = this.findFile(key);
+    if (!found) return null;
+    return {
+      meta: this.toMeta(found.file, found.dir, found.localName),
+      bytes: Uint8Array.from(found.file.getBlob().getBytes()),
+    };
+  }
+
   async getContent(key: string): Promise<StoredItemContent | null> {
     const found = this.findFile(key);
     if (!found) return null;

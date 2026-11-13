@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
+import { InMemoryKeyValueStorage, createFakeBlobApiClient } from "@octopus/infrastructures/testing";
 import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { readZip } from "@octopus/table-io";
@@ -9,10 +9,6 @@ import { Quiz } from "../../model/quiz";
 import { QUIZ_RECORD_FILE, quizRecordHashes } from "../../../server/quiz-api-contract";
 import { hashBlob } from "@octopus/sync-engine";
 import { exportQuizzes as exportFrom, previewQuizImport, quizTableIo } from "./quiz-table-io";
-
-vi.mock("@octopus/client-common/blob/blob-to-data-url", () => ({
-  blobToDataUrl: async () => "data:image/png;base64,QUJD",
-}));
 
 // jsdom の Blob には arrayBuffer が無い(ブラウザにはある)ので、FileReader で補う。
 Blob.prototype.arrayBuffer ??= function (this: Blob) {
@@ -63,7 +59,7 @@ describe("クイズ一覧の書き出し・取込", () => {
   beforeEach(async () => {
     await new LocalStorageService("quiz-game", "QuizData").clear();
     await new LocalStorageService("quiz-game-blobs", "Blobs").clear();
-    repo = new QuizRepository(api as any);
+    repo = new QuizRepository(api as any, createFakeBlobApiClient(store, deps));
   });
 
   /** 10問が同じBGMを使う一覧を作る。 */

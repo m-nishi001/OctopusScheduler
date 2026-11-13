@@ -32,6 +32,18 @@ export class RateLimitedError extends Error {
   }
 }
 
+/**
+ * ファイル(画像・音声・動画)の送受信先。どのモジュールのファイル置き場かを指す。
+ * 送り方は API クライアントが決める(Cloudflare はバイナリの `/blobs/<module>/<hash>`、GAS は base64 のデータURLで下の GAS 関数を呼ぶ)。
+ */
+export interface BlobRoute {
+  /** 保存先のモジュール名(`StorageModule` の値)。Cloudflare の `/blobs/<module>/<hash>` の `<module>`。 */
+  module: string;
+  /** GAS の関数名(`<接頭辞>_<エンドポイント>`)。ファイルを送る/取る。GAS は文字列しか送れないので base64 のデータURLで受け渡す。 */
+  gasPut: string;
+  gasGet: string;
+}
+
 export interface IApiClient {
   /**
    * `functionName` で指定したサーバー側エンドポイントを呼び出す。
@@ -42,6 +54,12 @@ export interface IApiClient {
     args?: unknown,
     options?: ApiCallOptions
   ): Promise<T>;
+
+  /** ファイルをサーバーに上げる。同じハッシュなら同じ内容なので、何度送っても結果は同じ。 */
+  putBlob(route: BlobRoute, hash: string, blob: Blob, options?: ApiCallOptions): Promise<void>;
+
+  /** ファイルをサーバーから取る。サーバーに無ければ null。 */
+  getBlob(route: BlobRoute, hash: string, options?: ApiCallOptions): Promise<Blob | null>;
 }
 
 export const IApiClientToken = Symbol("IApiClient");

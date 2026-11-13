@@ -1,4 +1,3 @@
-import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { inject, injectable } from "tsyringe";
 import {
@@ -13,7 +12,9 @@ import {
 } from "@octopus/sync-engine";
 import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
 import { deriveMedia, mimeOfName } from "@octopus/table-io";
-import { IJackpotGameApiToken, jackpotMediaRefs, jackpotRecordHashes, prizeMediaNames } from "../../server/jackpot-api-contract";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { IJackpotGameApiToken, JACKPOT_BLOB_ROUTE, jackpotMediaRefs, jackpotRecordHashes, prizeMediaNames } from "../../server/jackpot-api-contract";
 import { JACKPOT_SCHEMA_VERSION, migrateJackpotRecord } from "./schema-migration";
 import { normalizePrizeKakuhen } from "./prize/prize-kakuhen";
 import type { JackpotGameApi, JackpotRecord, MediaInfo, Prize, ScreenSettingRecord } from "../../server/jackpot-api-contract";
@@ -43,14 +44,6 @@ const asMigratedRecord = (data: Partial<JackpotRecord> | null | undefined): { re
 
 const asRecord = (data: Partial<JackpotRecord> | null | undefined): JackpotRecord => asMigratedRecord(data).record;
 
-/** データURLを Blob にする。 */
-function dataUrlToBlob(dataUrl: string): Blob {
-  const [header, base64] = dataUrl.split(",");
-  const mime = /data:([^;]+)/.exec(header)?.[1] ?? "application/octet-stream";
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  return new Blob([bytes], { type: mime });
-}
-
 const settingKey = (s: Pick<ScreenSettingRecord, "screenName" | "settingName">) => `${s.screenName}_${s.settingName}`;
 
 /**
@@ -66,7 +59,10 @@ export class JackpotRepository {
   private readonly list = new BlobRecordStore<JackpotRecord>("jackpot-game", "JackpotData");
   private readonly blobs = new HashedBlobStore("jackpot-game-blobs", "Blobs");
 
-  constructor(@inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi) {}
+  constructor(
+    @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi,
+    @inject(IApiClientToken) private readonly apiClient: IApiClient
+  ) {}
 
   /**
    * いまのレコード(景品・画面設定と素材の索引)。
@@ -196,11 +192,8 @@ export class JackpotRepository {
   private blobRemote(): HashedBlobRemote {
     return {
       exists: async (hashes) => (await this.jackpotApi.existsBlobs({ hashes }, REMOTE_OPTIONS)).existing,
-      put: async (hash, blob) => this.jackpotApi.putBlob({ hash, dataUrl: await blobToDataUrl(blob) }, REMOTE_OPTIONS),
-      get: async (hash) => {
-        const { dataUrl } = await this.jackpotApi.getBlob({ hash }, REMOTE_OPTIONS);
-        return dataUrl ? dataUrlToBlob(dataUrl) : null;
-      },
+      put: (hash, blob) => this.apiClient.putBlob(JACKPOT_BLOB_ROUTE, hash, blob, REMOTE_OPTIONS),
+      get: (hash) => this.apiClient.getBlob(JACKPOT_BLOB_ROUTE, hash, REMOTE_OPTIONS),
     };
   }
 }

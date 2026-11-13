@@ -11,7 +11,7 @@ import {
   uploadMissingBlobs,
   withHashedBlobs,
 } from "../hashed-blobs";
-import type { HashedBlobRemote } from "../hashed-blobs";
+import type { HashedBlobLocal, HashedBlobRemote } from "../hashed-blobs";
 import { SyncRunner } from "../sync-runner";
 
 const blobOf = (text: string) => new Blob([text], { type: "text/plain" });
@@ -63,6 +63,30 @@ describe("uploadMissingBlobs / downloadMissingBlobs", () => {
     expect(result).toEqual({ uploaded: 2, skipped: 1 });
     expect(server.existsCalls).toBe(1);
     expect(server.puts.sort()).toEqual(["h1", "h3"]);
+  });
+
+  it("小さいファイルから順に上げる(同時に6本のまま)", async () => {
+    const sizes: Record<string, number> = { big: 300, mid: 20, small: 1, tiny0: 0, huge: 4000, m2: 21 };
+    for (const [h, n] of Object.entries(sizes)) await local.put(h, new Blob(["x".repeat(n)], { type: "text/plain" }));
+    // jsdom + localforage では読み戻した Blob の大きさが取れないので、手元の置き場の読み出しをサイズつきの Blob に差し替える
+    const sized: HashedBlobLocal = { has: (h) => local.has(h), put: (h, b) => local.put(h, b), get: async (h) => new Blob(["x".repeat(sizes[h])]) };
+    let running = 0;
+    let peak = 0;
+    const order: string[] = [];
+    const remote: HashedBlobRemote = {
+      exists: async () => [],
+      put: async (hash) => {
+        order.push(hash);
+        peak = Math.max(peak, ++running);
+        await new Promise((r) => setTimeout(r, 5));
+        running--;
+      },
+      get: async () => null,
+    };
+    await uploadMissingBlobs(sized, remote, ["big", "mid", "small", "tiny0", "huge", "m2"]);
+    expect(order).toEqual(["tiny0", "small", "mid", "m2", "big", "huge"]);
+    expect(peak).toBeLessThanOrEqual(6);
+    expect(peak).toBeGreaterThan(1);
   });
 
   it("手元に無いものを上げようとしたら例外", async () => {
