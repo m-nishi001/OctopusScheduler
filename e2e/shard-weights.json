@@ -5,6 +5,7 @@
     "jackpot-scale.spec.ts"
   ],
   "ui": {
+    "manual-screenshots.spec.ts": 1,
     "jackpot-scale.spec.ts": 477,
     "jackpot-stop-patterns.spec.ts": 311,
     "participant-jackpot.spec.ts": 253,
@@ -41,6 +42,7 @@
     "settings-members.spec.ts": 1
   },
   "gas": {
+    "manual-screenshots.spec.ts": 1,
     "jackpot-scale.spec.ts": 525,
     "jackpot-stop-patterns.spec.ts": 481,
     "participant-jackpot.spec.ts": 372,

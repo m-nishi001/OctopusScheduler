@@ -61,6 +61,7 @@ npm run dev:stack -- --port 8841     # --port 省略時は空きポート。--co
 - クイズ・景品・画面設定・画像/音は**ブラウザが管理画面を開いたときに R2 から取り込まれる**(同期)。新しいブラウザで、クイズ管理(`/#/quiz-admin`)とジャックポット管理(`/#/execute/jackpot-admin`)を一度開けば揃う。一覧(クイズ・景品・画面設定)のシードは、アプリの同期と同じ `{ updatedAt, data }` の形で、`updatedAt` は投入した時刻。**新しいほうが勝つ**ので、すでに自分のデータがあるブラウザは、シードより新しい編集を持っていればそちらが残り、古ければシードで置き換わる。迷ったら、シークレットウィンドウで試す。取り込みや失敗の記録は、ヘッダーの同期表示を押すと開ける詳細で確かめられる。
 - ジャックポットのメンバーの「当選しやすさ」は同期の対象外のためシードできない(既定値 5)。抽選結果・クイズの回答は操作して作る。
 - 結果つきで確認する E2E(`seeded-walkthrough`)は結果データありのシードが前提で、`E2E_SEEDED=1` に加えて `E2E_SEEDED_RESULTS=1` を付けたときだけ「結果タブ」のテストが動く。
+- 利用マニュアルの画面写真(`docs/assets/images/*.webp`)の撮り直し: `npm run docs:shots -- --assets <人物・景品の写真のフォルダ>`(ビルド → ローカルの `dev-stack` を空きポートで起動 → `e2e/ui/manual-screenshots.spec.ts` で撮影 → 停止まで1コマンド。Cloudflare 上の環境には触れない)。写真は `person-*.jpg`(人物)と `wiki-*.jpg`(景品・果物)で、出典は `docs/markdown/manual/credits.md`。省略すると色つきの代用画像になる。`--only '^a-1'` で名前を絞れる。番号バッジ(赤い枠)は撮影時に重ねる。1回で約15分
 - 確認用の E2E: `E2E_SEEDED=1 BASE=<URL> E2E_ADMIN_TOKEN=<管理者トークン> npx playwright test -c e2e/playwright.config.ts seeded-content`(画面の見た目は `E2E_SHOTS=<出力先>` でスクリーンショットに保存)
 
 ## 2. 自動テスト
