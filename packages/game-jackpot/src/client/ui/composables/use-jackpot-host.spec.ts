@@ -183,6 +183,30 @@ describe("useJackpotHost", () => {
     expect(handlers.stopRoulette).toHaveBeenCalledTimes(2);
   });
 
+  it("参加者の停止を許可しない設定(OFF)では、当選者にも停止ボタンを出さず、参加者の停止は FORBIDDEN。管理端末は止められる。設定の変更はその場で効く", async () => {
+    const { admin, client } = await scene();
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    let allowed = false;
+    const scope = effectScope();
+    const host = scope.run(() => useJackpotHost(handlers, { participantStop: () => allowed }))!;
+    host.publish(prizeStop());
+    await tick(4000);
+    expect(client.conn.state.roomState?.clientInput).toEqual([]);
+    await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
+    await tick(4000);
+    expect(handlers.stopRoulette).not.toHaveBeenCalled();
+
+    await admin.conn.issue("jackpot", "stopRoulette");
+    await tick(4000);
+    expect(handlers.stopRoulette).toHaveBeenCalledTimes(1);
+
+    allowed = true;
+    host.publish(prizeStop());
+    await tick(4000);
+    expect(client.conn.state.roomState?.clientInput).toEqual(STOP_FOR_WINNER);
+    scope.stop();
+  });
+
   it("当選者が分からない(memberId が無い)景品抽選では、参加者に停止を出さない(管理端末だけが止める)", async () => {
     const { client } = await scene();
     const { host } = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });

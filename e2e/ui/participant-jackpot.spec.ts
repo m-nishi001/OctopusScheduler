@@ -57,7 +57,7 @@ async function drawOnce(admin: import("@playwright/test").Page): Promise<string>
   return /当選者: (参加者\d\d)/.exec(await admin.getByTestId("jackpot-state").innerText())![1];
 }
 
-async function scene(browser: import("@playwright/test").Browser, request: APIRequestContext, label: string, entrantIndexes: number[]) {
+async function scene(browser: import("@playwright/test").Browser, request: APIRequestContext, label: string, entrantIndexes: number[], screens: unknown[] = []) {
   test.setTimeout(240_000);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, label);
@@ -66,7 +66,7 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
   host.page.on("dialog", (d) => void d.dismiss()); // 想定外の alert で止まらないように
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText(label);
-  await seedJackpot(host.page, { prizes: PRIZES });
+  await seedJackpot(host.page, { prizes: PRIZES, screens });
   await publish(request, sessionId);
 
   await openAdvanced(admin.page);
@@ -362,6 +362,50 @@ test.describe("エントリー → ジャックポット", () => {
     expect(saved.length).toBeGreaterThanOrEqual(1);
     expect(saved[0].prizeName).toBeTruthy();
     expect(saved[0].memberName).toBeTruthy();
+
+    await publish(request, sessionId, false);
+    for (const d of [admin, host, ...guests]) await d.context.close();
+  });
+
+  test("「参加者が景品ルーレットを止めることができる」を外すと、当選者のスマホにも停止ボタンが出ず、ホスト画面の Enter で止められる", async ({ browser, request }) => {
+    const mainOff = { screenName: "main", settingName: "main-screen-settings", settingValue: JSON.stringify({ memberLotteryBgms: [], kakuhenMode: "auto", kakuhenFixedTimings: [], prizeStopSec: 4, participantStop: false }) };
+    const { admin, host, guests, sessionId } = await scene(browser, request, "抽選会場H", [2], [mainOff]);
+    const phone = guests[2];
+    await openEventTab(phone.page);
+    const stopBtn = phone.page.getByRole("button", { name: "ルーレットを止める" });
+
+    await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
+    for (let i = 0; i < 30; i++) {
+      if (/当選者: [^—\s]\S*/.test(await admin.page.getByTestId("jackpot-state").innerText())) break;
+      await nextButton(admin.page).click();
+      await admin.page.waitForTimeout(1500);
+    }
+    await expect(phone.page.getByTestId("winner")).toContainText(nameOf(ids[2]), { timeout: 60_000 });
+
+    // 景品の停止の場面(管理端末の主ボタンが「止める」)になっても、当選者のスマホに停止ボタンは出ない
+    const next = nextButton(admin.page);
+    let atStop = false;
+    for (let round = 0; round < 10 && !atStop; round++) {
+      await expect.poll(async () => (await next.isEnabled().catch(() => false)), { timeout: 60_000, intervals: [100, 200, 300] }).toBe(true);
+      const label = (await next.innerText()).trim();
+      if (label.startsWith("止める")) {
+        atStop = true;
+      } else {
+        await next.click();
+        await expect(next).not.toHaveText(/^\s*次へ/, { timeout: 30_000 });
+      }
+    }
+    expect(atStop).toBe(true);
+    await phone.page.waitForTimeout(2000); // 公開が届く時間を待ってから確かめる
+    await expect(stopBtn).toBeHidden();
+    await expect(admin.page.getByTestId("jackpot-state")).toContainText("賞品: —");
+
+    // ホスト画面の Enter(物理ボタン)で止まり、賞品が公開される
+    await host.page.keyboard.press("Enter");
+    await expect(admin.page.getByTestId("jackpot-state")).toContainText(/賞品: [^—\s]\S*/, { timeout: 60_000 });
+    await expect(stopBtn).toBeHidden();
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, ...guests]) await d.context.close();

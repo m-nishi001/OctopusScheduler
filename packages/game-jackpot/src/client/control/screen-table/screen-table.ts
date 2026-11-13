@@ -19,6 +19,7 @@ import type { Header, Row } from "@octopus/table-io";
 import { mimeOfName, parseTable } from "@octopus/table-io";
 import type { ParsedTable } from "@octopus/table-io";
 import type { ScreenSettingRecord } from "../../../server/jackpot-api-contract";
+import { DEFAULT_PARTICIPANT_STOP, parseParticipantStop } from "../../model/draw/participant-stop";
 import { clampPrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC } from "../../model/draw/prize-stop-sec";
 import { parseKakuhenPlan, parseTimingsText } from "../../model/draw/kakuhen-plan";
 
@@ -54,6 +55,7 @@ const ITEM_DRAW_SE = "抽選SE";
 const ITEM_MEMBER_BGM = "メンバー抽選BGM";
 const ITEM_KAKUHEN = "確変の回";
 const ITEM_STOP_SEC = "停止秒数";
+const ITEM_PARTICIPANT_STOP = "参加者の停止";
 const ITEM_CONTENT = "コンテンツ";
 
 /** 画面ごとに使える項目。 */
@@ -63,13 +65,15 @@ const ITEMS_OF: Readonly<Record<ScreenKey, readonly string[]>> = {
   ending: [ITEM_BGM, ITEM_CONTENT],
   demo: [ITEM_BGM, ITEM_DRAW_SE],
   result: [ITEM_BGM],
-  main: [ITEM_MEMBER_BGM, ITEM_KAKUHEN, ITEM_STOP_SEC],
+  main: [ITEM_MEMBER_BGM, ITEM_KAKUHEN, ITEM_STOP_SEC, ITEM_PARTICIPANT_STOP],
 };
 
 const CONTENT_TYPE_LABEL = { text: "テキスト", image: "画像", html: "HTML" } as const;
 const CONTENT_EFFECT_LABEL = { scroll: "スクロール", fade: "フェード", static: "静止" } as const;
 const KAKUHEN_AUTO = "おまかせ";
 const KAKUHEN_NONE = "なし";
+const PARTICIPANT_STOP_ON = "可";
+const PARTICIPANT_STOP_OFF = "不可";
 
 const norm = (s: string): string => s.normalize("NFKC").trim().toLowerCase();
 const pick = <K extends string>(labels: Record<K, string>, cell: string): K | null =>
@@ -115,7 +119,8 @@ export function screensToRows(records: readonly ScreenSettingRecord[]): Row[] {
         for (const name of list) rows.push(...bgmRow(label, ITEM_MEMBER_BGM, name));
         const plan = parseKakuhenPlan(v);
         const text = plan.mode === "auto" ? KAKUHEN_AUTO : plan.fixedTimings.length === 0 ? KAKUHEN_NONE : plan.fixedTimings.join(", ");
-        rows.push({ screen: label, item: ITEM_KAKUHEN, text }, { screen: label, item: ITEM_STOP_SEC, text: String(clampPrizeStopSec(v.prizeStopSec)) });
+        rows.push({ screen: label, item: ITEM_KAKUHEN, text }, { screen: label, item: ITEM_STOP_SEC, text: String(clampPrizeStopSec(v.prizeStopSec)) },
+          { screen: label, item: ITEM_PARTICIPANT_STOP, text: parseParticipantStop(v) ? PARTICIPANT_STOP_ON : PARTICIPANT_STOP_OFF });
         break;
       }
       default: {
@@ -245,7 +250,15 @@ export function rowsToScreens(rows: readonly Row[], options: RowsToScreensOption
             fail(stopAt.i, `停止秒数は${MIN_PRIZE_STOP_SEC}〜${MAX_PRIZE_STOP_SEC}の数(秒)で入力してください: ${stopAt.row.text}`);
           } else stop = clampPrizeStopSec(n);
         }
-        value = { memberLotteryBgms: lottery.filter(Boolean), kakuhenMode: mode, kakuhenFixedTimings: timings, prizeStopSec: stop };
+        let participantStop = DEFAULT_PARTICIPANT_STOP;
+        const stopByAt = cellOf(ITEM_PARTICIPANT_STOP);
+        if (stopByAt && (stopByAt.row.text ?? "") !== "") {
+          const t = norm(stopByAt.row.text ?? "");
+          if (t === norm(PARTICIPANT_STOP_ON)) participantStop = true;
+          else if (t === norm(PARTICIPANT_STOP_OFF)) participantStop = false;
+          else fail(stopByAt.i, `参加者の停止は ${PARTICIPANT_STOP_ON}・${PARTICIPANT_STOP_OFF} のどちらかで入力してください: ${stopByAt.row.text}`);
+        }
+        value = { memberLotteryBgms: lottery.filter(Boolean), kakuhenMode: mode, kakuhenFixedTimings: timings, prizeStopSec: stop, participantStop };
         break;
       }
       default: {
