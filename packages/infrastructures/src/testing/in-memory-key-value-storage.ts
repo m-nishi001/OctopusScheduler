@@ -112,6 +112,16 @@ export class InMemoryKeyValueStorage implements IKeyValueStorage {
     return this.upsert(key, contentBase64, mimeType);
   }
 
+  async putBytes(key: string, bytes: Uint8Array, mimeType: string): Promise<StoredItemMeta> {
+    return this.upsert(key, Buffer.from(bytes).toString("base64"), mimeType);
+  }
+
+  async getBytes(key: string): Promise<{ meta: StoredItemMeta; bytes: Uint8Array } | null> {
+    const item = this.items.get(key);
+    if (!item) return null;
+    return { meta: this.toMeta(item), bytes: new Uint8Array(Buffer.from(item.contentBase64, "base64")) };
+  }
+
   async getContent(key: string): Promise<StoredItemContent | null> {
     const item = this.items.get(key);
     if (!item) return null;

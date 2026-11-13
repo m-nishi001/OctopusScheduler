@@ -1,9 +1,17 @@
 /**
  * jackpot-game の GAS エンドポイント契約(唯一の正準定義)。
  */
-import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
+import type { ApiCallOptions, BlobRoute } from "@octopus/infrastructures/interfaces";
+import { StorageModule } from "@octopus/infrastructures/compositions";
 
 export const JACKPOT_GAME_PREFIX = "jackpotGame" as const;
+
+/** 素材のファイルの送受信先。Cloudflare はバイナリの `/blobs`、GAS は `putBlob` / `getBlob`(base64 のデータURL。GAS 専用)。 */
+export const JACKPOT_BLOB_ROUTE: BlobRoute = {
+  module: StorageModule.Jackpot,
+  gasPut: `${JACKPOT_GAME_PREFIX}_putBlob`,
+  gasGet: `${JACKPOT_GAME_PREFIX}_getBlob`,
+};
 
 export const JACKPOT_GAME_ENDPOINTS = [
   "getRecord",

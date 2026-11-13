@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 // 実 workerd(wrangler dev --local)に対する session-hub の疎通確認。scripts/e2e-local.js から実行する。
 const BASE = process.env.BASE ?? "http://127.0.0.1:8821";
 const ADMIN_TOKEN = process.env.E2E_ADMIN_TOKEN ?? "e2e-admin-session-token-0001";
@@ -200,9 +202,18 @@ const polled = await rpc("sessionHub_poll", { sessionId: meta2.id, deviceId: c2.
 check("poll RPC(フォールバック)も DO 経由で動く", polled.session.id === meta2.id && polled.presence.clientCount === 1);
 
 // クイズの一覧とハッシュ参照のファイル(保存 → 確認 → 取得。一覧から外れたファイルは、一覧を書くときに消える)
-const blobHashA = "a".repeat(32);
-const blobHashB = "b".repeat(32);
-const blobUrl = (text) => `data:image/png;base64,${Buffer.from(text).toString("base64")}`;
+// ファイルはバイナリで送受信する(`/blobs/<module>/<hash>`)。サーバーが中身とハッシュの一致を確かめるので、ハッシュは本物を使う。
+const hashOf = (text) => createHash("sha256").update(text).digest("hex").slice(0, 32);
+const blobHashA = hashOf("v1");
+const blobHashB = hashOf("v2");
+const putBlob = (module, hash, text, token = ADMIN_TOKEN) =>
+  fetch(`${BASE}/blobs/${module}/${hash}`, {
+    method: "PUT",
+    headers: { "Content-Type": "image/png", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: Buffer.from(text),
+  });
+const getBlob = (module, hash, token = ADMIN_TOKEN) =>
+  fetch(`${BASE}/blobs/${module}/${hash}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
 const quizRecord = (...hashes) =>
   JSON.stringify({
     updatedAt: Date.now(),
@@ -211,10 +222,14 @@ const quizRecord = (...hashes) =>
       media: Object.fromEntries(hashes.map((hash, i) => [`p${i}.png`, { hash, mime: "image/png", size: 2 }])),
     },
   });
-await rpc("quizGame_putBlob", { hash: blobHashA, dataUrl: blobUrl("v1") }, ADMIN_TOKEN);
-await rpc("quizGame_putBlob", { hash: blobHashB, dataUrl: blobUrl("v2") }, ADMIN_TOKEN);
-const blobNow = await rpc("quizGame_getBlob", { hash: blobHashA }, ADMIN_TOKEN);
-check("ハッシュのファイルは保存した内容がそのまま取れる", Buffer.from(blobNow.dataUrl.split("base64,")[1], "base64").toString() === "v1", blobNow?.dataUrl);
+check("ファイルを管理者のトークン無しで上げることはできない", (await putBlob("quiz-game", blobHashA, "v1", null)).status === 401);
+check("中身と違うハッシュのファイルは断られる", (await putBlob("quiz-game", blobHashB, "v1")).status === 400);
+check("ファイルをバイナリで上げられる", (await putBlob("quiz-game", blobHashA, "v1")).status === 204);
+check("ファイルをバイナリで上げられる(2つ目)", (await putBlob("quiz-game", blobHashB, "v2")).status === 204);
+const blobNow = await getBlob("quiz-game", blobHashA);
+check("ハッシュのファイルは保存した内容がそのまま取れる(バイナリ)", (await blobNow.text()) === "v1" && blobNow.headers.get("content-type") === "image/png");
+check("ファイルの取得には長期キャッシュと ETag が付く", blobNow.headers.get("cache-control") === "private, max-age=31536000, immutable" && blobNow.headers.get("etag") === `"${blobHashA}"`);
+check("ファイルの取得にも管理者のトークンが要る", (await getBlob("quiz-game", blobHashA, null)).status === 401);
 await rpc("quizGame_saveRecord", { json: quizRecord(blobHashA, blobHashB) }, ADMIN_TOKEN);
 await rpc("quizGame_saveRecord", { json: quizRecord(blobHashB) }, ADMIN_TOKEN);
 const blobExists = await rpc("quizGame_existsBlobs", { hashes: [blobHashA, blobHashB] }, ADMIN_TOKEN);
@@ -242,8 +257,8 @@ const jackpotRecord = ({ prizeImage, screenBgm }) =>
       },
     },
   });
-await rpc("jackpotGame_putBlob", { hash: blobHashA, dataUrl: blobUrl("v1") }, ADMIN_TOKEN);
-await rpc("jackpotGame_putBlob", { hash: blobHashB, dataUrl: blobUrl("v2") }, ADMIN_TOKEN);
+await putBlob("jackpot-game", blobHashA, "v1");
+await putBlob("jackpot-game", blobHashB, "v2");
 await rpc("jackpotGame_saveRecord", { json: jackpotRecord({ prizeImage: true, screenBgm: true }) }, ADMIN_TOKEN);
 await rpc("jackpotGame_saveRecord", { json: jackpotRecord({ prizeImage: false, screenBgm: true }) }, ADMIN_TOKEN);
 const jackpotBlobs = await rpc("jackpotGame_existsBlobs", { hashes: [blobHashA, blobHashB] }, ADMIN_TOKEN);

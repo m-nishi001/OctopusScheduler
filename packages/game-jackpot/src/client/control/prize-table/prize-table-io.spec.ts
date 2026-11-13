@@ -32,7 +32,7 @@ describe("景品の書き出し・取込", () => {
     created.clear();
     await new LocalStorageService("jackpot-game", "JackpotData").clear();
     await new LocalStorageService("jackpot-game-blobs", "Blobs").clear();
-    repo = new JackpotRepository({} as never);
+    repo = new JackpotRepository({} as never, {} as never);
   });
 
   /** 10件の景品が同じ画像を使う一覧を作る。 */

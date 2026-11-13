@@ -88,9 +88,11 @@ RPC は「遠くにある関数を、名前を指定して呼ぶ」しくみで�
 | --- | --- | --- |
 | **`accounts_*`** | accounts | `login`・`loginWithKey`・`listMembers`・`applyRoster`・`getSession` |
 | **`sessionHub_*`** | session-hub | `createSession`・`joinOperator`・`poll`・`issueCommand`・`submitAnswer` |
-| **`quizGame_*`** | game-quiz | `getRecord`・`saveRecord`・`putBlob`・`getBlob` |
+| **`quizGame_*`** | game-quiz | `getRecord`・`saveRecord`・`existsBlobs` |
 | **`jackpotGame_*`** | game-jackpot | `getRecord`・`saveRecord`・`addJson`・`getJson` |
-| **`octopusScheduler_*`** | app-scheduler | `doGet`(画面配信)・`getAssetBlob`・`saveAssetRecord` |
+| **`octopusScheduler_*`** | app-scheduler | `doGet`(画面配信)・`getAssetRecord`・`saveAssetRecord` |
+
+素材のファイル(画像・音声・動画)は、この RPC ではなく Cloudflare ではバイナリのまま `PUT` / `GET /blobs/<モジュール名>/<ハッシュ>` で送受信します(GAS だけは、文字列しか送れないので api-client の中で base64 にして RPC で送ります)。
 
 ## 5. ログインと認証 {#a5}
 

@@ -98,10 +98,11 @@ _octopusScheduler_getAssetBlob = secure("admin", _octopusScheduler_getAssetBlob)
 /**
  * Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。
  * doGet は GAS の HtmlService エントリポイント固有の関心事であり、Cloudflare側は
- * 静的アセット配信で代替するため、ここには含めない。
+ * 静的アセット配信で代替するため、ここには含めない。putAssetBlob / getAssetBlob(base64 のデータURL)も GAS 専用で、
+ * Cloudflare はバイナリの `/blobs`(cloudflare/blob-route.ts)で送受信するため含めない。
  */
 export const OCTOPUS_SCHEDULER_HANDLERS: Record<
-  Exclude<OctopusSchedulerEndpointName, "doGet">,
+  Exclude<OctopusSchedulerEndpointName, "doGet" | "putAssetBlob" | "getAssetBlob">,
   (args: any) => Promise<string>
 > = {
   getDriveMetaData: _octopusScheduler_getDriveMetaData,
@@ -109,8 +110,6 @@ export const OCTOPUS_SCHEDULER_HANDLERS: Record<
   getAssetRecord: _octopusScheduler_getAssetRecord,
   saveAssetRecord: _octopusScheduler_saveAssetRecord,
   existsAssetBlobs: _octopusScheduler_existsAssetBlobs,
-  putAssetBlob: _octopusScheduler_putAssetBlob,
-  getAssetBlob: _octopusScheduler_getAssetBlob,
 };
 
 export { OCTOPUS_SCHEDULER_PREFIX };
