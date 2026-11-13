@@ -27,10 +27,10 @@ function fakeControls() {
   return { audio, screen, controls: (): MediaControls => ({ audio, screen: screen as unknown as MediaControls["screen"] }) };
 }
 
-async function scene(controls: () => MediaControls) {
+async function scene(controls: () => MediaControls, onFailure?: (assetId: string) => void) {
   const meta = await env.repo.create({ name: "会場" });
   const { agent } = registerHostAgent(env);
-  registerMediaCommands(agent, controls);
+  registerMediaCommands(agent, controls, onFailure);
   await agent.connection.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   const admin = makeDevice(env.hub, { memberId: "admin2" });
   await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
@@ -119,5 +119,22 @@ describe("registerMediaCommands(ホスト)", () => {
     await settle(5000);
     expect(source.ensure).toHaveBeenCalledWith("song9");
     expect(fakeAudio.play).toHaveBeenCalledWith("i1");
+  });
+
+  it("再生・表示できなかったら(素材が取れないなど)、その素材の ID で onFailure を呼ぶ。止める指示や成功では呼ばない", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const onFailure = vi.fn();
+    const f = fakeControls();
+    f.audio.play.mockRejectedValueOnce(new Error("素材がサーバーにありません: gone1"));
+    f.screen.show.mockRejectedValueOnce(new Error("no img")).mockRejectedValueOnce(new Error("no folder")).mockResolvedValue(undefined);
+    f.audio.stop.mockRejectedValue(new Error("stop failed"));
+    const { admin } = await scene(f.controls, onFailure);
+    await admin.conn.issue("media", "play", { assetId: "gone1" });
+    await admin.conn.issue("media", "show", { spec: { kind: "image", id: "img9" } });
+    await admin.conn.issue("media", "show", { spec: { kind: "slideshow", folder: "fold", intervalSec: 5, transition: "fade" } });
+    await admin.conn.issue("media", "play", { assetId: "ok1" });
+    await admin.conn.issue("media", "stop", { assetId: "ok1" });
+    await settle(8000);
+    expect(onFailure.mock.calls).toEqual([["gone1"], ["img9"], ["fold"]]);
   });
 });

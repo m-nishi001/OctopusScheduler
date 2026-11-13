@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Asset } from "@model/asset/asset";
+import type { AssetRecordEntry } from "../../../server/scheduler-api-contract";
 import { folderImageLister, runSlideshow, type SlideshowDeps } from "./slideshow";
 
 function deferred<T>() {
@@ -115,53 +115,40 @@ describe("runSlideshow", () => {
 
 describe("folderImageLister", () => {
   const dir = "octopus-scheduler/assets/f";
-  const asset = (id: string, name: string, type: string, directoryId?: string): Asset => ({
+  const entry = (id: string, name: string, mime: string, directoryId?: string): AssetRecordEntry => ({
     id,
     name,
-    blob: new Blob(["x"], { type }),
+    mime,
+    hash: "h".repeat(32),
+    size: 1,
     uploadedAt: "",
     lastUpdated: "",
-    size: 1,
-    directoryId,
+    ...(directoryId ? { directoryId } : {}),
   });
 
-  it("この端末にあるそのフォルダの画像を、名前順に使う(ほかのフォルダや画像以外は除く)。サーバーへは行かない", async () => {
-    const store = {
-      getAssets: async () => [
-        asset("2", "b.png", "image/png", dir),
-        asset("1", "a.png", "image/png", dir),
-        asset("3", "song.mp3", "audio/mpeg", dir),
-        asset("4", "z.png", "image/png", "octopus-scheduler/assets/other"),
-        asset("5", "top.png", "image/png"),
-      ],
-      listRemote: vi.fn(),
-    };
-    const ids = await folderImageLister(store, vi.fn())("f");
-    expect(ids).toEqual(["1", "2"]);
-    expect(store.listRemote).not.toHaveBeenCalled();
+  it("この端末の一覧にあるそのフォルダの画像を、名前順に使う(ほかのフォルダ・画像以外・フォルダなしは除く)", async () => {
+    const readEntries = vi.fn(async () => [
+      entry("2", "b.png", "image/png", dir),
+      entry("1", "a.png", "image/png", dir),
+      entry("3", "song.mp3", "audio/mpeg", dir),
+      entry("4", "z.png", "image/png", "octopus-scheduler/assets/other"),
+      entry("5", "top.png", "image/png"),
+    ]);
+    expect(await folderImageLister({ readEntries })("f")).toEqual(["1", "2"]);
   });
 
-  it("手元に無いときだけ、サーバーの一覧を使い、中身の種類で画像だけを選ぶ", async () => {
-    const store = {
-      getAssets: async () => [],
-      listRemote: vi.fn(async () => [
-        { driveDataId: "i2", fileId: `${dir}/i2_b.png`, parentFolderId: dir, lastUpdate: "" },
-        { driveDataId: "t1", fileId: `${dir}/t1_note.txt`, parentFolderId: dir, lastUpdate: "" },
-        { driveDataId: "i1", fileId: `${dir}/i1_a.png`, parentFolderId: dir, lastUpdate: "" },
-      ]),
-    };
-    const ensure = vi.fn(async (id: string, _fileId?: string) => (id.startsWith("i") ? img(id) : new Blob(["t"], { type: "text/plain" })));
-    const ids = await folderImageLister(store, ensure)("f");
-    expect(store.listRemote).toHaveBeenCalledWith("f");
-    expect(ids).toEqual(["i1", "i2"]);
-    expect(ensure).toHaveBeenCalledWith("i1", `${dir}/i1_a.png`);
+  it("MIME タイプが空の素材は、拡張子で画像かどうかを決める", async () => {
+    const readEntries = async () => [entry("1", "a.JPG", "", dir), entry("2", "memo.txt", "", dir)];
+    expect(await folderImageLister({ readEntries })("f")).toEqual(["1"]);
   });
 
-  it("取れなかった素材は、一覧に入れない", async () => {
-    const store = {
-      getAssets: async () => [],
-      listRemote: async () => [{ driveDataId: "x", fileId: `${dir}/x_a.png`, parentFolderId: dir, lastUpdate: "" }],
-    };
-    expect(await folderImageLister(store, async () => { throw new Error("no"); })("f")).toEqual([]);
+  it("まだアップロードされていない素材(ホストにだけある)も使える。サーバーも中身も見ない", async () => {
+    // 一覧(readEntries)だけを渡す。サーバーへ行く手段は、そもそも渡していない
+    const readEntries = async () => [entry("local-only", "new.png", "image/png", dir)];
+    expect(await folderImageLister({ readEntries })("f")).toEqual(["local-only"]);
+  });
+
+  it("そのフォルダに画像が無ければ、空", async () => {
+    expect(await folderImageLister({ readEntries: async () => [] })("f")).toEqual([]);
   });
 });

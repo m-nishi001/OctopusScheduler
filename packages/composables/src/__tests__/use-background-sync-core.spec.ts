@@ -189,3 +189,32 @@ describe("useBackgroundSyncCore: 状態と同期ログ", () => {
     expect(log.value).toHaveLength(50);
   });
 });
+
+describe("useBackgroundSyncCore: syncDone", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("同期が1回終わるたびに、結果(送信・取り込み・何もしない・失敗)に関わらず syncDone を通知する", async () => {
+    for (const results of [[ok("pushed")], [ok("skipped")], [failed("screens", "push", "boom")]]) {
+      const onDone = vi.fn();
+      eventBus.on("syncDone", onDone);
+      const { cleanup } = useBackgroundSyncCore(async () => ({ results }));
+      await vi.advanceTimersByTimeAsync(0);
+      cleanup();
+      eventBus.off("syncDone", onDone);
+      expect(onDone).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("同期の呼び出し自体が例外でも、syncDone を通知する", async () => {
+    const onDone = vi.fn();
+    eventBus.on("syncDone", onDone);
+    const { cleanup } = useBackgroundSyncCore(async () => {
+      throw new Error("down");
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    cleanup();
+    eventBus.off("syncDone", onDone);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+});

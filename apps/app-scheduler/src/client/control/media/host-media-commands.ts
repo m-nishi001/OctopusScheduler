@@ -22,7 +22,12 @@ const defaultControls = (): MediaControls => ({
  * 素材の取得を待たない(待つと、あとに来た「消す」「止める」が取得の完了まで処理されないため)。
  * 取得を待つ間に別の指示が来たときの扱いは、`AudioControl` / `ScreenControl` が決める。
  */
-export function registerMediaCommands(agent: HostAgent, controls: () => MediaControls = defaultControls): () => void {
+export function registerMediaCommands(
+  agent: HostAgent,
+  controls: () => MediaControls = defaultControls,
+  /** 再生・表示できなかったとき(取得の失敗など)に、その素材の ID(スライドショーはフォルダ名)で呼ぶ。管理端末に知らせるのに使う。 */
+  onFailure?: (assetId: string) => void
+): () => void {
   return agent.router.register(MEDIA_NS, (command) => {
     if (command.issuerRole === "client") return;
     const parsed = parseMediaCommand(command.type, command.payload);
@@ -43,6 +48,10 @@ export function registerMediaCommands(agent: HostAgent, controls: () => MediaCon
           return screen.clear();
       }
     })();
-    task.catch((error) => console.error(`media.${parsed.type} を実行できませんでした`, error));
+    task.catch((error) => {
+      console.error(`media.${parsed.type} を実行できませんでした`, error);
+      if (parsed.type === "play") onFailure?.(parsed.assetId);
+      else if (parsed.type === "show") onFailure?.(parsed.spec.kind === "slideshow" ? parsed.spec.folder : parsed.spec.id);
+    });
   });
 }

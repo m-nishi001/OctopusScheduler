@@ -1,5 +1,6 @@
 import { container } from "tsyringe";
 import { QuizSyncService } from "@octopus/game-quiz";
+import { eventBus } from "@octopus/client-common/events/event-bus";
 import { AssetRepository } from "@model/asset/asset-repository";
 import { AssetSource } from "../media/asset-source";
 
@@ -14,6 +15,8 @@ export interface PrepareResult {
  * 結果は待たない。失敗しても進行は止めず、警告に残すだけ(指示が来たら `ensure` が取り直す)。
  */
 function prefetchMedia(): void {
+  // 素材の一覧(スライドショーはこの端末の一覧を使う)を、定期の同期を待たずに最新にする。
+  eventBus.emit("syncDirty");
   void (async () => {
     try {
       const metas = await container.resolve(AssetRepository).listRemote();

@@ -15,7 +15,6 @@ import { IApiClientToken } from "@octopus/infrastructures/interfaces";
 import type { IApiClient } from "@octopus/infrastructures/interfaces";
 import { ASSET_BLOB_ROUTE, IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/scheduler-api-contract";
 import type { AssetRecordEntry, OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
-import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
 import type { DriveMetadata } from "@octopus/infrastructures/compositions";
 import type { Asset } from "./asset";
 
@@ -155,26 +154,16 @@ export class AssetRepository {
     return entry ? this.toAsset(entry) : null;
   }
 
-  /**
-   * サーバーにある素材の一覧(メタデータ)。`folder` なしは、サーバーの素材の一覧(正)から。
-   * `folder` を渡すと、そのフォルダの素材(一覧の `directoryId` が指すもの)に加えて、素材置き場直下のそのサブフォルダに置いただけのファイルも一覧する。
-   */
-  async listRemote(folder?: string): Promise<DriveMetadata[]> {
-    const toMeta = (e: AssetRecordEntry): DriveMetadata => ({
+  /** サーバーにある素材の一覧(メタデータ)。サーバーの素材の一覧(正)から作る。 */
+  async listRemote(): Promise<DriveMetadata[]> {
+    return (await this.remoteEntries()).map((e) => ({
       driveDataId: e.id,
       fileId: "",
       parentFolderId: e.directoryId ?? "",
       lastUpdate: e.lastUpdated,
       size: e.size,
       fileName: e.name,
-    });
-    if (folder) {
-      const directory = storagePath(StorageModule.Scheduler, StorageKind.Assets, folder);
-      const listed = (await this.remoteEntries()).filter((e) => e.directoryId === directory).map(toMeta);
-      const files = (await this.schedulerApi.getDriveMetaData(folder)) || [];
-      return [...listed, ...files];
-    }
-    return (await this.remoteEntries()).map(toMeta);
+    }));
   }
 
   private async remoteEntries(): Promise<AssetRecordEntry[]> {

@@ -41,7 +41,8 @@ export async function seedServerAsset(request: APIRequestContext, asset: { id: s
   const data: Record<string, unknown>[] = json ? JSON.parse(json).data : [];
   const now = new Date().toISOString();
   data.push({ id: asset.id, name: asset.fileName, mime: asset.mime, hash, size: asset.body.length, uploadedAt: now, lastUpdated: now, ...(asset.directoryId ? { directoryId: asset.directoryId } : {}) });
-  await adminRpc(request, "octopusScheduler_saveAssetRecord", { json: JSON.stringify({ updatedAt: now, data }) });
+  // 一覧の更新日時は数値(ミリ秒)。文字列だと、アプリの同期が「サーバーに一覧は無い」と読んでしまう
+  await adminRpc(request, "octopusScheduler_saveAssetRecord", { json: JSON.stringify({ updatedAt: Date.now(), data }) });
 }
 
 /** 音を鳴らす部品の呼び出しを数える(ヘッドレスでは音が聞こえないので、再生の開始と停止の呼び出しで確かめる)。ページを開く前に入れる。 */
@@ -118,4 +119,45 @@ export function deleteLocalBlob(page: Page, body: Buffer): Promise<void> {
     },
     { dbName: BLOB_DB, storeName: BLOB_STORE, hash: blobHash(body) }
   );
+}
+
+/**
+ * この端末(ページ)から、サーバーへのファイルのアップロードを止めておく。返す `release` を呼ぶまで、アップロードは進まない
+ * (「アップロードが終わる前」の状態を作る)。送り方は実行環境ごと: Cloudflare は PUT /blobs、GAS は /rpc の `*_putBlob` / `putAssetBlob`。
+ */
+export async function holdUploads(page: Page): Promise<{ release: () => void }> {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/blobs/**", async (route) => {
+    if (route.request().method() === "PUT") await gate;
+    await route.continue();
+  });
+  await page.route("**/rpc", async (route) => {
+    if (/_(putBlob|putAssetBlob)"/.test(route.request().postData() ?? "")) await gate;
+    await route.continue();
+  });
+  return { release };
+}
+
+/** 設定の「アセット」から素材を1件追加する(この端末の一覧に入り、あとでバックグラウンドでアップロードされる)。 */
+export async function addAssetInSettings(page: Page, file: { name: string; mimeType: string; buffer: Buffer }): Promise<void> {
+  await page.goto("/#/settings?tab=assets");
+  await page.getByRole("button", { name: "追加", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "アセットを追加" });
+  await dialog.locator("input[type=file]").setInputFiles(file);
+  await dialog.getByRole("button", { name: "追加", exact: true }).click();
+  await page.getByRole("row").filter({ hasText: file.name }).waitFor();
+}
+
+/** サーバーの素材の一覧(正)に、その名前の素材が載っているか。 */
+export async function serverHasAsset(request: APIRequestContext, name: string): Promise<boolean> {
+  const { json } = await adminRpc<{ json: string | null }>(request, "octopusScheduler_getAssetRecord", {});
+  return (json ? (JSON.parse(json).data as { name: string }[]) : []).some((e) => e.name === name);
+}
+
+/** サーバーの素材の一覧から、その id の素材を外す(一覧から外れたファイルは、サーバーが消す)。 */
+export async function removeServerAsset(request: APIRequestContext, id: string): Promise<void> {
+  const { json } = await adminRpc<{ json: string | null }>(request, "octopusScheduler_getAssetRecord", {});
+  const data = (json ? (JSON.parse(json).data as { id: string }[]) : []).filter((e) => e.id !== id);
+  await adminRpc(request, "octopusScheduler_saveAssetRecord", { json: JSON.stringify({ updatedAt: Date.now(), data }) });
 }
