@@ -50,7 +50,7 @@ const failureEvent = (r: SyncResultEntry): SyncLogEvent =>
  * 自動バックグラウンド同期(各アプリ共通)。
  * - ローカル変更(eventBus "syncDirty")を検知したら debounce 後に同期
  * - それとは別に一定間隔でも同期し、他端末からのリモート変更を取り込む
- *   (取り込みがあれば eventBus "syncPulled" で画面へ知らせる)
+ *   (取り込みがあれば eventBus "syncPulled" で、同期が1回終わるたびに "syncDone" で知らせる)
  * - 失敗と、他の端末の変更を反映した記録を、時刻付きで直近50件まで持つ(log。送信の成功と skip は記録しない)
  * 各アプリは自分の SyncService.syncAll を渡すだけでよい。
  */
@@ -94,6 +94,7 @@ export function useBackgroundSyncCore(syncAll: () => Promise<SyncSummary>) {
       status.value = "error";
       record([{ kind: "sync", id: "sync", event: "syncFailed", error: lastError.value }]);
     }
+    eventBus.emit("syncDone");
   };
 
   let running = false;

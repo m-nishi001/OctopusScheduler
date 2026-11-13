@@ -1,8 +1,7 @@
 import { classifyMedia } from "@model/media/media-kind";
 import type { ScreenSpec } from "@model/media/screen-spec";
 import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
-import type { Asset } from "@model/asset/asset";
-import type { DriveMetadata } from "@octopus/infrastructures/compositions";
+import type { AssetRecordEntry } from "../../../server/scheduler-api-contract";
 
 type SlideshowSpec = Extract<ScreenSpec, { kind: "slideshow" }>;
 
@@ -46,33 +45,19 @@ export function runSlideshow(spec: SlideshowSpec, deps: SlideshowDeps, onShow: (
 }
 
 interface FolderStore {
-  getAssets(): Promise<Asset[]>;
-  listRemote(folder?: string): Promise<DriveMetadata[]>;
+  readEntries(): Promise<AssetRecordEntry[]>;
 }
 
-/** 画像の ID の一覧。この端末の素材(`directoryId` が `…/assets/<フォルダ>`)を先に使い、無いときだけサーバーの一覧を使う。 */
-export function folderImageLister(
-  store: FolderStore,
-  ensure: (id: string, fileId?: string) => Promise<Blob>
-): (folder: string) => Promise<string[]> {
+/**
+ * 画像の ID の一覧。この端末の素材の一覧(`directoryId` が `…/assets/<フォルダ>`)から、名前順に作る。
+ * 一覧だけを読み、中身の取得は `ensure` に任せる(サーバーへ一覧を取りに行かない)。
+ */
+export function folderImageLister(store: FolderStore): (folder: string) => Promise<string[]> {
   return async (folder) => {
     const directory = storagePath(StorageModule.Scheduler, StorageKind.Assets, folder);
-    const local = (await store.getAssets())
-      .filter((a) => a.directoryId === directory && classifyMedia(a.blob?.type, a.name) === "image")
-      .sort((a, b) => a.name.localeCompare(b.name));
-    if (local.length > 0) return local.map((a) => a.id);
-
-    const remote = [...(await store.listRemote(folder))].sort((a, b) => a.fileId.localeCompare(b.fileId));
-    const kinds = await Promise.all(
-      remote.map(async (m) => {
-        try {
-          const blob = await ensure(m.driveDataId, m.fileId);
-          return classifyMedia(blob.type, m.fileId) === "image";
-        } catch {
-          return false;
-        }
-      })
-    );
-    return remote.filter((_, i) => kinds[i]).map((m) => m.driveDataId);
+    return (await store.readEntries())
+      .filter((e) => e.directoryId === directory && classifyMedia(e.mime, e.name) === "image")
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((e) => e.id);
   };
 }

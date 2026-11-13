@@ -13,6 +13,8 @@
         </div>
 
         <p v-if="loadError" class="media__sub is-warn" role="alert" data-testid="media-error">素材の一覧を取得できませんでした。「再読み込み」を押してください。</p>
+        <p v-if="playbackError" class="media__sub is-warn" role="alert" data-testid="media-playback-error">ホストで再生・表示できませんでした: {{ playbackError }}</p>
+        <p v-if="truncated > 0" class="media__sub is-warn" data-testid="media-truncated">ホストにだけある素材のうち {{ truncated }} 件は、一覧に載せきれていません(アップロードが終わると出ます)。</p>
 
         <!-- 音楽 -->
         <div v-if="tab === 'audio'" class="media__body" data-testid="media-audio">
@@ -74,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { UiButton, toast } from '@octopus/ui-kit';
 import { parseHubErrorCode, stripHubErrorCode } from '@octopus/session-hub';
@@ -82,23 +84,38 @@ import type { SessionConnection } from '@octopus/session-hub';
 import type { DriveMetadata } from '@octopus/infrastructures/compositions';
 import { AssetRepository } from '@model/asset/asset-repository';
 import { COMMAND_MAX_INTERVAL_SEC, COMMAND_MIN_INTERVAL_SEC, MAX_FOLDER_LENGTH, MEDIA_NS, parseMediaCommand } from '../../../../model/media/media-command';
-import { listFolders, toCatalog, type CatalogItem } from '../../../../model/media/media-catalog';
+import { listFolders, mergeCatalog, readMediaSlice, toCatalog, type CatalogItem } from '../../../../model/media/media-catalog';
 import type { ScreenSpec } from '../../../../model/media/screen-spec';
 import { useBusy } from '../use-busy';
 
 /**
  * 管理端末の「音楽・スクリーン」。ホストへ `media` の指示(再生・停止・表示・消す)を送るだけで、
- * ホストで何が鳴っている・映っているかは持たない。一覧は、素材の本体を取らない一覧の取得で作る。
+ * ホストで何が鳴っている・映っているかは持たない。一覧は、サーバーの一覧(素材の本体を取らない)に、
+ * ホストが公開した差(アップロード前の素材、ホストで消した素材)を合わせて作る。
+ * ホストの公開する番号(`rev`)が変わったら、サーバーの一覧を読み直す。
  */
 const props = defineProps<{
     connection: SessionConnection;
     canSend: boolean;
     /** 素材の一覧(メタデータ)の取得。省略するとサーバーから取る。 */
     loadMetas?: () => Promise<DriveMetadata[]>;
+    /** ルーム状態の `data`。ホストが公開した `media`(素材の一覧の差と再生の失敗)を読む。 */
+    roomData?: Record<string, unknown> | null;
 }>();
 
 const tab = ref<'audio' | 'screen'>('audio');
-const catalog = ref<CatalogItem[]>([]);
+const remote = ref<CatalogItem[]>([]);
+const slice = computed(() => readMediaSlice(props.roomData));
+const catalog = computed(() => mergeCatalog(remote.value, slice.value));
+const truncated = computed(() => slice.value?.truncated ?? 0);
+
+/** 再生の失敗は、この端末が次の指示を送るまで見せる(古い失敗を、ずっと出さないため)。開いた時点の失敗は見せない。 */
+const acknowledgedErrorAt = ref(slice.value?.lastError?.at ?? 0);
+const playbackError = computed(() => {
+    const error = slice.value?.lastError;
+    if (!error || error.at === acknowledgedErrorAt.value) return '';
+    return catalog.value.find((i) => i.id === error.assetId)?.name ?? error.assetId;
+});
 const loading = ref(false);
 const loadError = ref(false);
 
@@ -124,23 +141,41 @@ const slideshowSpec = computed<ScreenSpec | null>(() => {
     return parsed?.type === 'show' ? parsed.spec : null;
 });
 
+let reloadRequested = false;
 async function load() {
+    // 読み込み中にまた呼ばれたら、終わってからもう1回だけ読む(最新のサーバーの一覧にするため)
+    if (loading.value) {
+        reloadRequested = true;
+        return;
+    }
     loading.value = true;
     loadError.value = false;
     try {
         const metas = props.loadMetas
             ? await props.loadMetas()
             : await container.resolve(AssetRepository).listRemote();
-        catalog.value = toCatalog(metas);
+        remote.value = toCatalog(metas);
     } catch (e) {
         console.warn('素材の一覧を取得できませんでした', e);
         loadError.value = true;
     } finally {
         loading.value = false;
     }
+    if (reloadRequested) {
+        reloadRequested = false;
+        await load();
+    }
 }
 
-const send = (key: string, type: string, payload?: unknown) => run(key, async () => { await props.connection.issue(MEDIA_NS, type, payload); });
+const send = (key: string, type: string, payload?: unknown) => {
+    acknowledgedErrorAt.value = slice.value?.lastError?.at ?? 0;
+    return run(key, async () => { await props.connection.issue(MEDIA_NS, type, payload); });
+};
+
+// ホストの素材の一覧かサーバーとの同期が変わったら(アップロードが済んだ、など)、サーバーの一覧を読み直す。「再読み込み」を押さなくてよい。
+watch(() => slice.value?.rev, (rev, previous) => {
+    if (rev !== previous) void load();
+});
 
 const playSong = (id: string) => send(`play:${id}`, 'play', { assetId: id });
 const stopSong = (id: string) => send(`stop:${id}`, 'stop', { assetId: id, fadeSec: 1 });

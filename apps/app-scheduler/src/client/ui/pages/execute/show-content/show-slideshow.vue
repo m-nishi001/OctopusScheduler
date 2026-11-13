@@ -45,7 +45,7 @@ function start() {
     stop = runSlideshow(
         spec,
         {
-            listImageIds: folderImageLister(repository, (id, fileId) => source.ensure(id, fileId)),
+            listImageIds: folderImageLister(repository),
             ensure: (id) => source.ensure(id),
             sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         },

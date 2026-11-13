@@ -139,7 +139,7 @@
                 </div>
 
                 <!-- 音楽・スクリーン(ホストへ指示を送る) -->
-                <MediaPanel :connection="connection" :can-send="canSend" />
+                <MediaPanel :connection="connection" :can-send="canSend" :room-data="state.roomState?.data" />
 
                 <!-- 普段は使わない操作 -->
                 <details class="console__advanced" data-testid="advanced">
