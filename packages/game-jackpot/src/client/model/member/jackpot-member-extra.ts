@@ -5,4 +5,6 @@
 export interface JackpotMemberExtra {
   memberId: string;
   weight?: number;
+  /** ジャックポットの抽選の対象か(省略・既定は true)。管理者かどうかとは無関係に、メンバーごとに明示する。 */
+  eligible?: boolean;
 }

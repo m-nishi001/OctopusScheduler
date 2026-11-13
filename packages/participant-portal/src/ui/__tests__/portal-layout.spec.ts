@@ -34,7 +34,7 @@ interface Mounted {
   signOut: ReturnType<typeof vi.fn>;
 }
 
-async function mountPortal(device: Device, path = "/p", member: { id: string; name: string } = ALICE): Promise<Mounted> {
+async function mountPortal(device: Device, path = "/p", member: { id: string; name: string; isAdmin?: boolean } = ALICE): Promise<Mounted> {
   nextConnection = device.conn;
   const router = createRouter({
     history: createMemoryHistory(),
@@ -114,6 +114,16 @@ describe("参加者ポータル: 接続とホーム", () => {
     expect(m.router.currentRoute.value.fullPath).toBe("/p/me");
     expect(tabs()[3].classes()).toContain("is-active");
     m.wrapper.unmount();
+  });
+});
+
+describe("参加者ポータル: 管理画面へのリンク", () => {
+  it("管理者のときだけ、管理画面(ホーム)へ戻るリンクを出す", async () => {
+    const { hub } = await portalEnv();
+    const admin = await mountPortal(participantDevice(hub, ALICE), "/p", { ...ALICE, isAdmin: true });
+    expect(admin.wrapper.find('[data-testid="portal-to-admin"]').attributes("href")).toBe("/home");
+    const plain = await mountPortal(participantDevice(hub, BOB), "/p", BOB);
+    expect(has(plain, "portal-to-admin")).toBe(false);
   });
 });
 

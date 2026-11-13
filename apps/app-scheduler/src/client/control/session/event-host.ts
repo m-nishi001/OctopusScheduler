@@ -14,9 +14,9 @@ import {
   readPortalEvent,
 } from "@octopus/session-hub";
 import type { HostAgent, PortalEvent } from "@octopus/session-hub";
+import { MemberRepository, filterEligibleIds } from "@octopus/game-jackpot/eligibility";
 import type { DrawPoolProvider } from "@octopus/game-jackpot";
 import { QUIZ_NAMESPACE } from "@octopus/game-quiz";
-import { AccountsRepository } from "@octopus/accounts";
 import { container } from "tsyringe";
 
 /** ホストをリロードしても、発生中のイベントを参加者に出し続けるための保存先(セッションごと)。 */
@@ -232,48 +232,34 @@ function loadEntrantSnapshot(storage: EventStorage, sessionId: string, key: stri
   return null;
 }
 
-/** 管理者のメンバーIDの集合を取得する（管理者は抽選の対象にしない）。取得できなければ例外。 */
-export type AdminIdsLoader = () => Promise<ReadonlySet<string>>;
+/** ジャックポットのメンバー拡張設定(抽選対象のフラグ)を取得する。取得できなければ例外。 */
+export type EligibilityLoader = () => Promise<ReadonlyMap<string, { eligible?: boolean }>>;
 
-const defaultAdminIdsLoader: AdminIdsLoader = async () => {
-  const members = await container.resolve(AccountsRepository).listAccounts();
-  return new Set(members.filter((m) => m.isAdmin).map((m) => m.id));
-};
+const defaultEligibilityLoader: EligibilityLoader = () => container.resolve(MemberRepository).readExtras();
 
 /**
- * ジャックポットの抽選の対象を、イベントの設定から決める。いずれも管理者は除く。
+ * ジャックポットの抽選の対象を、イベントの設定から決める。いずれも、メンバーごとの「抽選対象」フラグが ON の人だけ
+ * (管理者かどうかは見ない。管理者も ON なら対象になる)。
  *   - セッションの外（接続が無い）なら絞り込まない（null。リハーサル用）
  *   - 「参加者全員(自動)」（既定・指定なし・イベントなしを含む）: 抽選のたびに参加者名簿を取り直す
  *     （途中参加の人も対象になる）
  *   - 「エントリーした人だけ」: 受付の回答一覧（ログインから確定した人）から取得する。取得できなければ
  *     直近に保存した一覧を使い、それも無ければ例外にする
  * いずれも取得できないときは例外にする（全メンバーにフォールバックして、対象外の人が当選する事故を起こさない）。
- * 管理者の一覧は初めて必要になったときに取得し、このプロバイダが生きている間は保持する。
+ * 抽選対象のフラグは管理画面で変えられるので、抽選のたびに読み直す。
  */
-export function createSessionDrawPool(agent: HostAgent, options: { storage?: EventStorage; loadAdminIds?: AdminIdsLoader } = {}): DrawPoolProvider {
+export function createSessionDrawPool(agent: HostAgent, options: { storage?: EventStorage; loadEligibility?: EligibilityLoader } = {}): DrawPoolProvider {
   const storage = options.storage ?? browserEventStorage();
-  const loadAdminIds = options.loadAdminIds ?? defaultAdminIdsLoader;
-  let adminIds: Promise<ReadonlySet<string>> | null = null;
-  const admins = (): Promise<ReadonlySet<string>> => {
-    if (!adminIds) {
-      const pending = loadAdminIds();
-      adminIds = pending;
-      // 失敗は保持しない（次の抽選で取り直す）
-      pending.catch(() => {
-        if (adminIds === pending) adminIds = null;
-      });
-    }
-    return adminIds;
-  };
-  const withoutAdmins = async (ids: string[]): Promise<string[]> => {
-    let set: ReadonlySet<string>;
+  const loadEligibility = options.loadEligibility ?? defaultEligibilityLoader;
+  const onlyEligible = async (ids: string[]): Promise<string[]> => {
+    let extras: Awaited<ReturnType<EligibilityLoader>>;
     try {
-      set = await admins();
+      extras = await loadEligibility();
     } catch (error) {
-      console.error("管理者の一覧を取得できませんでした", error);
-      throw new Error("管理者の一覧を取得できませんでした。通信状況を確認して、もう一度お試しください。");
+      console.error("抽選対象の設定を取得できませんでした", error);
+      throw new Error("抽選対象の設定を取得できませんでした。もう一度お試しください。");
     }
-    return [...new Set(ids)].filter((id) => !set.has(id));
+    return filterEligibleIds(ids, extras);
   };
 
   return {
@@ -295,7 +281,7 @@ export function createSessionDrawPool(agent: HostAgent, options: { storage?: Eve
           console.error("参加者の一覧を取得できませんでした", error);
           throw new Error("参加者の一覧を取得できませんでした。通信状況を確認して、もう一度お試しください。");
         }
-        return withoutAdmins(memberIds);
+        return onlyEligible(memberIds);
       }
       // エントリー受付を始めていないなら、対象は空（抽選側が「対象のメンバーがいません」と知らせる）
       if (!event.entry) return [];
@@ -310,7 +296,7 @@ export function createSessionDrawPool(agent: HostAgent, options: { storage?: Eve
         }
         entrants = saved;
       }
-      return withoutAdmins(entrants);
+      return onlyEligible(entrants);
     },
   };
 }

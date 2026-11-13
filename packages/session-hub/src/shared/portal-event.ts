@@ -20,8 +20,8 @@ export const PORTAL_EVENT_SET_POOL = "setPool";
 
 /**
  * ジャックポットの抽選の対象。
- *   auto    : このセッションにポータルから参加した、管理者以外のメンバー全員（抽選のたびに取り直す。既定）
- *   entrants: イベントにエントリーした人だけ（管理者を除く）
+ *   auto    : このセッションにポータルから参加した、抽選対象のメンバー全員（管理者かどうかは見ない。抽選のたびに取り直す。既定）
+ *   entrants: イベントにエントリーした人だけ（抽選対象の人に限る）
  */
 export const DRAW_POOLS = ["auto", "entrants"] as const;
 export type DrawPool = (typeof DRAW_POOLS)[number];

@@ -2,6 +2,10 @@
     <div class="pp" data-testid="portal-layout">
         <header class="pp-header">
             <span class="pp-header__brand">OCTOPUS</span>
+            <!-- 管理者がポータルを見ているときだけ、管理画面(ホーム)へ戻れる -->
+            <RouterLink v-if="auth.currentMember.value?.isAdmin" to="/home" class="pp-header__admin" data-testid="portal-to-admin">
+                管理画面
+            </RouterLink>
             <span class="pp-header__conn" :class="`is-${session.status.value}`" data-testid="portal-conn" role="status">
                 <span class="pp-header__dot" aria-hidden="true" />
                 {{ connLabel }}
@@ -182,6 +186,18 @@ onMounted(() => {
     font-weight: 900;
     letter-spacing: 0.22em;
     color: var(--pp-gold);
+}
+
+.pp-header__admin {
+    margin-left: auto;
+    margin-right: 12px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--pp-gold);
+    text-decoration: none;
+    border: 1px solid var(--pp-gold);
+    border-radius: 999px;
 }
 
 .pp-header__conn {

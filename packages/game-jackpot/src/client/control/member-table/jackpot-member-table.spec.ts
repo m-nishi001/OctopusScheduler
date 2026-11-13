@@ -16,7 +16,7 @@ const people: Member[] = [
 ];
 
 /** 名簿の窓口と、メンバーの拡張設定の窓口の偽物。呼ばれた内容を記録する。 */
-function fakes(extras: Record<string, { weight?: number }> = {}) {
+function fakes(extras: Record<string, { weight?: number; eligible?: boolean }> = {}) {
   const roster: { upserts: { id?: string; name: string; photo?: string }[]; deleteIds: string[] }[] = [];
   const repo: RosterImportRepository = {
     listMembers: async () => people,
@@ -27,7 +27,7 @@ function fakes(extras: Record<string, { weight?: number }> = {}) {
       return { upserted: args.upserts.length, deleted: args.deleteIds.length };
     },
   };
-  const setExtras = vi.fn(async (_rows: { id: string; weight?: number }[]) => ({ updated: 0, unknown: [] as string[] }));
+  const setExtras = vi.fn(async (_rows: { id: string; weight?: number; eligible?: boolean }[]) => ({ updated: 0, unknown: [] as string[] }));
   const port = { readExtras: async () => new Map(Object.entries(extras)), setExtras };
   return { repo, roster, setExtras, table: jackpotMemberTable(port) };
 }
@@ -60,7 +60,7 @@ describe("jackpotMemberTable", () => {
     await p.apply();
     expect(env.roster).toEqual([]);
     expect(env.setExtras).toHaveBeenCalledTimes(1);
-    expect(env.setExtras).toHaveBeenCalledWith([{ id: "m1", weight: 7 }]);
+    expect(env.setExtras).toHaveBeenCalledWith([{ id: "m1", weight: 7, eligible: true }]);
   });
 
   it("名前を変えると名簿に書く(削除はしない)。名簿にいない ID は、名前があれば名簿に追加し、拡張設定も設定する", async () => {
@@ -70,7 +70,7 @@ describe("jackpotMemberTable", () => {
     await p.apply();
     expect(env.roster).toEqual([{ upserts: [{ id: "m1", name: "アリス改", photo: undefined }, { id: "new1", name: "新人", photo: undefined }], deleteIds: [] }]);
     expect(env.setExtras).toHaveBeenCalledTimes(1);
-    expect(env.setExtras.mock.calls[0][0]).toContainEqual({ id: "new1", weight: 2 });
+    expect(env.setExtras.mock.calls[0][0]).toContainEqual({ id: "new1", weight: 2, eligible: undefined });
   });
 
   it("名簿にいない ID で名前が無い行・範囲外の当選しやすさ(0・11)はエラーで、取り込めない", async () => {
@@ -84,6 +84,23 @@ describe("jackpotMemberTable", () => {
     expect(env.setExtras).not.toHaveBeenCalled();
   });
 
+  it("抽選対象の列: あり/なしで設定し、空はいまのまま、ほかの書き方はエラー。管理者でも対象にできる", async () => {
+    const env = fakes({ m1: { eligible: true }, m2: { eligible: false }, admin: { eligible: false } });
+    const p = await preview("ID,名前,抽選対象\nm1,,なし\nm2,,\nadmin,,あり\n", env);
+    expect(p.plan.counts).toMatchObject({ update: 2, unchanged: 1, error: 0 });
+    await p.apply();
+    expect(env.roster).toEqual([]);
+    expect(env.setExtras).toHaveBeenCalledTimes(1);
+    expect(env.setExtras).toHaveBeenCalledWith([
+      { id: "m1", weight: undefined, eligible: false },
+      { id: "admin", weight: undefined, eligible: true },
+    ]);
+    const bad = await previewRosterImport({ table: csvFile("ID,名前,抽選対象\nm1,,はい\n"), media: [], mode: "upsert" }, { repo: env.repo }, env.table);
+    if (!bad.ok) throw new Error("preview");
+    expect(bad.plan.rows[0].status).toBe("error");
+    expect(bad.plan.rows[0].message).toContain("抽選対象");
+  });
+
   it("旧書式 id,rank,weight の CSV も読める(廃止したランクの列は無視する)", () => {
     const parsed = parseTable(new TextEncoder().encode("id,rank,weight\nm1,3,4\n"), JACKPOT_MEMBER_HEADERS);
     if (!parsed.ok) throw new Error("parse");
@@ -91,14 +108,14 @@ describe("jackpotMemberTable", () => {
     const plan = planImport(current, parsed.rows, jackpotMemberAdapter(), "upsert");
     expect(plan.upserts[0]).toMatchObject({ id: "m1", name: "アリス", weight: 4 });
     expect(plan.upserts[0]).not.toHaveProperty("rank");
-    expect(exportTable(plan.next, jackpotMemberAdapter()).split("\r\n")[1]).toBe("m1,アリス,4");
+    expect(exportTable(plan.next, jackpotMemberAdapter()).split("\r\n")[1]).toBe("m1,アリス,4,");
   });
 
   it("書き出しに写真の列は無い(ジャックポットのメンバーは写真を持たない)", async () => {
     const env = fakes({ m1: { weight: 3 } });
     const out = await exportRoster(people, { includeMedia: false }, { ensure: async () => undefined, get: () => undefined }, env.table);
     const header = new TextDecoder().decode(out.bytes).replace(/^\uFEFF/, "").split("\r\n")[0];
-    expect(header).toBe("ID,名前,当選しやすさ");
+    expect(header).toBe("ID,名前,当選しやすさ,抽選対象");
     expect(JACKPOT_MEMBER_HEADERS.map((h) => h.key)).not.toContain("photo");
   });
 
@@ -108,6 +125,6 @@ describe("jackpotMemberTable", () => {
     expect(p.plan.rows[0].status).toBe("update");
     await p.apply();
     expect(env.roster).toEqual([]);
-    expect(env.setExtras).toHaveBeenCalledWith([{ id: "m1", weight: 6 }]);
+    expect(env.setExtras).toHaveBeenCalledWith([{ id: "m1", weight: 6, eligible: true }]);
   });
 });

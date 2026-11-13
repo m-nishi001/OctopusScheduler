@@ -248,7 +248,7 @@ test.describe("景品の CSV 取込・書き出し", () => {
 
 const MEMBER_IDS = ["csv-jpm-1", "csv-jpm-2"];
 const NEW_MEMBER = "csv-jpm-new";
-type ExtraRow = { memberId: string; weight?: number };
+type ExtraRow = { memberId: string; weight?: number; eligible?: boolean };
 const serverExtras = async (request: APIRequestContext): Promise<ExtraRow[]> => {
   const { json } = await adminRpc<{ json: string | null }>(request, "jackpotGame_getJson", "member-extras.json");
   return json ? JSON.parse(json).data.extras ?? [] : [];
@@ -272,7 +272,7 @@ test.describe("メンバーの CSV 取込・書き出し", () => {
     await admin.page.getByTestId("table-import-open").click();
     // 置き換え(名簿の削除)は選べない
     await expect(admin.page.getByTestId("table-import-replace")).toHaveCount(0);
-    const csv = `ID,名前,ランク,当選しやすさ\r\n${MEMBER_IDS[0]},,2,8\r\n${MEMBER_IDS[1]},,,5\r\n${NEW_MEMBER},新しい人,3,4\r\n`;
+    const csv = `ID,名前,ランク,当選しやすさ,抽選対象\r\n${MEMBER_IDS[0]},,2,8,なし\r\n${MEMBER_IDS[1]},,,5,\r\n${NEW_MEMBER},新しい人,3,4,あり\r\n`;
     await admin.page.getByTestId("table-import-table").setInputFiles(table(csv, "jackpot-members.csv"));
     await expect(admin.page.getByTestId("table-import-counts")).toContainText("追加 1 / 更新 2 / 変更なし 0 / エラー 0");
     rpc.reset();
@@ -295,6 +295,12 @@ test.describe("メンバーの CSV 取込・書き出し", () => {
       .toBe(8);
     const extras = await serverExtras(request);
     expect(extras.find((e) => e.memberId === MEMBER_IDS[1])).toMatchObject({ weight: 5 });
+    // 抽選対象: なし → 外れる、空 → いまのまま(既定の対象)、あり → 対象
+    expect(extras.find((e) => e.memberId === MEMBER_IDS[0])).toMatchObject({ eligible: false });
+    expect(extras.find((e) => e.memberId === MEMBER_IDS[1])?.eligible).not.toBe(false);
+    expect(extras.find((e) => e.memberId === NEW_MEMBER)).toMatchObject({ eligible: true });
+    await expect(row(MEMBER_IDS[0])).toContainText("対象外");
+    await expect(row(NEW_MEMBER)).toContainText("対象");
     expect(extras.find((e) => e.memberId === NEW_MEMBER)).toMatchObject({ weight: 4 });
     // 廃止したランクの列は無視される(古い CSV も取り込める)
     expect(extras.find((e) => e.memberId === NEW_MEMBER)).not.toHaveProperty("rank");

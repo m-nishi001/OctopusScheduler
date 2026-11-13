@@ -34,6 +34,11 @@
           <div class="hint">大きいほどメンバー抽選で選ばれやすい。標準は{{ DEFAULT_WEIGHT }}</div>
         </div>
 
+        <div class="form-group">
+          <label><input v-model="eligible" type="checkbox" data-testid="member-eligible" /> ジャックポットの抽選の対象にする</label>
+          <div class="hint">管理者かどうかとは関係なく、ここで選んだ人だけが抽選に入ります。</div>
+        </div>
+
         <p class="hint">顔写真は、設定の「メンバー」(共通の名簿)で設定します。</p>
   </UiDialog>
 </template>
@@ -42,6 +47,7 @@
 import { UiDialog } from '@octopus/ui-kit';
 import { ref, computed, watch } from 'vue';
 import { DEFAULT_WEIGHT, MAX_WEIGHT, MIN_WEIGHT, resolveWeight } from '@model/draw/weighted-selector';
+import { DEFAULT_ELIGIBLE } from '@model/member/eligibility';
 import type { Member as DirectoryMember } from '@octopus/accounts';
 import type { MemberFormInput } from '../use-members';
 
@@ -58,6 +64,7 @@ const emit = defineEmits<{
 
 const name = ref('');
 const weight = ref<number>(DEFAULT_WEIGHT);
+const eligible = ref<boolean>(DEFAULT_ELIGIBLE);
 const saving = ref(false);
 const attachMode = ref<'new' | 'existing'>('new');
 const selectedExistingId = ref('');
@@ -86,6 +93,7 @@ const canSubmit = computed(() => {
 const loadFromMember = (member: any) => {
   name.value = member.name;
   weight.value = resolveWeight(member.weight);
+  eligible.value = member.eligible ?? DEFAULT_ELIGIBLE;
 };
 
 if (props.mode === 'edit' && props.member) {
@@ -100,6 +108,7 @@ const submit = async () => {
       id: props.mode === 'add' && attachMode.value === 'existing' ? selectedExistingId.value : undefined,
       name: name.value,
       weight: weight.value,
+      eligible: eligible.value,
     });
   } finally {
     saving.value = false;

@@ -16,6 +16,13 @@
                 <span class="btn-desc">クイズやジャックポットを、その場で始められます</span>
             </button>
 
+            <!-- 参加者と同じポータル画面(管理者もメンバーとして入れる) -->
+            <button class="main-btn main-btn--portal" type="button" data-testid="home-portal" @click="goToPortal">
+                <span class="btn-icon">📱</span>
+                <span class="btn-label">ポータル</span>
+                <span class="btn-desc">メンバーとして参加者の画面を開きます</span>
+            </button>
+
             <!-- 事前の準備・管理 -->
             <h2 class="home-section">準備・管理</h2>
             <div class="btn-grid">
@@ -52,6 +59,7 @@ const onSignOut = async () => {
 };
 
 const goToSettings = () => router.push({ name: 'settings' });
+const goToPortal = () => router.push('/p');
 const goToSessions = () => router.push('/sessions');
 const goToJackpotGame = () => router.push('/jackpot-admin');
 const goToQuizGame = () => router.push('/quiz-admin');

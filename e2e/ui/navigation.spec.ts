@@ -22,6 +22,18 @@ test.describe("管理画面の導線", () => {
     await d.context.close();
   });
 
+  test("@smoke ホームの「ポータル」からポータルへ行き、管理者なら「管理画面」で戻れる", async ({ browser }) => {
+    const d = await newDevice(browser, { signedIn: true });
+    await d.page.goto("/#/home");
+    await d.page.getByTestId("home-portal").click();
+    await expect(d.page).toHaveURL(/#\/p$/);
+    await expect(d.page.getByTestId("portal-layout")).toBeVisible();
+    await d.page.getByTestId("portal-to-admin").click();
+    await expect(d.page).toHaveURL(/#\/home$/);
+    await expect(d.page.getByTestId("home-run")).toBeVisible();
+    await d.context.close();
+  });
+
   test("@smoke 設定のタブはURLに残り、再読み込みしても同じタブに戻る", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     await d.page.goto("/#/settings");
