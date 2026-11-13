@@ -23,10 +23,15 @@ import { QUIZ_GAME_PREFIX, QUIZ_GAME_HANDLERS } from "@octopus/game-quiz/server"
 import { JACKPOT_GAME_PREFIX, JACKPOT_GAME_HANDLERS } from "@octopus/game-jackpot/server";
 import { OCTOPUS_SCHEDULER_PREFIX, OCTOPUS_SCHEDULER_HANDLERS } from "@octopus/app-scheduler/server";
 import { ACCOUNTS_PREFIX, ACCOUNTS_HANDLERS } from "@octopus/accounts/server";
+import { isAdminSession } from "@octopus/accounts/secure";
 import { SESSION_HUB_PREFIX, SESSION_HUB_HANDLERS, resolveKvDeps } from "@octopus/session-hub/server";
 import { ISessionHubBackendToken } from "@octopus/session-hub/backend";
 import { createDoBackend } from "./session-hub-backend";
 import { currentEnv } from "./request-context";
+import { BLOBS_PATH_PREFIX, createBlobRoute } from "./blob-route";
+import { createHashedBlobStore, StorageModule } from "../compositions";
+import { IKeyValueStorageToken } from "../interfaces";
+import type { IKeyValueStorage } from "../interfaces";
 
 // Durable Object クラスは Worker のエントリから export する(wrangler.toml の class_name と一致させる)。
 export { SessionRoom } from "./session-room";
@@ -58,6 +63,17 @@ container.register(ISessionHubBackendToken, {
       throw new Error("Durable Object のバインディング SESSION_ROOM が未設定です（wrangler.toml を wrangler.example.toml と見比べてください）");
     }
     return doBackend;
+  },
+});
+
+// ファイルの送受信(`/blobs/<module>/<hash>`)。base64 の JSON(`/rpc`)ではなく、バイナリのまま送る。
+const handleBlob = createBlobRoute({
+  isAdmin: isAdminSession,
+  storage: () => container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
+  stores: {
+    [StorageModule.Scheduler]: createHashedBlobStore(StorageModule.Scheduler),
+    [StorageModule.Jackpot]: createHashedBlobStore(StorageModule.Jackpot),
+    [StorageModule.Quiz]: createHashedBlobStore(StorageModule.Quiz),
   },
 });
 
@@ -106,6 +122,11 @@ export default {
       const url = new URL(request.url);
       if (url.pathname === "/rpc" && request.method === "POST") {
         return handleRpc(request, env);
+      }
+      if (url.pathname.startsWith(BLOBS_PATH_PREFIX)) {
+        // R2 に触る前に弾く(`/rpc` と同じ)。
+        if (!(await allowRequest(env, "public", clientKey(request)))) return tooManyRequests();
+        return handleBlob(request);
       }
       if (url.pathname.startsWith("/ws/")) {
         return handleWebSocket(request, env, decodeURIComponent(url.pathname.slice("/ws/".length)));

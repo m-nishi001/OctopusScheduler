@@ -11,7 +11,7 @@ describe("PrizeService", () => {
   beforeEach(async () => {
     await new LocalStorageService("jackpot-game", "JackpotData").clear();
     n = 0;
-    service = new PrizeService(new JackpotRepository({} as never), { nextId: () => `id-${++n}` } as never);
+    service = new PrizeService(new JackpotRepository({} as never, {} as never), { nextId: () => `id-${++n}` } as never);
   });
 
   it("追加を2回すると2件になり、id は別々で order は増えていく", async () => {

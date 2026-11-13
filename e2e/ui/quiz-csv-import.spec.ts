@@ -52,9 +52,13 @@ async function openQuizList(page: Page, request: APIRequestContext) {
 function watchRpc(page: Page) {
   const counts = new Map<string, number>();
   page.on("request", (r) => {
+    // ファイルの送信を "putBlob" として数える。Cloudflare はバイナリの PUT /blobs/<module>/<hash>、GAS は /rpc の `<接頭辞>_putBlob`(base64)
+    const bump = (key: string) => counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (r.method() === "PUT" && r.url().includes("/blobs/")) bump("putBlob");
     if (!r.url().endsWith("/rpc")) return;
     const name = String(r.postDataJSON()?.name);
-    counts.set(name, (counts.get(name) ?? 0) + 1);
+    bump(name);
+    if (name.endsWith("_putBlob")) bump("putBlob");
   });
   return { count: (name: string) => counts.get(name) ?? 0, reset: () => counts.clear() };
 }
@@ -95,7 +99,7 @@ test.describe("クイズ一覧の CSV 取込・書き出し", () => {
     const record = await serverRecord(request);
     expect(Object.keys(record.media).sort()).toEqual(expect.arrayContaining(["option.png", "shared-bgm.wav"]));
     expect(myQuizzes(record).every((q) => q.bgm === "shared-bgm.wav")).toBe(true);
-    expect(rpc.count("quizGame_putBlob")).toBe(2);
+    expect(rpc.count("putBlob")).toBe(2);
     expect(rpc.count("quizGame_saveRecord")).toBe(1);
     expect(await blobExists(request, record.media["shared-bgm.wav"].hash)).toBe(true);
     await admin.context.close();

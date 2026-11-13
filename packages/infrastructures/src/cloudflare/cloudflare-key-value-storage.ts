@@ -83,6 +83,17 @@ export class CloudflareKeyValueStorage implements IKeyValueStorage {
     return this.toMeta(key, obj);
   }
 
+  async putBytes(key: string, bytes: Uint8Array, mimeType: string): Promise<StoredItemMeta> {
+    const obj = await this.bucket().put(key, bytes, { httpMetadata: { contentType: mimeType } });
+    return this.toMeta(key, obj);
+  }
+
+  async getBytes(key: string): Promise<{ meta: StoredItemMeta; bytes: Uint8Array } | null> {
+    const obj = await this.bucket().get(key);
+    if (!obj) return null;
+    return { meta: this.toMeta(key, obj), bytes: new Uint8Array(await obj.arrayBuffer()) };
+  }
+
   async getContent(key: string): Promise<StoredItemContent | null> {
     const obj = await this.bucket().get(key);
     if (!obj) return null;

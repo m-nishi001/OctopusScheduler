@@ -85,6 +85,12 @@ const deps: SecureDeps = {
   now: () => Date.now(),
 };
 
+/** セッショントークンが、有効な管理者のものか(`secure("admin", …)` と同じ判定。RPC 以外の入口、バイナリの `/blobs` が使う)。 */
+export async function isAdminSession(token: string | null): Promise<boolean> {
+  const member = await getSession({ storage: deps.getStorage(), now: deps.now }, token ?? "");
+  return !!member?.isAdmin;
+}
+
 export const secure = createSecure(deps);
 export const secureAdminWithMember = createSecureAdminWithMember(deps);
 export const secureMember = createSecureMember(deps);

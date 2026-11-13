@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { FixedConcurrencyPolicy, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
+import { FixedConcurrencyPolicy, InMemoryKeyValueStorage, createFakeBlobApiClient } from "@octopus/infrastructures/testing";
 import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { hashBlob, SyncRunner } from "@octopus/sync-engine";
@@ -29,11 +29,6 @@ vi.stubGlobal("crypto", {
   randomUUID: () => `uuid-${++uuidCount}`,
 });
 
-// jsdom + localforage では保存した Blob を読み戻すと本物の Blob ではなくなり FileReader で読めないので、データURL化だけ差し替える
-vi.mock("@octopus/client-common/blob/blob-to-data-url", () => ({
-  blobToDataUrl: async () => "data:image/png;base64,QUJD",
-}));
-
 /** サーバーの実装(ハッシュのファイル置き場と一覧の保存)をそのまま使う、メモリ上のサーバー。 */
 function makeServer() {
   const store = createHashedBlobStore(StorageModule.Scheduler);
@@ -47,7 +42,7 @@ function makeServer() {
     getAssetBlob: async (a: { hash: string }) => store.get(deps, a),
   };
   const blobCount = async () => (await deps.storage.listByPrefix("octopus-scheduler/assets/")).length;
-  return { api, blobCount };
+  return { api, client: createFakeBlobApiClient(store, deps), blobCount };
 }
 
 const asset = (id: string, content: string): Asset => ({
@@ -78,7 +73,7 @@ describe("AssetRepository", () => {
   beforeEach(async () => {
     await clearLocal();
     server = makeServer();
-    repo = new AssetRepository(server.api as any);
+    repo = new AssetRepository(server.api as any, server.client);
   });
 
   it("追加した素材を id で読み戻せ、同じ id は置き換わる", async () => {
@@ -143,7 +138,7 @@ describe("AssetRepository", () => {
     await sync(repo);
 
     await clearLocal();
-    const other = new AssetRepository(server.api as any);
+    const other = new AssetRepository(server.api as any, server.client);
     expect((await sync(other)).map((r) => r.result)).toEqual(["pulled"]);
     expect((await other.getAssets()).map((a) => a.id).sort()).toEqual(["drop", "keep"]);
 
@@ -152,7 +147,7 @@ describe("AssetRepository", () => {
     expect(await server.blobCount()).toBe(1);
 
     await clearLocal();
-    const third = new AssetRepository(server.api as any);
+    const third = new AssetRepository(server.api as any, server.client);
     await sync(third);
     expect((await third.getAssets()).map((a) => a.id)).toEqual(["keep"]);
   });

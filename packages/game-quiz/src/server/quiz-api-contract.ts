@@ -5,9 +5,17 @@
  * 両方がここから型を参照する。エンドポイント名一覧は infrastructures/gas の
  * esbuild banner/footer コード生成、および scripts/gas-contract.js の集約対象になる。
  */
-import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
+import type { ApiCallOptions, BlobRoute } from "@octopus/infrastructures/interfaces";
+import { StorageModule } from "@octopus/infrastructures/compositions";
 
 export const QUIZ_GAME_PREFIX = "quizGame" as const;
+
+/** 素材のファイルの送受信先。Cloudflare はバイナリの `/blobs`、GAS は `putBlob` / `getBlob`(base64 のデータURL。GAS 専用)。 */
+export const QUIZ_BLOB_ROUTE: BlobRoute = {
+  module: StorageModule.Quiz,
+  gasPut: `${QUIZ_GAME_PREFIX}_putBlob`,
+  gasGet: `${QUIZ_GAME_PREFIX}_getBlob`,
+};
 
 export const QUIZ_GAME_ENDPOINTS = [
   "getRecord",

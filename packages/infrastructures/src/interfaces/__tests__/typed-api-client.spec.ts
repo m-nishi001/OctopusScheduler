@@ -10,7 +10,7 @@ interface FakeGameApi {
 describe("createTypedApiClient", () => {
   it("calls apiClient.call with the prefixed function name and forwards args/options", async () => {
     const call = vi.fn().mockResolvedValue({ id: "abc" });
-    const apiClient: IApiClient = { call };
+    const apiClient: IApiClient = { call, putBlob: vi.fn(), getBlob: vi.fn() };
 
     const api = createTypedApiClient<FakeGameApi>(apiClient, "fakeGame", [
       "addJson",
@@ -25,7 +25,7 @@ describe("createTypedApiClient", () => {
 
   it("forwards ApiCallOptions as the third argument", async () => {
     const call = vi.fn().mockResolvedValue({ json: "{}" });
-    const apiClient: IApiClient = { call };
+    const apiClient: IApiClient = { call, putBlob: vi.fn(), getBlob: vi.fn() };
 
     const api = createTypedApiClient<FakeGameApi>(apiClient, "fakeGame", [
       "addJson",
@@ -38,7 +38,7 @@ describe("createTypedApiClient", () => {
   });
 
   it("throws when accessing an endpoint that is not in the allow-list", () => {
-    const apiClient: IApiClient = { call: vi.fn() };
+    const apiClient: IApiClient = { call: vi.fn(), putBlob: vi.fn(), getBlob: vi.fn() };
     const api = createTypedApiClient<FakeGameApi>(apiClient, "fakeGame", ["addJson"]);
 
     expect(() => (api as unknown as Record<string, unknown>).getJson).toThrow(
@@ -48,7 +48,7 @@ describe("createTypedApiClient", () => {
 
   it("propagates rejection from apiClient.call", async () => {
     const call = vi.fn().mockRejectedValue(new Error("boom"));
-    const apiClient: IApiClient = { call };
+    const apiClient: IApiClient = { call, putBlob: vi.fn(), getBlob: vi.fn() };
     const api = createTypedApiClient<FakeGameApi>(apiClient, "fakeGame", ["addJson"]);
 
     await expect(api.addJson({ text: "x" })).rejects.toThrow("boom");

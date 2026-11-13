@@ -1,4 +1,3 @@
-import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { inject, injectable } from "tsyringe";
 import {
@@ -13,9 +12,10 @@ import {
 } from "@octopus/sync-engine";
 import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
 import { deriveMedia, extensionOfMime } from "@octopus/table-io";
-import { IQuizGameApiToken, quizMediaNames, quizRecordHashes } from "../../server/quiz-api-contract";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { IQuizGameApiToken, QUIZ_BLOB_ROUTE, quizMediaNames, quizRecordHashes } from "../../server/quiz-api-contract";
 import type { QuizGameApi, QuizMediaInfo, QuizRecord, QuizRecordEntry } from "../../server/quiz-api-contract";
-import { dataUrlToBlob } from "./blob-utils";
 import { Quiz } from "./quiz";
 
 const RECORD_SYNC_KIND = "quizzes";
@@ -47,7 +47,8 @@ export class QuizRepository {
   private legacyCleared: Promise<void> | null = null;
 
   constructor(
-    @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
+    @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi,
+    @inject(IApiClientToken) private readonly apiClient: IApiClient
   ) {}
 
   /** 以前の形式(クイズ1件ずつの行)のデータを、(初回だけ)使わずに消す。移行はしない。 */
@@ -142,11 +143,8 @@ export class QuizRepository {
   private blobRemote(): HashedBlobRemote {
     return {
       exists: async (hashes) => (await this.quizApi.existsBlobs({ hashes })).existing,
-      put: async (hash, blob) => this.quizApi.putBlob({ hash, dataUrl: await blobToDataUrl(blob) }),
-      get: async (hash) => {
-        const { dataUrl } = await this.quizApi.getBlob({ hash });
-        return dataUrl ? dataUrlToBlob(dataUrl) : null;
-      },
+      put: (hash, blob) => this.apiClient.putBlob(QUIZ_BLOB_ROUTE, hash, blob),
+      get: (hash) => this.apiClient.getBlob(QUIZ_BLOB_ROUTE, hash),
     };
   }
 

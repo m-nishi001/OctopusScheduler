@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { APIRequestContext, BrowserContext, Page } from "@playwright/test";
-import { adminRpc } from "../fixtures";
+import { ADMIN_TOKEN, adminRpc } from "../fixtures";
 
 /** 1x1 の PNG(自作の最小の画像)。 */
 export const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC", "base64");
@@ -30,7 +30,9 @@ export const uid = () => Math.random().toString(36).slice(2, 8);
 /** サーバーの素材置き場に素材を 1 件入れる(管理者として)。中身をハッシュのファイルに置き、素材の一覧に 1 件足す。id は英数字だけ(`_` は素材 ID の区切りに使われる)。 */
 export async function seedServerAsset(request: APIRequestContext, asset: { id: string; fileName: string; mime: string; body: Buffer; directoryId?: string }): Promise<void> {
   const hash = blobHash(asset.body);
-  await adminRpc(request, "octopusScheduler_putAssetBlob", { hash, dataUrl: `data:${asset.mime};base64,${asset.body.toString("base64")}` });
+  // ファイルは base64 の JSON(/rpc)ではなく、バイナリのまま PUT /blobs/<module>/<hash> で上げる。
+  const put = await request.put(`/blobs/octopus-scheduler/${hash}`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}`, "Content-Type": asset.mime }, data: asset.body });
+  if (put.status() !== 204) throw new Error(`PUT /blobs/octopus-scheduler/${hash}: ${put.status()} ${await put.text()}`);
   const { json } = await adminRpc<{ json: string | null }>(request, "octopusScheduler_getAssetRecord", {});
   const data: Record<string, unknown>[] = json ? JSON.parse(json).data : [];
   const now = new Date().toISOString();

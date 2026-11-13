@@ -32,7 +32,7 @@ describe("画面設定の書き出し・取込", () => {
     created.clear();
     await new LocalStorageService("jackpot-game", "JackpotData").clear();
     await new LocalStorageService("jackpot-game-blobs", "Blobs").clear();
-    repo = new JackpotRepository({} as never);
+    repo = new JackpotRepository({} as never, {} as never);
   });
 
   async function seed() {
@@ -69,7 +69,7 @@ describe("画面設定の書き出し・取込", () => {
     const text = new TextDecoder().decode(readZip(out.bytes).csv!);
     await new LocalStorageService("jackpot-game", "JackpotData").clear();
     await new LocalStorageService("jackpot-game-blobs", "Blobs").clear();
-    const fresh = new JackpotRepository({} as never);
+    const fresh = new JackpotRepository({} as never, {} as never);
     const update = vi.spyOn(fresh, "updateScreenSettings");
     const preview = await previewScreenImport({ table: new File([out.bytes as BlobPart], "screens.zip"), media: [], mode: "upsert" }, { repo: fresh });
     expect(preview).toMatchObject({ ok: true, counts: { add: 10, update: 0, unchanged: 0, error: 0 }, media: { added: 3, replaced: 0 } });

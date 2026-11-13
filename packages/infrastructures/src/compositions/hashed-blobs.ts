@@ -13,7 +13,8 @@ import { DomainError } from "../interfaces/domain-error";
 import type { IKeyValueStorage } from "../interfaces/key-value-storage";
 import type { ILock } from "../interfaces/lock";
 import { createDriveAssets } from "./drive-assets";
-import { StorageKind, storagePath, type StorageModuleName } from "./storage-paths";
+import { encodeLocalName, makeKey } from "./item-key-naming";
+import { StorageKind, storageNamespace, storagePath, type StorageModuleName } from "./storage-paths";
 
 /** ハッシュの形(SHA-256 の先頭32桁・16進の小文字)。クライアントの `hashBlob` と同じ。 */
 export const BLOB_HASH_PATTERN = /^[0-9a-f]{32}$/;
@@ -56,6 +57,17 @@ function decodedBytes(base64: string): number {
   return (base64.length / 4) * 3 - padding;
 }
 
+/** バイト列の内容のハッシュ(SHA-256 の先頭32桁)。クライアントの `hashBlob` と同じ値になる。Cloudflare(Web Crypto がある環境)で使う。 */
+export async function hashBytes(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+  return Array.from(new Uint8Array(digest).slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** 受け取った種類(MIME)が `type/subtype` の形でなければ、中身を問わない種類にする。 */
+function sanitizeMime(mime: string | null | undefined): string {
+  return mime && /^[a-z]+\/[a-z0-9.+-]+$/i.test(mime) ? mime.toLowerCase() : "application/octet-stream";
+}
+
 const DATA_URL_HEADER = /^data:([a-z]+\/[a-z0-9.+-]+);base64,/;
 
 /**
@@ -77,10 +89,30 @@ export function createHashedBlobStore(module: StorageModuleName) {
     );
   };
 
+  const blobKey = (hash: string): string => makeKey(storageNamespace(module, StorageKind.Assets), encodeLocalName(hash, BLOB_FILE_NAME));
+
   const recordKey = (fileName: string): string => storagePath(module, StorageKind.Json, fileName);
 
   return {
-    /** ファイルを保存する(同じハッシュなら同じ場所への上書き)。種類(MIME)とサイズだけを確かめる(書けるのは管理者のみなので、ハッシュと中身の一致は見ない)。 */
+    /**
+     * バイト列そのものでファイルを保存する(Cloudflare の `/blobs`)。サイズの上限と、ハッシュと中身の一致を確かめてから書く
+     * (一致しない中身で、同じハッシュの正しいファイルを上書きしないため)。
+     */
+    async putBytes(deps: HashedBlobDeps, args: { hash: string; bytes: Uint8Array; mime?: string | null }): Promise<void> {
+      assertHashes([args.hash], 1);
+      if (args.bytes.byteLength > MAX_BLOB_BYTES) throw new DomainError(`Blob is too large (max ${MAX_BLOB_BYTES} bytes)`);
+      if ((await hashBytes(args.bytes)) !== args.hash) throw new DomainError("Blob content does not match its hash");
+      await deps.storage.putBytes(blobKey(args.hash), args.bytes, sanitizeMime(args.mime));
+    },
+
+    /** ファイルをバイト列そのもので返す(Cloudflare の `/blobs`)。保存されていなければ null。 */
+    async getBytes(deps: HashedBlobDeps, args: { hash: string }): Promise<{ bytes: Uint8Array; mime: string } | null> {
+      assertHashes([args.hash], 1);
+      const found = await deps.storage.getBytes(blobKey(args.hash));
+      return found ? { bytes: found.bytes, mime: found.meta.mimeType } : null;
+    },
+
+    /** ファイルを保存する(GAS 用。データURLで受け取る)。種類(MIME)とサイズだけを確かめる(書けるのは管理者のみなので、ハッシュと中身の一致は見ない)。 */
     async put(deps: HashedBlobDeps, args: { hash: string; dataUrl: string }): Promise<void> {
       assertHashes([args.hash], 1);
       const header = typeof args.dataUrl === "string" ? DATA_URL_HEADER.exec(args.dataUrl.slice(0, 200)) : null;
@@ -105,7 +137,7 @@ export function createHashedBlobStore(module: StorageModuleName) {
       return { existing: [...new Set(args.hashes)].filter((h) => stored.has(h)) };
     },
 
-    /** ファイルの中身(データURL)。保存されていなければ null。 */
+    /** ファイルの中身(データURL。GAS 用)。保存されていなければ null。 */
     async get(deps: HashedBlobDeps, args: { hash: string }): Promise<{ dataUrl: string | null }> {
       assertHashes([args.hash], 1);
       const [item] = await deps.storage.listByPrefix(`${module}/${StorageKind.Assets}/${args.hash}_`);
