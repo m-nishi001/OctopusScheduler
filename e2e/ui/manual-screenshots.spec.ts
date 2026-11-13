@@ -331,10 +331,11 @@ test("ジャックポット管理(メンバー・景品・結果)", async ({ bro
     await errorRow.scrollIntoViewIfNeeded();
     await settle(page, 300);
     await shoot(page, "a-23-jp-screen-import", [imp.getByTestId("table-import-table"), imp.getByTestId("table-import-counts"), errorRow, imp.getByRole("button", { name: "取り込む" })]);
-    await page.keyboard.press("Escape");
+    await imp.getByRole("button", { name: "キャンセル" }).click();
+    await expect(imp).toBeHidden();
 
     await go("draw");
-    await shoot(page, "a-20-jp-screen-draw", [pickers().first(), page.getByTestId("prize-stop-sec"), page.getByTestId("kakuhen-mode"), page.getByRole("button", { name: "テスト", exact: true })]);
+    await shoot(page, "a-20-jp-screen-draw", [pickers().first(), page.getByTestId("prize-stop-sec"), page.getByTestId("participant-stop-checkbox"), page.getByTestId("kakuhen-mode"), page.getByRole("button", { name: "テスト", exact: true })]);
   });
 
   await admin.context.close();
