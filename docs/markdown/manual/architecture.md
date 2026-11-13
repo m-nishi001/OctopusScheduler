@@ -196,7 +196,7 @@ RPC は「遠くにある関数を、名前を指定して呼ぶ」しくみで�
 | **infrastructures** | GAS/Cloudflareの実装を差し替える層 |
 | **sync-engine** | 端末とサーバーの同期 |
 | **client-common / composables / ui-kit** | 共通サービス / 共通ロジック / 共通UI部品 |
-| **table-io** | CSV の読み書き |
+| **table-io** | 表の一括入出力。CSV の読み書きと、素材を同梱した ZIP、取込前のプレビュー(行ごとの追加・更新・エラー)、古い見出しのエラー、置き換え取込 |
 
 <p class="small">詳しくは <a href="../dev/architecture.md">architecture.md</a> を参照してください。</p>
 
