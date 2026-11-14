@@ -39,6 +39,7 @@ import { container } from 'tsyringe';
 import { pickRankWinners } from './rank-winners';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { MemberPhotoCache } from '@octopus/accounts';
+import { nextScreen, SCREEN_PATH } from '@model/screen-flow';
 import { ResultScreenSetting } from '@model/screen-config/result-screen-setting';
 import { useScreenBgm } from '../../composables/use-screen-media';
 import '../../theme/jackpot-theme.css';
@@ -90,7 +91,7 @@ export default {
       if (e.key === 'Enter' && !fadeOut.value) {
         fadeOut.value = true;
         setTimeout(() => {
-          router.push(session.to('/jackpot-ending'));
+          router.push(session.to(SCREEN_PATH[nextScreen('result', { demoDraw: true, entry: false })!]));
         }, 1200);
       }
     };

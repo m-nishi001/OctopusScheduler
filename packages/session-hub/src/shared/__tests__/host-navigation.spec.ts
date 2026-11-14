@@ -8,6 +8,8 @@ describe("isAllowedHostPath", () => {
     "/execute/jackpot-draw",
     "/jackpot-entry",
     "/execute/jackpot-entry",
+    "/jackpot-demo-draw",
+    "/execute/jackpot-demo-draw?demo=1",
     "/jackpot-ending?demo=1",
     "/quiz/q1/intro",
     "/execute/quiz/q1/play",

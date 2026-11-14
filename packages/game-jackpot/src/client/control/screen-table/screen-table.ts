@@ -2,16 +2,18 @@
  * ジャックポット画面設定の表(CSV)への対応。画面設定は「画面ごとに1件の JSON」だが、表では1行に1つの設定(または1つのコンテンツ)にする。
  * 画面の設定を表の行にする {@link screensToRows} と、行を画面の設定に戻す {@link rowsToScreens} は、どちらも純粋関数。
  *
- * - 列: `画面*, 項目*, 素材, 文字, 種類, 効果, 秒数, 効果音, コンテンツ名`。
+ * - 列: `画面*, 項目*, 素材, 文字, 種類, 効果, 秒数, 行数, 効果音, コンテンツ名`。
  * - 画面: オープニング / 説明 / デモ抽選 / 本抽選 / 最終結果 / エンディング(管理画面の「画面設定」の並びと同じ)。
  * - 項目と使う列:
  *   - `BGM`(オープニング・説明・デモ抽選・最終結果・エンディング): 素材 = 音の素材の名前。
- *   - `抽選SE`(デモ抽選): 素材 = 音の素材の名前。
+ *   - `デモ抽選`(デモ抽選): 文字 = `あり` / `なし`(練習抽選をするか。既定は あり)。
+ *   - `デモ回数`(デモ抽選): 文字 = 1〜3 の数(既定 1)。
  *   - `メンバー抽選BGM`(本抽選): 素材 = 音の素材の名前。行の順に並ぶ(複数行)。
  *   - `確変の回`(本抽選): 文字 = `おまかせ` / `なし` / `3, 7`(確変にする回)。
  *   - `停止秒数`(本抽選): 文字 = 2〜15 の数(秒)。
- *   - `コンテンツ`(オープニング・説明・エンディング): 種類 = テキスト / 画像 / HTML。文字 = 本文(テキスト・HTML)、素材 = 画像、
- *     効果 = スクロール / フェード / 静止、秒数 = 表示する長さ(秒)、効果音 = 音の素材の名前、コンテンツ名 = 管理画面の表示名。行の順に出る。
+ *   - `コンテンツ`(オープニング・エンディング): 種類 = テキスト / 画像。文字 = 本文(テキスト)、素材 = 画像、
+ *     効果 = 流れる / 行送り / フェード / 静止、秒数 = 表示する長さ(秒)、行数 = 行送りの1回に送る行数(既定 3)、効果音 = 音の素材の名前、コンテンツ名 = 管理画面の表示名。行の順に出る。
+ *   - `コンテンツ`(説明): 種類 = 画像 / テキスト。文字 = 本文(テキスト)、素材 = 画像。効果・秒数・行数・効果音は入れられない(1ページずつ手で送る)。行の順に並ぶ。
  * - ファイルに出てくる画面だけを、まるごと置き換える(その画面の、ファイルに無い項目は初期値に戻る)。ファイルに出てこない画面は変えない。
  * - 素材の空のセルは「設定なし」。取り込みと書き出しは同じ形なので、書き出したものをそのまま取り込むと、全行「変更なし」になる。
  */
@@ -22,6 +24,9 @@ import type { ScreenSettingRecord } from "../../../server/jackpot-api-contract";
 import { DEFAULT_PARTICIPANT_STOP, parseParticipantStop } from "../../model/draw/participant-stop";
 import { clampPrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC } from "../../model/draw/prize-stop-sec";
 import { parseKakuhenPlan, parseTimingsText } from "../../model/draw/kakuhen-plan";
+import { clampDemoRounds, MAX_DEMO_ROUNDS, MIN_DEMO_ROUNDS, parseDemoDrawSettings } from "../../model/screen-config/demo-draw-setting";
+import { parseDescriptionSettings } from "../../model/screen-config/description-setting";
+import { clampLines, DEFAULT_SEQUENCE_LINES, DEFAULT_SEQUENCE_SECONDS, parseSequenceSettings, SEQUENCE_EFFECTS, SEQUENCE_KINDS } from "../../model/screen-config/sequence-setting";
 
 export const SCREEN_CSV_NAME = "screens.csv";
 
@@ -33,6 +38,7 @@ export const SCREEN_HEADERS: readonly Header[] = [
   { key: "type", label: "種類", aliases: ["type"] },
   { key: "effect", label: "効果", aliases: ["effect"] },
   { key: "seconds", label: "秒数", aliases: ["seconds", "duration"] },
+  { key: "lines", label: "行数", aliases: ["lines"] },
   { key: "se", label: "効果音", aliases: ["se"], media: true },
   { key: "name", label: "コンテンツ名", aliases: ["コンテンツ名"] },
 ];
@@ -51,7 +57,8 @@ const SCREENS: readonly { key: ScreenKey; label: string; settingName: string }[]
 const SCREEN_BY_LABEL = new Map(SCREENS.map((s) => [s.label, s] as const));
 
 const ITEM_BGM = "BGM";
-const ITEM_DRAW_SE = "抽選SE";
+const ITEM_DEMO_DRAW = "デモ抽選";
+const ITEM_DEMO_ROUNDS = "デモ回数";
 const ITEM_MEMBER_BGM = "メンバー抽選BGM";
 const ITEM_KAKUHEN = "確変の回";
 const ITEM_STOP_SEC = "停止秒数";
@@ -63,21 +70,20 @@ const ITEMS_OF: Readonly<Record<ScreenKey, readonly string[]>> = {
   opening: [ITEM_BGM, ITEM_CONTENT],
   description: [ITEM_BGM, ITEM_CONTENT],
   ending: [ITEM_BGM, ITEM_CONTENT],
-  demo: [ITEM_BGM, ITEM_DRAW_SE],
+  demo: [ITEM_BGM, ITEM_DEMO_DRAW, ITEM_DEMO_ROUNDS],
   result: [ITEM_BGM],
   main: [ITEM_MEMBER_BGM, ITEM_KAKUHEN, ITEM_STOP_SEC, ITEM_PARTICIPANT_STOP],
 };
 
-const CONTENT_TYPE_LABEL = { text: "テキスト", image: "画像", html: "HTML" } as const;
-const CONTENT_EFFECT_LABEL = { scroll: "スクロール", fade: "フェード", static: "静止" } as const;
+const DEMO_DRAW_ON = "あり";
+const DEMO_DRAW_OFF = "なし";
+const DESCRIPTION_KIND_LABELS = ["画像", "テキスト"];
 const KAKUHEN_AUTO = "おまかせ";
 const KAKUHEN_NONE = "なし";
 const PARTICIPANT_STOP_ON = "可";
 const PARTICIPANT_STOP_OFF = "不可";
 
 const norm = (s: string): string => s.normalize("NFKC").trim().toLowerCase();
-const pick = <K extends string>(labels: Record<K, string>, cell: string): K | null =>
-  (Object.keys(labels) as K[]).find((k) => norm(labels[k]) === norm(cell) || norm(k) === norm(cell)) ?? null;
 
 /** 保存されている画面の設定(1画面分)。JSON でなければ空。 */
 function parseValue(record: ScreenSettingRecord): Record<string, unknown> {
@@ -90,9 +96,6 @@ function parseValue(record: ScreenSettingRecord): Record<string, unknown> {
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
-
-/** 秒数のセルの書き方(ミリ秒 → 秒。余分な 0 は付けない)。 */
-const secondsText = (ms: unknown): string => (typeof ms === "number" && Number.isFinite(ms) ? String(Math.round(ms) / 1000) : "");
 
 function bgmRow(screen: string, item: string, media: unknown): Row[] {
   const name = str(media);
@@ -109,7 +112,12 @@ export function screensToRows(records: readonly ScreenSettingRecord[]): Row[] {
     const label = screen.label;
     switch (screen.key) {
       case "demo":
-        rows.push(...bgmRow(label, ITEM_BGM, v.demoBgm), ...bgmRow(label, ITEM_DRAW_SE, v.demoDrawSe));
+        const demo = parseDemoDrawSettings(v);
+        rows.push(
+          ...bgmRow(label, ITEM_BGM, demo.bgm),
+          { screen: label, item: ITEM_DEMO_DRAW, text: demo.enabled ? DEMO_DRAW_ON : DEMO_DRAW_OFF },
+          { screen: label, item: ITEM_DEMO_ROUNDS, text: String(demo.rounds) }
+        );
         break;
       case "result":
         rows.push(...bgmRow(label, ITEM_BGM, v.resultBgm));
@@ -123,22 +131,29 @@ export function screensToRows(records: readonly ScreenSettingRecord[]): Row[] {
           { screen: label, item: ITEM_PARTICIPANT_STOP, text: parseParticipantStop(v) ? PARTICIPANT_STOP_ON : PARTICIPANT_STOP_OFF });
         break;
       }
+      case "description": {
+        const description = parseDescriptionSettings(v);
+        rows.push(...bgmRow(label, ITEM_BGM, description.bgm));
+        for (const page of description.pages) {
+          rows.push({ screen: label, item: ITEM_CONTENT, type: page.kind, text: page.kind === "テキスト" ? page.text ?? "" : "", media: page.kind === "画像" ? page.image ?? "" : "" });
+        }
+        break;
+      }
       default: {
-        rows.push(...bgmRow(label, ITEM_BGM, v.bgm));
-        const contents = Array.isArray(v.contents) ? (v.contents as Record<string, unknown>[]) : [];
-        for (const c of contents) {
-          const type = pick(CONTENT_TYPE_LABEL, str(c.type)) ?? "text";
-          const effect = pick(CONTENT_EFFECT_LABEL, str(c.effect)) ?? "scroll";
+        const sequence = parseSequenceSettings(v);
+        rows.push(...bgmRow(label, ITEM_BGM, sequence.bgm));
+        for (const item of sequence.items) {
           rows.push({
             screen: label,
             item: ITEM_CONTENT,
-            type: CONTENT_TYPE_LABEL[type],
-            text: type === "html" ? str(c.content) || str(c.text) : type === "text" ? str(c.text) || str(c.content) : "",
-            media: type === "image" ? str(c.media) : "",
-            effect: CONTENT_EFFECT_LABEL[effect],
-            seconds: secondsText(c.duration),
-            se: str(c.se),
-            name: str(c.name),
+            type: item.kind,
+            text: item.kind === "テキスト" ? item.text ?? "" : "",
+            media: item.kind === "画像" ? item.image ?? "" : "",
+            effect: item.effect,
+            seconds: String(item.seconds),
+            lines: item.effect === "行送り" ? String(item.lines ?? DEFAULT_SEQUENCE_LINES) : "",
+            se: item.se ?? "",
+            name: item.name ?? "",
           });
         }
       }
@@ -217,7 +232,23 @@ export function rowsToScreens(rows: readonly Row[], options: RowsToScreensOption
     let value: Record<string, unknown>;
     switch (screen.key) {
       case "demo":
-        value = { demoBgm: bgmOf(ITEM_BGM, "BGM"), demoDrawSe: bgmOf(ITEM_DRAW_SE, "抽選SE") };
+        let enabled = true;
+        const enabledAt = cellOf(ITEM_DEMO_DRAW);
+        if (enabledAt && (enabledAt.row.text ?? "") !== "") {
+          const t = norm(enabledAt.row.text ?? "");
+          if (t === norm(DEMO_DRAW_ON)) enabled = true;
+          else if (t === norm(DEMO_DRAW_OFF)) enabled = false;
+          else fail(enabledAt.i, `デモ抽選は ${DEMO_DRAW_ON}・${DEMO_DRAW_OFF} のどちらかで入力してください: ${enabledAt.row.text}`);
+        }
+        let rounds = 1;
+        const roundsAt = cellOf(ITEM_DEMO_ROUNDS);
+        if (roundsAt && (roundsAt.row.text ?? "") !== "") {
+          const n = Number(roundsAt.row.text);
+          if (!Number.isInteger(n) || n < MIN_DEMO_ROUNDS || n > MAX_DEMO_ROUNDS) {
+            fail(roundsAt.i, `デモ回数は${MIN_DEMO_ROUNDS}〜${MAX_DEMO_ROUNDS}の整数で入力してください: ${roundsAt.row.text}`);
+          } else rounds = clampDemoRounds(n);
+        }
+        value = { enabled, rounds, bgm: bgmOf(ITEM_BGM, "BGM") };
         break;
       case "result":
         value = { resultBgm: bgmOf(ITEM_BGM, "BGM") };
@@ -261,47 +292,84 @@ export function rowsToScreens(rows: readonly Row[], options: RowsToScreensOption
         value = { memberLotteryBgms: lottery.filter(Boolean), kakuhenMode: mode, kakuhenFixedTimings: timings, prizeStopSec: stop, participantStop };
         break;
       }
-      default: {
-        const contents: Record<string, unknown>[] = [];
+      case "description": {
+        const pages: Record<string, unknown>[] = [];
         for (const i of g.rows.filter((k) => rows[k].item === ITEM_CONTENT)) {
           const c = rows[i];
-          const type = c.type ? pick(CONTENT_TYPE_LABEL, c.type) : null;
-          if (!type) {
-            fail(i, c.type ? `種類は テキスト・画像・HTML のどれかです: ${c.type}` : "コンテンツの種類が空です");
+          const kind = DESCRIPTION_KIND_LABELS.find((k) => norm(k) === norm(c.type ?? ""));
+          if (!kind) {
+            fail(i, c.type ? `説明の種類は ${DESCRIPTION_KIND_LABELS.join("・")} のどちらかです: ${c.type}` : "説明の種類が空です");
             continue;
           }
-          const effect = c.effect ? pick(CONTENT_EFFECT_LABEL, c.effect) : "scroll";
+          if (c.effect || c.seconds || c.lines || c.se) {
+            fail(i, "説明のページには、効果・秒数・行数・効果音は入れられません(1ページずつ手で送ります)");
+            continue;
+          }
+          if (kind === "テキスト") {
+            if (!c.text) fail(i, "テキストの文字が空です");
+            pages.push({ kind, text: c.text ?? "" });
+          } else {
+            const image = mediaCell(i, "画像", c.media, "image");
+            if (!c.media) fail(i, "画像の素材が空です");
+            pages.push({ kind, image });
+          }
+        }
+        value = { bgm: bgmOf(ITEM_BGM, "BGM"), pages };
+        break;
+      }
+      default: {
+        const items: Record<string, unknown>[] = [];
+        for (const i of g.rows.filter((k) => rows[k].item === ITEM_CONTENT)) {
+          const c = rows[i];
+          const kind = SEQUENCE_KINDS.find((k) => norm(k) === norm(c.type ?? ""));
+          if (!kind) {
+            fail(i, c.type ? `種類は ${SEQUENCE_KINDS.join("・")} のどちらかです: ${c.type}` : "コンテンツの種類が空です");
+            continue;
+          }
+          const effect = c.effect ? SEQUENCE_EFFECTS.find((e) => norm(e) === norm(c.effect ?? "")) : "フェード";
           if (!effect) {
-            fail(i, `効果は スクロール・フェード・静止 のどれかです: ${c.effect}`);
+            fail(i, `効果は ${SEQUENCE_EFFECTS.join("・")} のどれかです: ${c.effect}`);
             continue;
           }
-          let duration = 3000;
+          if (effect === "行送り" && kind !== "テキスト") {
+            fail(i, "行送りはテキストだけで使えます");
+            continue;
+          }
+          let seconds = DEFAULT_SEQUENCE_SECONDS;
           if (c.seconds) {
             const sec = Number(c.seconds);
             if (!Number.isFinite(sec) || sec <= 0) {
               fail(i, `秒数は0より大きい数(秒)で入力してください: ${c.seconds}`);
               continue;
             }
-            duration = Math.round(sec * 1000);
+            seconds = sec;
           }
-          const content: Record<string, unknown> = { type, effect, duration };
-          if (c.name) content.name = c.name;
-          if (type === "text") {
+          const item: Record<string, unknown> = { kind, effect, seconds };
+          if (effect === "行送り") {
+            const n = c.lines ? Number(c.lines) : DEFAULT_SEQUENCE_LINES;
+            if (!Number.isInteger(n) || n < 1) {
+              fail(i, `行数は1以上の整数で入力してください: ${c.lines}`);
+              continue;
+            }
+            item.lines = clampLines(n);
+          } else if (c.lines) {
+            fail(i, "行数は、効果が 行送り のときだけ入れられます");
+            continue;
+          }
+          if (c.name) item.name = c.name;
+          if (kind === "テキスト") {
             if (!c.text) fail(i, "テキストの文字が空です");
-            content.text = c.text ?? "";
-          } else if (type === "html") {
-            if (!c.text) fail(i, "HTML の文字が空です");
-            content.content = c.text ?? "";
+            item.text = c.text ?? "";
           } else {
-            const media = mediaCell(i, "画像", c.media, "image");
+            const image = mediaCell(i, "画像", c.media, "image");
             if (!c.media) fail(i, "画像の素材が空です");
-            content.media = media;
+            item.image = image;
           }
           const se = mediaCell(i, "効果音", c.se, "audio");
-          if (se) content.se = se;
-          contents.push(content);
+          if (se) item.se = se;
+          items.push(item);
         }
-        value = { bgm: bgmOf(ITEM_BGM, "BGM"), contents };
+        value = { bgm: bgmOf(ITEM_BGM, "BGM"), items };
       }
     }
     records.push({ screenName: screen.key, settingName: screen.settingName, settingValue: JSON.stringify(value) });

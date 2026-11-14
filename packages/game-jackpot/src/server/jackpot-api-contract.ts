@@ -90,9 +90,9 @@ export function prizeMediaNames(p: Prize): string[] {
   return [...new Set(names.filter((n): n is string => !!n))];
 }
 
-/** 値が素材の名前(1つ)である項目。オープニング等の BGM(`bgm`)、コンテンツの画像(`media`)と効果音(`se`)、デモ・結果画面の BGM・効果音。 */
+/** 値が素材の名前(1つ)である項目。各画面の BGM(`bgm`)、項目・ページの画像(`image`)と効果音(`se`)、結果画面の BGM(`resultBgm`)。 */
 const SCREEN_MEDIA_KEYS: ReadonlySet<string> = new Set([
-  "bgm", "media", "se", "demoBgm", "demoDrawSe", "resultBgm",
+  "bgm", "image", "se", "resultBgm",
 ]);
 /** 値が素材の名前の配列である項目(本抽選のメンバー抽選 BGM)。 */
 const SCREEN_MEDIA_LIST_KEYS: ReadonlySet<string> = new Set(["memberLotteryBgms"]);

@@ -39,7 +39,8 @@
     "quiz-admin-correct-answer.spec.ts": 1,
     "seeded-content.spec.ts": 1,
     "seeded-walkthrough.spec.ts": 1,
-    "settings-members.spec.ts": 1
+    "settings-members.spec.ts": 1,
+    "jackpot-screen-flow.spec.ts": 190
   },
   "gas": {
     "manual-screenshots.spec.ts": 1,
@@ -76,6 +77,7 @@
     "quiz-admin-correct-answer.spec.ts": 2,
     "seeded-content.spec.ts": 1,
     "seeded-walkthrough.spec.ts": 1,
-    "settings-members.spec.ts": 1
+    "settings-members.spec.ts": 1,
+    "jackpot-screen-flow.spec.ts": 260
   }
 }

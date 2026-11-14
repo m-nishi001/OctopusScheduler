@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { RevealTracker } from "@model/jackpot-host-state";
 import { createHostPublisher } from "./host-publisher";
 
-function setup(options: { result?: any; nextLabel?: string } = {}) {
+function setup(options: { result?: any; nextLabel?: string; demoDraw?: boolean } = {}) {
   const tracker = new RevealTracker();
   const host = { publish: vi.fn() };
   const reveal = vi.fn().mockResolvedValue(true);
@@ -17,6 +17,7 @@ function setup(options: { result?: any; nextLabel?: string } = {}) {
     host,
     tracker,
     reveal,
+    demoDraw: options.demoDraw,
     phase: () => "prize",
     ended: () => state.ended,
     nextLabel: () => state.nextLabel,
@@ -166,6 +167,43 @@ describe("createHostPublisher", () => {
       publish();
       await flush();
       expect(onRevealed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("デモ抽選(練習抽選)", () => {
+    it("当選者・景品が見えて、次が止めるステップでも、ページ名だけを公開する(当選者・景品・止める操作を載せない)", () => {
+      const { publish, host, tracker } = setup({ demoDraw: true, nextLabel: "stopPrizeDraw" });
+      tracker.onAction("stopMemberDraw");
+      tracker.onAction("stopPrizeDraw");
+      publish();
+      expect(host.publish).toHaveBeenLastCalledWith({
+        page: "demo-draw",
+        stage: "waiting",
+        canStop: false,
+        busy: false,
+        member: null,
+        memberId: null,
+        prize: null,
+      });
+      for (const [state] of host.publish.mock.calls) {
+        expect(state).toMatchObject({ page: "demo-draw", canStop: false, member: null, memberId: null, prize: null });
+      }
+    });
+
+    it("練習の結果の確定・公開(reveal)は、渡された置き場の中で本番と同じに進める(次の練習を引くため)", () => {
+      const { publish, tracker, reveal } = setup({ demoDraw: true });
+      tracker.onAction("stopMemberDraw");
+      tracker.onAction("stopPrizeDraw");
+      publish();
+      expect(reveal).toHaveBeenCalledWith("d1");
+    });
+
+    it("デモ抽選でなければ、これまでどおり当選者を公開する", () => {
+      const { publish, host, tracker } = setup({ demoDraw: false });
+      tracker.onAction("stopMemberDraw");
+      tracker.onAction("stopPrizeDraw");
+      publish();
+      expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ page: "main-draw", member: "Alice", prize: "Prize" }));
     });
   });
 });

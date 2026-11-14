@@ -745,8 +745,11 @@ test("当日の操作(会場・手元・参加者)", async ({ browser, request }
     await pressNext(admin.page, "エントリーへ", 1500);
     await pressNext(admin.page, "説明へ", 3000);
     await shoot(host.page, "s-22-jp-description");
-    for (let i = 0; i < 3; i++) await pressNext(admin.page, "次のスライドへ", 1500);
-    await pressNext(admin.page, "抽選を始める", 3000);
+    for (let i = 0; i < 2; i++) await pressNext(admin.page, "次のページへ", 1500);
+    await pressNext(admin.page, "説明を終える", 3000);
+    // デモ抽選(練習。既定 ON)を「次へ」で進め、回し終えると本抽選の画面になる
+    await expect.poll(() => hostRoute(host.page)).toBe("/execute/jackpot-demo-draw");
+    for (let i = 0; i < 40 && (await hostRoute(host.page)) !== "/execute/jackpot-draw"; i++) await pressNext(admin.page, "次へ", 2500).catch(() => undefined);
     await expect.poll(() => hostRoute(host.page)).toBe("/execute/jackpot-draw");
     await shoot(host.page, "s-23-jp-draw-ready");
     await drawJackpot({ admin: admin.page, host: host.page, phones, shots: true });

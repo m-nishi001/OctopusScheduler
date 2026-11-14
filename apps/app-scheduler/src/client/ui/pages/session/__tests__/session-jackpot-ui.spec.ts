@@ -94,7 +94,7 @@ describe("管理コンソールのジャックポット操作", () => {
     expect(nav).toEqual([{ path: "/jackpot-opening" }, { path: "/jackpot-opening" }]);
   });
 
-  it("参加者全員(自動)では、オープニングの次は説明(エントリー画面を挟まない)。説明 → 抽選 と進む", async () => {
+  it("参加者全員(自動)では、オープニングの次は説明(エントリー画面を挟まない)。説明 → 次へ(ホストが行き先を決める)", async () => {
     const { meta, agent, nav } = await setupHosted();
     const { wrapper } = await mountConsole(meta.id);
 
@@ -107,8 +107,8 @@ describe("管理コンソールのジャックポット操作", () => {
 
     await agent.publishSlice("session", { path: "/jackpot-description" });
     await settle(5000);
-    expect(next(wrapper).text()).toContain("抽選を始める");
-    expect(wrapper.find('[data-testid="next-hint"]').text()).toContain("まだ抽選は始まりません");
+    expect(next(wrapper).text()).toContain("次へ");
+    expect(wrapper.find('[data-testid="next-hint"]').text()).toContain("デモ抽選");
   });
 
   it("エントリーした人のみでは、オープニング → エントリー → 説明 → 抽選 の順に、主ボタンで画面が進む", async () => {
@@ -132,10 +132,10 @@ describe("管理コンソールのジャックポット操作", () => {
 
     await agent.publishSlice("session", { path: "/jackpot-description" });
     await settle(5000);
-    expect(next(wrapper).text()).toContain("抽選を始める");
+    expect(next(wrapper).text()).toContain("次へ");
   });
 
-  describe("説明のスライド", () => {
+  describe("説明のページ", () => {
     const descState = (index: number, total: number) => ({ page: "description", index, total });
     const openDescription = async (agent: Awaited<ReturnType<typeof setupHosted>>["agent"], index: number, total = 3) => {
       await agent.publishSlice("session", { path: "/execute/jackpot-description" });
@@ -145,16 +145,16 @@ describe("管理コンソールのジャックポット操作", () => {
     const back = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-testid="back-button"]');
     const pressKey = (key: string, target: EventTarget = document.body) => target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 
-    it("導入画面では「次のスライドへ」だけ。押すとホストに advance が届き、前へは出ない", async () => {
+    it("最初のページでは「次のページへ」だけ。押すとホストに advance が届き、前へは出ない", async () => {
       const { meta, agent, calls, nav } = await setupHosted();
       const { wrapper } = await mountConsole(meta.id);
-      await openDescription(agent, -1);
-      expect(next(wrapper).text()).toContain("次のスライドへ (1/3)");
+      await openDescription(agent, 0);
+      expect(next(wrapper).text()).toContain("次のページへ (2/3)");
       expect(back(wrapper).exists()).toBe(false);
       await next(wrapper).trigger("click");
       await settle(5000);
       expect(calls).toEqual(["advance"]);
-      expect(nav).toEqual([]); // スライドを飛ばして抽選画面へは行かない
+      expect(nav).toEqual([]); // ページを飛ばして次の画面へは行かない
     });
 
     it("途中では「← 前へ」が出て、押すとホストに back が届く。Enter / Backspace でも同じ", async () => {
@@ -175,22 +175,22 @@ describe("管理コンソールのジャックポット操作", () => {
       expect(calls).toEqual(["back", "advance", "back"]);
     });
 
-    it("最後のスライドで主ボタンが「抽選を始める」になり、押すと抽選画面へ切り替わる", async () => {
+    it("最後のページで主ボタンが「説明を終える」になり、押すとホストに advance が届く(行き先はホストが決める。コンソールは画面を切り替えない)", async () => {
       const { meta, agent, calls, nav } = await setupHosted();
       const { wrapper } = await mountConsole(meta.id);
       await openDescription(agent, 2);
-      expect(next(wrapper).text()).toContain("抽選を始める");
+      expect(next(wrapper).text()).toContain("説明を終える");
       expect(back(wrapper).exists()).toBe(true);
       await next(wrapper).trigger("click");
       await settle(5000);
-      expect(nav).toEqual([{ path: "/jackpot-draw", expectedPath: "/execute/jackpot-description" }]);
-      expect(calls).toEqual([]);
+      expect(calls).toEqual(["advance"]);
+      expect(nav).toEqual([]);
     });
 
-    it("前へが無い画面(導入・抽選)では Backspace を押しても何も送られない", async () => {
+    it("前へが無い画面(最初のページ・抽選)では Backspace を押しても何も送られない", async () => {
       const { meta, agent, calls } = await setupHosted();
       const { wrapper } = await mountConsole(meta.id);
-      await openDescription(agent, -1);
+      await openDescription(agent, 0);
       pressKey("Backspace");
       await settle(5000);
       await openDraw(agent);

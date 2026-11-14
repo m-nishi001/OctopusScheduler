@@ -5,7 +5,7 @@ import { JackpotRepository } from "@model/jackpot-repository";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
 
 /**
- * 画面（オープニング・エンディング・説明・デモ・結果）が使う素材（BGM・画像）の読み込みと後始末。
+ * 画面（オープニング・エンディング・説明・デモ抽選・結果）が使う素材（BGM・画像・効果音）の読み込みと後始末。
  *
  * どの画面も「設定を読む → アセットから音と画像のURLを作る → 再生 → 画面を離れたら止めて URL を破棄」を
  * 同じ手順で行うので、ここに集める。画面を読み込んでいる最中に離れた場合は、読み込みが終わっても
@@ -83,9 +83,17 @@ export function useScreenBgm(deps: MediaDeps = defaultMediaDeps()): ScreenBgm {
   return { bgm, load, play };
 }
 
-/** 画像などのコンテンツ（素材の名前 `media` を持つ）に、表示用の URL（`assetUrl`）を付ける。作った URL は画面を離れたら破棄する。 */
+/** 素材を参照する項目(画像 `image`・効果音 `se` の名前)。再生のための URL(`imageUrl`・`seUrl`)を付ける対象。 */
+export interface MediaItem {
+  image?: string;
+  se?: string;
+  imageUrl?: string;
+  seUrl?: string;
+}
+
+/** 項目の画像・効果音に、表示・再生用の URL(`imageUrl`・`seUrl`)を付ける。作った URL は画面を離れたら破棄する。 */
 export function useScreenAssetUrls(deps: MediaDeps = defaultMediaDeps()): {
-  attach(contents: ReadonlyArray<{ media?: string; assetUrl?: string }>): Promise<void>;
+  attach(items: ReadonlyArray<MediaItem>): Promise<void>;
 } {
   const urls: string[] = [];
   let disposed = false;
@@ -96,22 +104,28 @@ export function useScreenAssetUrls(deps: MediaDeps = defaultMediaDeps()): {
     urls.length = 0;
   });
 
+  /** 素材 1 つの URL。読めない・無いときは undefined(失敗しても、残りは続ける)。 */
+  async function urlOf(name: string | undefined): Promise<string | undefined> {
+    if (!name) return undefined;
+    try {
+      const blob = await deps.blobOf(name);
+      if (disposed || !blob) return undefined;
+      const url = deps.createObjectUrl(blob);
+      urls.push(url);
+      return url;
+    } catch (error) {
+      console.warn("[ScreenMedia] failed to load media", name, error);
+      return undefined;
+    }
+  }
+
   return {
-    /** 1件が読めなくても、残りは続ける（読めなかった分は `assetUrl` を付けない）。 */
-    async attach(contents) {
-      for (const content of contents) {
-        if (!content.media) continue;
-        try {
-          const blob = await deps.blobOf(content.media);
-          if (disposed) return;
-          if (blob) {
-            const url = deps.createObjectUrl(blob);
-            urls.push(url);
-            content.assetUrl = url;
-          }
-        } catch (error) {
-          console.warn("[ScreenMedia] failed to load media for content", content, error);
-        }
+    async attach(items) {
+      for (const item of items) {
+        const [imageUrl, seUrl] = [await urlOf(item.image), await urlOf(item.se)];
+        if (disposed) return;
+        if (imageUrl) item.imageUrl = imageUrl;
+        if (seUrl) item.seUrl = seUrl;
       }
     },
   };
@@ -120,8 +134,10 @@ export function useScreenAssetUrls(deps: MediaDeps = defaultMediaDeps()): {
 export interface ScreenMediaOptions<TConfig> {
   screenName: string;
   settingName: string;
-  /** 設定がまだ保存されていないときの既定の設定。 */
-  fallback(): TConfig;
+  /** 保存されている設定(無ければ null)を、画面の設定にする。 */
+  parse(raw: unknown): TConfig;
+  /** 設定が参照している素材の項目(画像・効果音)。URL を付ける対象。 */
+  items(config: TConfig): ReadonlyArray<MediaItem>;
   /** 画面が出てから BGM を鳴らし始めるまでの待ち（ミリ秒）。 */
   bgmDelayMs?: number;
 }
@@ -133,10 +149,10 @@ export interface ScreenMedia<TConfig> {
 }
 
 /**
- * 画面設定（BGM の名前 `bgm` と、素材の名前 `media` を持つ `contents`）を読み、BGM と画像の URL を用意して、
- * **準備ができてから** `config` を出し、BGM を鳴らす（画面が出た時点で画像が揃っている）。
+ * 画面設定（BGM の名前 `bgm` と、素材を参照する項目）を読み、BGM と画像・効果音の URL を用意して、
+ * **準備ができてから** `config` を出し、BGM を鳴らす（画面が出た時点で素材が揃っている）。
  */
-export function useScreenMedia<TConfig extends { bgm?: string; contents?: Array<{ media?: string; assetUrl?: string }> }>(
+export function useScreenMedia<TConfig extends { bgm: string }>(
   options: ScreenMediaOptions<TConfig>,
   deps: MediaDeps = defaultMediaDeps()
 ): ScreenMedia<TConfig> {
@@ -149,17 +165,17 @@ export function useScreenMedia<TConfig extends { bgm?: string; contents?: Array<
   });
 
   onMounted(async () => {
-    let loaded: TConfig | null = null;
+    let raw: unknown = null;
     try {
-      loaded = (await deps.fetchSetting(options.screenName, options.settingName)) as TConfig | null;
+      raw = await deps.fetchSetting(options.screenName, options.settingName);
     } catch (error) {
       // 設定が読めなくても、既定の設定で画面は出す（「読み込み中」のまま固まらないように）
       console.error(`[ScreenMedia] failed to load ${options.screenName} settings`, error);
     }
-    loaded ??= options.fallback();
+    const loaded = options.parse(raw);
     if (disposed) return;
     await bgm.load(loaded.bgm);
-    await assetUrls.attach(loaded.contents ?? []);
+    await assetUrls.attach(options.items(loaded));
     if (disposed) return;
     config.value = loaded;
     bgm.play(options.bgmDelayMs);

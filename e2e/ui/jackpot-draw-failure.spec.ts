@@ -43,14 +43,14 @@ test("参加者がいなくて抽選に失敗しても、ホストは固まら�
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
   const next = nextButton(admin.page);
   await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
-  // 説明のスライドを最後まで進める（最後の1枚の次が「抽選を始める」）
+  // 説明のページを最後まで進める（最後の1ページの次が「説明を終える」）
   for (let i = 0; i < 10; i++) {
     const label = await next.innerText();
-    if (/抽選を始める/.test(label)) break;
+    if (/説明を終える/.test(label)) break;
     await next.click();
-    await expect(next).not.toHaveText(label); // 1枚進んでから次を押す（押しすぎて抽選画面に進まないように）
+    await expect(next).not.toHaveText(label); // 1ページ進んでから次を押す（押しすぎて抽選画面に進まないように）
   }
-  await expect(next).toHaveText(/抽選を始める/);
+  await expect(next).toHaveText(/説明を終える/);
   // 押したコマンドが(通信の都合などで)処理されなかったときのために、抽選画面に進むまで押し直す。
   // 進んだあとの追加の「次へ」は、この先の確認(失敗しても固まらず、やり直せる)の妨げにならない。
   await expect(async () => {

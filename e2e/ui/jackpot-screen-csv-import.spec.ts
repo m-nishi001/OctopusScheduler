@@ -29,18 +29,21 @@ function mediaDir(): string {
   return dir;
 }
 
-const HEADER = "画面,項目,素材,文字,種類,効果,秒数,効果音,コンテンツ名";
+const HEADER = "画面,項目,素材,文字,種類,効果,秒数,行数,効果音,コンテンツ名";
 const ROWS = [
-  `オープニング,BGM,${BGM},,,,,,`,
-  `オープニング,コンテンツ,,ようこそ,テキスト,フェード,2,${SE},あいさつ`,
-  `オープニング,コンテンツ,${PIC},,画像,静止,1.5,,ロゴ`,
-  `デモ抽選,BGM,${BGM},,,,,,`,
-  `デモ抽選,抽選SE,${SE},,,,,,`,
-  `本抽選,メンバー抽選BGM,${BGM},,,,,,`,
-  `本抽選,確変の回,,"3, 7",,,,,`,
-  `本抽選,停止秒数,,6,,,,,`,
-  `本抽選,参加者の停止,,不可,,,,,`,
-  `最終結果,BGM,${SE},,,,,,`,
+  `オープニング,BGM,${BGM},,,,,,,`,
+  `オープニング,コンテンツ,,ようこそ,テキスト,フェード,2,,${SE},あいさつ`,
+  `オープニング,コンテンツ,${PIC},,画像,静止,1.5,,,ロゴ`,
+  `オープニング,コンテンツ,,"一行目\n二行目\n三行目",テキスト,行送り,2,2,,送り`,
+  `説明,コンテンツ,,ルール,テキスト,,,,,`,
+  `デモ抽選,BGM,${BGM},,,,,,,`,
+  `デモ抽選,デモ抽選,,なし,,,,,,`,
+  `デモ抽選,デモ回数,,2,,,,,,`,
+  `本抽選,メンバー抽選BGM,${BGM},,,,,,,`,
+  `本抽選,確変の回,,"3, 7",,,,,,`,
+  `本抽選,停止秒数,,6,,,,,,`,
+  `本抽選,参加者の停止,,不可,,,,,,`,
+  `最終結果,BGM,${SE},,,,,,,`,
 ];
 const csvOf = (...lines: string[]) => [HEADER, ...lines].join("\r\n") + "\r\n";
 const table = (text: string, name = "screens.csv") => ({ name, mimeType: "text/csv", buffer: Buffer.from(text, "utf-8") });
@@ -73,12 +76,14 @@ test.describe("ジャックポット画面設定の CSV 取込・書き出し", 
 
     // 開いているオープニングの入力欄に反映される
     await expect(page.getByTestId("media-name").first()).toHaveText(BGM);
-    await expect(page.getByText("あいさつ", { exact: true })).toBeVisible();
-    await expect(page.getByText("ロゴ", { exact: true })).toBeVisible();
+    await expect(page.getByText("あいさつ [フェード 2秒]", { exact: true })).toBeVisible();
+    await expect(page.getByText("ロゴ [静止 1.5秒]", { exact: true })).toBeVisible();
+    await expect(page.getByText("送り [行送り 2秒]", { exact: true })).toBeVisible();
     // デモ抽選・最終結果にも入っている
     await page.getByRole("link", { name: "デモ抽選" }).click();
-    await expect(page.getByTestId("media-name").nth(0)).toHaveText(BGM);
-    await expect(page.getByTestId("media-name").nth(1)).toHaveText(SE);
+    await expect(page.getByTestId("media-name").first()).toHaveText(BGM);
+    await expect(page.getByTestId("demo-enabled")).not.toBeChecked();
+    await expect(page.getByTestId("demo-rounds")).toHaveValue("2");
     await page.getByRole("link", { name: "最終結果" }).click();
     await expect(page.getByTestId("media-name").first()).toHaveText(SE);
     // 本抽選: 確変の回
@@ -94,10 +99,10 @@ test.describe("ジャックポット画面設定の CSV 取込・書き出し", 
     expect(csvFile.suggestedFilename()).toBe("screens.csv");
     const csvText = readFileSync(await csvFile.path(), "utf-8");
     expect(csvText.startsWith(`﻿${HEADER}\r\n`)).toBe(true);
-    expect(csvText).toContain(`オープニング,BGM,${BGM},,,,,,\r\n`);
-    expect(csvText).toContain(`オープニング,コンテンツ,,ようこそ,テキスト,フェード,2,${SE},あいさつ\r\n`);
-    expect(csvText).toContain("本抽選,確変の回,,\"3, 7\",,,,,\r\n");
-    expect(csvText).toContain("本抽選,参加者の停止,,不可,,,,,\r\n");
+    expect(csvText).toContain(`オープニング,BGM,${BGM},,,,,,,\r\n`);
+    expect(csvText).toContain(`オープニング,コンテンツ,,ようこそ,テキスト,フェード,2,,${SE},あいさつ\r\n`);
+    expect(csvText).toContain("本抽選,確変の回,,\"3, 7\",,,,,,\r\n");
+    expect(csvText).toContain("本抽選,参加者の停止,,不可,,,,,,\r\n");
 
     // 書き出し(ZIP): 参照されている素材が media/ に入る
     await page.getByTestId("table-export-media").check();
@@ -118,7 +123,7 @@ test.describe("ジャックポット画面設定の CSV 取込・書き出し", 
     }
 
     // エラーの行: 素材が無い / 画面が違う / その画面で使えない項目 / 音の欄に画像
-    await pickCsv(page, table(csvOf(`最終結果,BGM,nothing-${stamp}.wav,,,,,,`, "ホーム,BGM,,,,,,,", "オープニング,抽選SE,,,,,,,", `デモ抽選,BGM,${PIC},,,,,,`)), mediaDir());
+    await pickCsv(page, table(csvOf(`最終結果,BGM,nothing-${stamp}.wav,,,,,,,`, "ホーム,BGM,,,,,,,,", "オープニング,デモ回数,,2,,,,,,", `デモ抽選,BGM,${PIC},,,,,,,`)), mediaDir());
     await expect(page.getByTestId("table-import-counts")).toContainText("エラー 4");
     const errors = page.locator('[data-testid="table-import-row"][data-status="error"]');
     await expect(errors.nth(0)).toContainText(`「nothing-${stamp}.wav」が見つかりません`);
@@ -129,7 +134,7 @@ test.describe("ジャックポット画面設定の CSV 取込・書き出し", 
     await page.getByRole("button", { name: "閉じる" }).click();
 
     // 後始末: 取り込んだ画面を空の設定に戻す(ファイルに出てくる画面を置き換える)
-    await pickCsv(page, table(csvOf("オープニング,BGM,,,,,,,", "デモ抽選,BGM,,,,,,,", "本抽選,確変の回,,おまかせ,,,,,", "最終結果,BGM,,,,,,,")));
+    await pickCsv(page, table(csvOf("オープニング,BGM,,,,,,,,", "説明,BGM,,,,,,,,", "デモ抽選,BGM,,,,,,,,", "本抽選,確変の回,,おまかせ,,,,,,", "最終結果,BGM,,,,,,,,")));
     await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
     await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
     await page.getByTestId("table-import-close").click();

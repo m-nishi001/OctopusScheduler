@@ -27,8 +27,11 @@ export function parseJackpotStage(value: unknown): JackpotStage {
 }
 
 export interface JackpotPublished {
-  /** 公開している画面("description" = 説明のスライド、"main-draw" = 抽選画面、"finale" = 結果・エンディングの画面)。 */
-  page: "main-draw" | "description" | "finale";
+  /**
+   * 公開している画面("description" = 説明のページ、"main-draw" = 本抽選の画面、"demo-draw" = デモ抽選(練習)の画面、
+   * "finale" = 結果・エンディングの画面)。デモ抽選の間は、当選者・賞品・停止の操作を公開しない(ページ名だけ)。
+   */
+  page: "main-draw" | "description" | "demo-draw" | "finale";
   stage: JackpotStage;
   /** 次の操作でルーレット/スロットを止められるか。 */
   canStop: boolean;
@@ -40,7 +43,7 @@ export interface JackpotPublished {
   memberId: string | null;
   /** 公開済みの当選賞品名(停止演出が終わるまでは null)。 */
   prize: string | null;
-  /** 説明画面: 表示中のスライド(-1 = 導入画面、0 以上 = 0始まり)と枚数。 */
+  /** 説明画面: 表示中のページ(0始まり)と枚数。 */
   index?: number;
   total?: number;
 }
@@ -53,7 +56,7 @@ export function readJackpotState(data: Record<string, unknown> | null | undefine
   const raw = data?.[JACKPOT_NS];
   if (!isRecord(raw)) return null;
   const state: JackpotPublished = {
-    page: raw.page === "description" || raw.page === "finale" ? raw.page : "main-draw",
+    page: raw.page === "description" || raw.page === "demo-draw" || raw.page === "finale" ? raw.page : "main-draw",
     stage: parseJackpotStage(raw.stage),
     canStop: raw.canStop === true,
     busy: raw.busy === true,

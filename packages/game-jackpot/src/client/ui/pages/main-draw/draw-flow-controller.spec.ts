@@ -343,3 +343,27 @@ describe("DrawFlowController + CycleSource(次のサイクルの先読み)", () 
     expect(prepare).not.toHaveBeenCalled();
   });
 });
+
+describe("DrawFlowController: 抽選を打ち切って次の画面へ進む(デモ抽選が決めた回数に達した)", () => {
+  it("nextCycle が leave を返したら、終了の画面を出さずにすぐ onLeave を呼び、積むものは無い", async () => {
+    const onLeave = vi.fn();
+    const onFinished = vi.fn();
+    const flow = new DrawFlowController({
+      queue: new ActionQueue(),
+      nextCycle: async (): Promise<NextCycle> => ({ kind: "leave" }),
+      onDrawError: vi.fn(),
+      onStepError: vi.fn(),
+      onFinished,
+      onLeave,
+      onSettled: vi.fn(),
+    });
+    flow.ready = true;
+    await flow.advance();
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    expect(onFinished).not.toHaveBeenCalled();
+    expect(flow.finished).toBe(false);
+    // 連打しても二重に離れない
+    await flow.advance();
+    expect(onLeave).toHaveBeenCalledTimes(1);
+  });
+});

@@ -29,12 +29,12 @@ describe("prizeMediaNames", () => {
 
 describe("screenMediaNames", () => {
   it("オープニング等の BGM・コンテンツの画像と効果音を集める", () => {
-    const s = screen({ bgm: "o.mp3", contents: [{ type: "image", media: "i.png", se: "se.mp3" }, { type: "text", text: "media" }, { media: "i.png" }] });
+    const s = screen({ bgm: "o.mp3", items: [{ kind: "画像", image: "i.png", se: "se.mp3" }, { kind: "テキスト", text: "image" }, { image: "i.png" }] });
     expect(screenMediaNames(s).sort()).toEqual(["i.png", "o.mp3", "se.mp3"]);
   });
 
-  it("デモ・結果画面の BGM と効果音、本抽選のメンバー抽選 BGM の一覧を集める(空は含めない)", () => {
-    expect(screenMediaNames(screen({ demoBgm: "d.mp3", demoDrawSe: "e.mp3" })).sort()).toEqual(["d.mp3", "e.mp3"]);
+  it("デモ抽選・結果画面の BGM、本抽選のメンバー抽選 BGM の一覧を集める(空は含めない)", () => {
+    expect(screenMediaNames(screen({ enabled: true, rounds: 1, bgm: "d.mp3" })).sort()).toEqual(["d.mp3"]);
     expect(screenMediaNames(screen({ resultBgm: "r.mp3" })).sort()).toEqual(["r.mp3"]);
     expect(screenMediaNames(screen({ memberLotteryBgms: ["m1.mp3", "", "m2.mp3"], prizeStopSec: 3 })).sort()).toEqual(["m1.mp3", "m2.mp3"]);
   });
@@ -46,7 +46,7 @@ describe("screenMediaNames", () => {
 
 describe("jackpotMediaRefs", () => {
   it("景品と画面設定の参照を、1件ごとのまとまりで返す", () => {
-    const refs = jackpotMediaRefs({ prizes: [{ id: "p", name: "n", order: 1, image: "a.png" }], screens: [screen({ demoBgm: "d.mp3" })] });
+    const refs = jackpotMediaRefs({ prizes: [{ id: "p", name: "n", order: 1, image: "a.png" }], screens: [screen({ bgm: "d.mp3" })] });
     expect(refs).toEqual([["a.png"], ["d.mp3"]]);
   });
 });

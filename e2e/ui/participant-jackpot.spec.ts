@@ -440,7 +440,7 @@ test.describe("エントリー → ジャックポット", () => {
     }
 
     // エンディングは設定が空だと一瞬でロビーへ戻るので、長く映る1枚を用意しておく
-    const ending = { bgm: "", contents: [{ id: "e1", type: "text", content: "ご参加ありがとうございました", duration: 60_000 }] };
+    const ending = { bgm: "", items: [{ kind: "テキスト", text: "ご参加ありがとうございました", effect: "静止", seconds: 60 }] };
     await seedJackpot(host.page, {
       prizes: PRIZES,
       screens: [{ screenName: "ending", settingName: "ending-screen-settings", settingValue: JSON.stringify(ending) }],

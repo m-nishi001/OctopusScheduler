@@ -9,7 +9,7 @@ import { joinParticipant, makeDevice, makeHub } from "@octopus/session-hub/testi
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { useJackpotHost } from "./use-jackpot-host";
 import type { JackpotHostHandlers } from "./use-jackpot-host";
-import { buildJackpotDescriptionState, buildJackpotFinaleState } from "@model/jackpot-host-state";
+import { buildJackpotDemoDrawState, buildJackpotDescriptionState, buildJackpotFinaleState } from "@model/jackpot-host-state";
 import { useJackpotFinale } from "./use-jackpot-finale";
 
 beforeEach(() => {
@@ -285,6 +285,29 @@ describe("useJackpotHost", () => {
     await admin.conn.issue("jackpot", "advance");
     await tick(4000);
     expect(handlers.advance).not.toHaveBeenCalled();
+  });
+
+  it("デモ抽選の場面は、ページ名だけ公開し、参加者に停止ボタンを出さず、参加者の停止も受け付けない", async () => {
+    const { client, admin } = await scene();
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    const { host } = mountHost(handlers);
+
+    host.publish(buildJackpotDemoDrawState());
+    await tick(4000);
+    expect((client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot).toMatchObject({
+      page: "demo-draw",
+      canStop: false,
+      member: null,
+      memberId: null,
+      prize: null,
+    });
+    expect(client.conn.state.roomState?.clientInput).toEqual([]);
+    await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
+
+    // 管理端末の「次へ」では進められる(練習を進めるのは管理端末)
+    await admin.conn.issue("jackpot", "advance");
+    await tick(4000);
+    expect(handlers.advance).toHaveBeenCalledTimes(1);
   });
 
   it("終了の場面(finale)は、停止不可・参加者の操作なしで公開される", async () => {
