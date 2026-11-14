@@ -221,6 +221,29 @@ describe("DrawApplicationService", () => {
       expect(resumed.prizeRes.dummyWinnerPrizeId).not.toBe(result.wonPrize!.id);
     });
 
+    it("確変の当選景品にダミーの指定があれば、その景品がダミー当選になる", async () => {
+      const prizes = prizeList.map((p) => (p.id === "p1" ? { ...p, kakuhenDummyPrizeId: "p5" } : p.id === "p2" ? { ...p, kakuhenDummyPrizeId: "p4" } : p));
+      const { service, store } = setup({ prizes });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [1] });
+      const { result } = await service.executeDraw(REQUEST);
+      const resumed = await service.resumeDraw((await store.pending())!);
+      expect(resumed.prizeRes.isKakuhen).toBe(true);
+      expect(resumed.prizeRes.dummyWinnerPrizeId).toBe(result.wonPrize!.id === "p1" ? "p5" : "p4");
+    });
+
+    it("ダミーの指定が存在しない景品・当選景品自身なら、指定を無視してランダムに選ぶ", async () => {
+      const prizes = prizeList.map((p) => (p.id === "p1" ? { ...p, kakuhenDummyPrizeId: "ghost" } : p.id === "p2" ? { ...p, kakuhenDummyPrizeId: "p2" } : p));
+      const { service, store } = setup({ prizes });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [1] });
+      const { result } = await service.executeDraw(REQUEST);
+      const resumed = await service.resumeDraw((await store.pending())!);
+      const dummy = resumed.prizeRes.dummyWinnerPrizeId;
+      expect(dummy).toBeTruthy();
+      expect(dummy).not.toBe("ghost");
+      expect(dummy).not.toBe(result.wonPrize!.id);
+      expect(prizes.map((p) => p.id)).toContain(dummy);
+    });
+
     it("当選者がメンバー名簿に見つからなければ、理由の分かる例外", async () => {
       const { service } = setup();
       await expect(

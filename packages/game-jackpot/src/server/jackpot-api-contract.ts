@@ -42,6 +42,11 @@ export interface Prize {
    * 画像2・当選画像2・BGM2が有効になる。未設定の古いデータは、2枚目の素材があればONとして扱う(読み込み時に補う)。
    */
   kakuhen?: boolean;
+  /**
+   * 確変の回に、この景品が当たるときに「ダミー当選」として先に見せる景品の ID(任意)。
+   * 未指定・存在しない・この景品自身を指す場合は、ダミーをランダムに選ぶ。
+   */
+  kakuhenDummyPrizeId?: string;
   image?: string;
   image2?: string;
   bgm1?: string;
