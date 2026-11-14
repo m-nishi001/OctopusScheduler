@@ -93,9 +93,10 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     for (const d of [admin, host]) await d.context.close();
   });
 
-  test("ジャックポット: 「ジャックポットを始める」→ オープニング → 説明を経て、主ボタンで抽選画面まで進む(参加者全員(自動)はエントリー画面を挟まない)", async ({ browser }) => {
+  test("ジャックポット: 「ジャックポットを始める」→ オープニング → 説明を経て、主ボタンでデモ抽選(既定 ON)、抽選画面へ進む(参加者全員(自動)はエントリー画面を挟まない)", async ({ browser }) => {
     test.setTimeout(180_000);
     const { admin, host } = await scene(browser, "ワンクリック(ジャックポット)");
+    // 画面設定が何も無い(デモ抽選の設定も保存されていない)ホスト。デモ抽選は既定で ON
     await admin.page.getByTestId("start-jackpot").click();
     // オープニングの演出が終わると、説明へ自動で進む(抽選の対象が参加者全員(自動)なので、エントリー画面は挟まない)
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|description)$/);
@@ -105,41 +106,43 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
-    await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
+    // 説明のページが無くても、説明は「説明を終える」で終わる。行き先(デモ抽選か本抽選か)はホスト画面が設定で決める
+    await expect(nextButton(admin.page)).toHaveText(/説明を終える/);
     await nextButton(admin.page).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
-    await expect(admin.page.getByTestId("now")).toContainText("抽選");
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-demo-draw");
+    await expect(admin.page.getByTestId("now")).toContainText("デモ抽選");
+    await expect(host.page.getByTestId("demo-draw-badge")).toBeVisible();
 
     for (const d of [admin, host]) await d.context.close();
   });
 
-  test("ジャックポット: 説明のスライドをコントロール画面から1枚ずつ進め/戻せる(ボタンとキー)。最後のスライドの次は抽選画面", async ({ browser }) => {
+  test("ジャックポット: 説明のページをコントロール画面から1ページずつ進め/戻せる(ボタンとキー)。最後のページの次は(デモ抽選が OFF なら)抽選画面", async ({ browser }) => {
     test.setTimeout(180_000);
-    const { admin, host } = await scene(browser, "説明スライド操作");
-    const slides = ["一枚目の説明", "二枚目の説明", "三枚目の説明"].map((content, i) => ({ id: `s${i}`, type: "text", content }));
+    const { admin, host } = await scene(browser, "説明ページ操作");
+    const pages = ["一枚目の説明", "二枚目の説明", "三枚目の説明"].map((text) => ({ kind: "テキスト", text }));
     const setting = {
       screenName: "description",
       settingName: "description-screen-settings",
-      settingValue: JSON.stringify({ bgm: "", contents: slides }),
+      settingValue: JSON.stringify({ bgm: "", pages }),
     };
-    await seedJackpot(host.page, { screens: [setting] });
+    await seedJackpot(host.page, { screens: [setting] }); // デモ抽選は OFF(説明のあとは本抽選へ直行)
     await admin.page.getByTestId("start-jackpot").click();
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
 
     const hostText = host.page.locator("body");
     const back = admin.page.getByTestId("back-button");
-    // 導入画面: 次のスライドへ。前へは無い
-    await expect(nextButton(admin.page)).toHaveText(/次のスライドへ \(1\/3\)/);
-    await expect(back).toHaveCount(0);
-    await nextButton(admin.page).click();
+    // 最初のページ(固定の導入ページは無い): 次のページへ。前へは無い
     await expect(hostText).toContainText("一枚目の説明");
+    await expect(hostText).not.toContainText("ここにゲームの説明を記載します");
+    await expect(nextButton(admin.page)).toHaveText(/次のページへ \(2\/3\)/);
     await expect(admin.page.getByTestId("now")).toContainText("(1/3)");
-    await expect(back).toBeVisible();
+    await expect(back).toHaveCount(0);
 
     await nextButton(admin.page).click();
     await expect(hostText).toContainText("二枚目の説明");
     await expect(admin.page.getByTestId("now")).toContainText("(2/3)");
+    await expect(back).toBeVisible();
 
     // 前へ(ボタン)でひとつ戻る。ホストの画面も戻る
     await back.click();
@@ -149,7 +152,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     // キーでも操作できる: Enter で進み、Backspace で戻る
     await admin.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     // 管理端末の表示(いま何枚目か)がホストに追いついてから次のキーを押す。通信に時間がかかる環境では、追いつく前のキーは
-    // 古い状態に対する操作になり(たとえば最後のスライドだと思って「抽選を始める」を押してしまい)、期待とずれる。
+    // 古い状態に対する操作になり(たとえば最後のページだと思って「説明を終える」を押してしまい)、期待とずれる。
     const now = admin.page.getByTestId("now");
     await admin.page.keyboard.press("Enter");
     await expect(hostText).toContainText("二枚目の説明");
@@ -164,11 +167,11 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect(hostText).toContainText("三枚目の説明");
     await expect(now).toContainText("(3/3)");
 
-    // 最後のスライド: 主ボタンは「抽選を始める」。route はまだ説明のまま
-    await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
+    // 最後のページ: 主ボタンは「説明を終える」。route はまだ説明のまま
+    await expect(nextButton(admin.page)).toHaveText(/説明を終える/);
     expect(await route(host.page)).toBe("/execute/jackpot-description");
     await nextButton(admin.page).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw"); // デモ抽選 OFF なので本抽選へ直行
     await expect(back).toHaveCount(0);
 
     for (const d of [admin, host]) await d.context.close();
@@ -212,9 +215,9 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     // 参加者がいない抽選を進めると、ホストが「抽選の対象のメンバーがいません」と知らせる。抽選が進んだかどうかの目印にする
     const alerts: string[] = [];
     host.page.on("dialog", (d) => alerts.push(d.message()));
-    const slides = ["一枚目の説明", "二枚目の説明"].map((content, i) => ({ id: `s${i}`, type: "text", content }));
+    const pages = ["一枚目の説明", "二枚目の説明"].map((text) => ({ kind: "テキスト", text }));
     await seedJackpot(host.page, {
-      screens: [{ screenName: "description", settingName: "description-screen-settings", settingValue: JSON.stringify({ bgm: "", contents: slides }) }],
+      screens: [{ screenName: "description", settingName: "description-screen-settings", settingValue: JSON.stringify({ bgm: "", pages }) }],
       prizes: [{ id: "stale-p1", name: "特賞", order: 1, rank: 3, animation: "roulette" }],
     });
     // 管理端末1の受信を止められるようにして開き直す(止めている間は、ホストの表示が変わっても古い画面のまま)
@@ -230,7 +233,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await admin.page.getByTestId("start-jackpot").click();
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
-    await expect(nextButton(admin.page)).toHaveText(/次のスライドへ/);
+    await expect(nextButton(admin.page)).toHaveText(/次のページへ/);
 
     // 管理端末2がホストを抽選画面へ進める。管理端末1はまだ説明を見ている
     frozen = true;
@@ -243,7 +246,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect.poll(() => alerts.length, { timeout: 60_000 }).toBe(1); // 抽選画面を開いた時点の失敗の知らせ。以降は「次へ」のたびに増える
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中"); // 古い表示のまま
 
-    // 古い「次のスライドへ」を押す。ホストはもう抽選画面なので、そのまま抽選を進めてはいけない
+    // 古い「次のページへ」を押す。ホストはもう抽選画面なので、そのまま抽選を進めてはいけない
     await nextButton(admin.page).click();
     await expect(admin2.page.getByTestId("log")).toContainText("jackpot.advance");
     await expect(admin2.page.getByText("未適用のコマンド")).toHaveCount(0); // ホストが処理(破棄)し終えた

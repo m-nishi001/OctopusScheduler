@@ -45,8 +45,8 @@ describe("readJackpotState(ホスト・管理端末・ポータルが共有す�
     for (const stage of JACKPOT_STAGES) expect(readJackpotState({ jackpot: { stage } })?.stage).toBe(stage);
   });
 
-  it("page は main-draw・description・finale を読み、知らない値や無い値は main-draw にする", () => {
-    for (const page of ["main-draw", "description", "finale"] as const) expect(readJackpotState({ jackpot: { page } })?.page).toBe(page);
+  it("page は main-draw・description・demo-draw・finale を読み、知らない値や無い値は main-draw にする", () => {
+    for (const page of ["main-draw", "description", "demo-draw", "finale"] as const) expect(readJackpotState({ jackpot: { page } })?.page).toBe(page);
     expect(readJackpotState({ jackpot: { page: "something-new" } })?.page).toBe("main-draw");
     expect(readJackpotState({ jackpot: {} })?.page).toBe("main-draw");
   });

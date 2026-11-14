@@ -42,15 +42,17 @@
                 </div>
 
                 <div class="config-item">
-                    <label>確変の起こし方</label>
+                    <label>確変の決め方</label>
                     <select v-model="kakuhenMode" class="admin-input" data-testid="kakuhen-mode">
                         <option value="auto">おまかせ（景品の真ん中あたりで、確変対応ありの景品の数だけ続けて）</option>
-                        <option value="fixed">回を指定する</option>
+                        <option value="none">なし（確変を起こさない。確変対応ありの景品も通常の演出で当たる）</option>
+                        <option value="fixed">回を指定</option>
                     </select>
+                    <div class="hint">確変は、ダミー当選→本当の当選、と2段で見せる特別な回です。その回をどう決めるかを選びます。</div>
                 </div>
 
                 <div v-if="localConfig.kakuhenMode === 'fixed'" class="config-item">
-                    <label>確変にする回</label>
+                    <label>確変の回</label>
                     <input type="text" v-model="kakuhenTimingsText" class="admin-input" placeholder="例: 3, 7"
                         data-testid="kakuhen-timings" />
                     <div class="hint">

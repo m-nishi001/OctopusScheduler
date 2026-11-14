@@ -202,18 +202,18 @@ export function buildScreenSettings() {
   return [
     screen("opening", "opening-screen-settings", {
       bgm: "opening.wav",
-      contents: [
-        { type: "text", text: "オクトパス商事 年末ジャックポット抽選会", effect: "fade", duration: 4000 },
-        { type: "text", text: "本日の景品は全6種類!豪華賞品をお楽しみに!", effect: "scroll", duration: 5000, se: "fanfare.wav" },
-        { type: "image", media: "opening.png", effect: "static", duration: 3000 },
+      items: [
+        { kind: "テキスト", text: "オクトパス商事 年末ジャックポット抽選会", effect: "フェード", seconds: 4 },
+        { kind: "テキスト", text: "本日の景品は全6種類!\n豪華賞品をお楽しみに!", effect: "流れる", seconds: 5, se: "fanfare.wav" },
+        { kind: "画像", image: "opening.png", effect: "静止", seconds: 3 },
       ],
     }),
     screen("description", "description-screen-settings", {
       bgm: "opening.wav",
-      contents: [
-        { type: "text", content: "ルール説明", effect: "fade", duration: 1200 },
-        { type: "text", content: "1人ずつルーレットで景品を決めます。当選者はスクリーンに大きく表示されます。", effect: "scroll", duration: 1500 },
-        { type: "text", content: "運が良ければ「確変」で連続当選のチャンス!", effect: "fade", duration: 1500 },
+      pages: [
+        { kind: "テキスト", text: "ルール説明" },
+        { kind: "テキスト", text: "1人ずつルーレットで景品を決めます。\n当選者はスクリーンに大きく表示されます。" },
+        { kind: "テキスト", text: "運が良ければ「確変」で連続当選のチャンス!" },
       ],
     }),
     screen("main", "main-screen-settings", {
@@ -221,14 +221,14 @@ export function buildScreenSettings() {
       kakuhenMode: "auto",
       kakuhenFixedTimings: [],
     }),
-    screen("demo", "demo-screen-settings", { demoBgm: "draw.wav", demoDrawSe: "fanfare.wav" }),
+    screen("demo", "demo-screen-settings", { enabled: true, rounds: 1, bgm: "draw.wav" }),
     screen("result", "result-screen-settings", { resultBgm: "ending.wav" }),
     screen("ending", "ending-screen-settings", {
       bgm: "ending.wav",
-      contents: [
-        { type: "text", text: "ご参加ありがとうございました!", effect: "fade", duration: 5000 },
-        { type: "image", media: "ending.png", effect: "static", duration: 3000 },
-        { type: "text", text: "また来年お会いしましょう", effect: "static", duration: 4000 },
+      items: [
+        { kind: "テキスト", text: "ご参加ありがとうございました!", effect: "フェード", seconds: 5 },
+        { kind: "画像", image: "ending.png", effect: "静止", seconds: 3 },
+        { kind: "テキスト", text: "また来年お会いしましょう", effect: "静止", seconds: 4 },
       ],
     }),
   ];
@@ -313,7 +313,7 @@ export function buildQuizAssets() {
 }
 
 /** ジャックポットの素材の名前(景品と画面設定が参照している名前)。 */
-const SCREEN_MEDIA_KEYS = new Set(["bgm", "media", "se", "demoBgm", "demoDrawSe", "resultBgm"]);
+const SCREEN_MEDIA_KEYS = new Set(["bgm", "image", "se", "resultBgm"]);
 function screenMediaNames(settingValue) {
   const names = [];
   const walk = (v) => {

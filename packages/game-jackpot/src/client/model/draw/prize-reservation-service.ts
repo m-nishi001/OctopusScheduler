@@ -21,6 +21,7 @@ export class PrizeReservationService {
    * `kakuhenCount` を省くと2回。
    */
   calculateKakuhenTimings(totalPrizes: number, plan: KakuhenPlan = AUTO_KAKUHEN_PLAN, kakuhenCount = 2): number[] {
+    if (plan.mode === "none") return [];
     if (plan.mode === "fixed") return usableKakuhenTimings(plan.fixedTimings, totalPrizes);
     const count = Math.min(Math.max(0, Math.floor(kakuhenCount)), Math.max(0, totalPrizes));
     if (count === 0) return [];

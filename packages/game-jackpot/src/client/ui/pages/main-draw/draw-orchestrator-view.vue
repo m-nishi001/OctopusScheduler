@@ -8,7 +8,8 @@
 
             <HalfRemainingDialog v-if="showHalfRemainingDialog" :visible="showHalfRemainingDialog" />
             <EndDialog v-if="endReason" :reason="endReason" :eligible-members="eligibleMembers" @close="advance" />
-            <p v-if="rehearsal" class="draw-badge" data-testid="rehearsal-badge">リハーサル（結果は保存されません）</p>
+            <p v-if="isDemoDraw" class="draw-badge" data-testid="demo-draw-badge">デモ抽選<template v-if="demoRound > 0"> {{ demoRound }}/{{ demoRoundTotal }}回目</template>(練習です。結果は記録・公開されません)</p>
+            <p v-else-if="rehearsal" class="draw-badge" data-testid="rehearsal-badge">リハーサル（結果は保存されません）</p>
             <p v-if="notice" class="draw-notice" role="alert" data-testid="draw-notice">{{ notice }}</p>
 
             <div class="rich-layout">

@@ -12,7 +12,7 @@ const SHOTS = process.env.E2E_SHOTS;
 const SCREENS = [
   "/execute/jackpot-opening",
   "/execute/jackpot-description",
-  "/execute/jackpot-demo",
+  "/execute/jackpot-demo-draw",
   "/execute/jackpot-result",
   "/execute/jackpot-history",
   "/execute/jackpot-ending",

@@ -50,16 +50,18 @@ const withDemo = (path: string, demo: boolean): string => (demo ? `${path}?demo=
 /** デモ(リハーサル)と、抽選の対象が参加者全員(自動)のときは、エントリー画面を挟まない。オープニングの次は説明。 */
 const OPENING_TO_DESCRIPTION = { label: "説明へ", hint: "ルールの説明画面を映します", to: "/jackpot-description" };
 
-/** ジャックポットの画面の並び(オープニング → [エントリーした人のみのときだけ エントリー] → 説明 → 抽選)。主ボタンで順に進める(抽選画面の中は「次へ」で進む)。 */
+/**
+ * ジャックポットの画面の並び(オープニング → [エントリーした人のみのときだけ エントリー] → 説明 → [デモ抽選] → 本抽選 → 結果 → エンディング)。
+ * 主ボタンで順に進める。説明・デモ抽選・本抽選の中は「次へ」(advance)で進み、そのあとの行き先(デモ抽選の ON/OFF など)はホスト画面が決める。
+ */
 const JACKPOT_FLOW: Record<string, { now: string; label: string; hint: string; to: string }> = {
   "/jackpot-opening": { now: "ジャックポット: オープニング表示中", label: "エントリーへ", hint: "エントリーの画面を映し、受付を始めます", to: "/jackpot-entry" },
   "/jackpot-entry": { now: "ジャックポット: エントリー画面表示中", label: "説明へ", hint: "エントリーを締め切り、ルールの説明画面を映します", to: "/jackpot-description" },
-  "/jackpot-description": { now: "ジャックポット: 説明表示中", label: "抽選を始める", hint: "抽選の画面を映します(まだ抽選は始まりません)", to: "/jackpot-draw" },
   "/jackpot-result": { now: "ジャックポット: 結果表示中", label: "エンディングへ", hint: "エンディング画面を映します", to: "/jackpot-ending" },
 };
 
 function jackpotPage(path: string): string | null {
-  const m = /^\/(?:execute\/)?(jackpot-[a-z]+)$/.exec(path);
+  const m = /^\/(?:execute\/)?(jackpot-[a-z-]+)$/.exec(path);
   return m ? `/${m[1]}` : null;
 }
 
@@ -140,27 +142,37 @@ function describeJackpotDraw(jackpot: JackpotProgress | null): Guidance {
   return { game: "jackpot", now, main: { label: "次へ", hint, action: { kind: "advance" } } };
 }
 
-/** 説明画面のスライド。コントロールから1枚ずつ進め/戻せる。最後のスライドの次で抽選画面へ進む。 */
+/**
+ * 説明画面のページ(0始まり)。コントロールから1ページずつ進め/戻せる。最後のページの次で、ホスト画面がデモ抽選(OFF なら本抽選)へ進める。
+ * 位置がまだ届いていない(読み込み中・別画面の状態が残っている)ときは、「次へ」(advance)だけ出す。
+ */
 function describeJackpotDescription(input: GuidanceInput): Guidance {
-  const step = JACKPOT_FLOW["/jackpot-description"];
+  const step = { now: "ジャックポット: 説明表示中", label: "説明を終える", hint: "説明を終えて、デモ抽選(OFF のときは本抽選)の画面を映します" };
   const jp = input.jackpot;
-  const toDraw = { kind: "navigate", path: withDemo(step.to, input.demo) } as const;
   const base = { game: "jackpot" as const, now: step.now };
-  // スライドの位置がまだ届いていない(古いホスト・読み込み中)ときは、従来どおり抽選画面へ進める
+  const advance = (label: string, hint: string) => ({ label, hint, action: { kind: "advance" } as const });
   if (!jp || jp.page !== "description" || typeof jp.index !== "number" || typeof jp.total !== "number") {
-    return { ...base, main: { label: step.label, hint: step.hint, action: toDraw }, back: null };
+    return { ...base, main: advance("次へ", "説明を進めます(最後のページの次で、デモ抽選か本抽選へ進みます)"), back: null };
   }
   const { index, total } = jp;
-  const back = index >= 0 ? { label: "前へ", hint: index === 0 ? "導入の画面に戻します" : "ひとつ前のスライドに戻します" } : null;
+  const back = index > 0 ? { label: "前へ", hint: "ひとつ前のページに戻します" } : null;
   if (index >= total - 1) {
-    return { ...base, now: total > 0 ? `${step.now}(${total}/${total})` : step.now, main: { label: step.label, hint: step.hint, action: toDraw }, back };
+    return { ...base, now: total > 0 ? `${step.now}(${total}/${total})` : step.now, main: advance(step.label, step.hint), back };
   }
-  const position = `${index + 2}/${total}`;
   return {
     game: "jackpot",
-    now: index < 0 ? `${step.now}(導入)` : `${step.now}(${index + 1}/${total})`,
-    main: { label: `次のスライドへ (${position})`, hint: index < 0 ? "説明の最初のスライドを映します" : "次のスライドを映します", action: { kind: "advance" } },
+    now: `${step.now}(${index + 1}/${total})`,
+    main: advance(`次のページへ (${index + 2}/${total})`, "次のページを映します"),
     back,
+  };
+}
+
+/** デモ抽選(練習)。本抽選と同じ画面を練習として回す。結果は記録・公開されず、参加者にも出ない。進めるのは「次へ」だけ。 */
+function describeJackpotDemoDraw(): Guidance {
+  return {
+    game: "jackpot",
+    now: "ジャックポット: デモ抽選中(練習。結果は記録・公開されません)",
+    main: { label: "次へ", hint: "練習の抽選を進めます(回し始める/止める/結果を見せる)。決めた回数を回し終えると、本抽選の画面へ進みます", action: { kind: "advance" } },
   };
 }
 
@@ -175,6 +187,7 @@ export function describeProgress(input: GuidanceInput): Guidance {
   const jp = jackpotPage(hostPath);
   if (jp === "/jackpot-draw") return describeJackpotDraw(input.jackpot);
   if (jp === "/jackpot-description") return describeJackpotDescription(input);
+  if (jp === "/jackpot-demo-draw") return describeJackpotDemoDraw();
   if (jp && JACKPOT_FLOW[jp]) {
     const step = jp === "/jackpot-opening" && (input.demo || input.pool !== "entrants") ? { ...JACKPOT_FLOW[jp], ...OPENING_TO_DESCRIPTION } : JACKPOT_FLOW[jp];
     return {

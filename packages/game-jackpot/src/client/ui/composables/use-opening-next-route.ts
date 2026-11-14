@@ -4,8 +4,7 @@ import { HostAgent, readPortalEvent, useConnectionState } from "@octopus/session
 import type { DrawPool } from "@octopus/session-hub";
 import { useJackpotSession } from "./use-jackpot-session";
 
-export const DESCRIPTION_ROUTE = "/jackpot-description";
-export const ENTRY_ROUTE = "/jackpot-entry";
+import { nextScreen, SCREEN_PATH } from "@model/screen-flow";
 
 /**
  * オープニングの次の画面。セッションのホストとして接続していて、デモでなく、抽選の対象が「エントリーした人のみ」のときだけ、
@@ -13,7 +12,9 @@ export const ENTRY_ROUTE = "/jackpot-entry";
  * 単体の実行・デモ(リハーサル)・プレビューは、エントリーの相手がいないので説明へ進む。
  */
 export function openingNextRoute(isHost: boolean, isDemo: boolean, pool: DrawPool): string {
-  return isHost && !isDemo && pool === "entrants" ? ENTRY_ROUTE : DESCRIPTION_ROUTE;
+  // 行き先は画面の流れ(nextScreen)が決める。デモ抽選を挟むかは、説明のあとの行き先にだけ効く
+  const next = nextScreen("opening", { entry: isHost && !isDemo && pool === "entrants", demoDraw: true });
+  return SCREEN_PATH[next!];
 }
 
 /** オープニング画面で使う。必ずコンポーネントの setup() の同期実行中に呼ぶ。管理端末で対象を切り替えると追従する。 */

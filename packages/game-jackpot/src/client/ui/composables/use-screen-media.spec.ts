@@ -135,23 +135,23 @@ describe("useScreenBgm", () => {
 });
 
 describe("useScreenAssetUrls", () => {
-  it("media を持つコンテンツに表示用の URL を付ける。読めないものがあっても残りは続ける", async () => {
+  it("image・se を持つ項目に表示・再生用の URL を付ける。読めないものがあっても残りは続ける", async () => {
     const env = makeDeps({ blobs: { a: blob("1"), c: blob("333") }, failFor: ["bad"] });
     const { result: urls } = mountWith(() => useScreenAssetUrls(env.deps));
-    const contents: Array<{ media?: string; assetUrl?: string }> = [{ media: "a" }, { media: "bad" }, { media: "none" }, {}, { media: "c" }];
+    const contents: Array<{ image?: string; se?: string; imageUrl?: string; seUrl?: string }> = [{ image: "a" }, { image: "bad" }, { image: "none" }, {}, { image: "c" }];
     await urls.attach(contents);
 
-    expect(contents[0].assetUrl).toBe("blob:0:1");
-    expect(contents[1].assetUrl).toBeUndefined();
-    expect(contents[2].assetUrl).toBeUndefined();
-    expect(contents[3].assetUrl).toBeUndefined();
-    expect(contents[4].assetUrl).toBe("blob:1:3");
+    expect(contents[0].imageUrl).toBe("blob:0:1");
+    expect(contents[1].imageUrl).toBeUndefined();
+    expect(contents[2].imageUrl).toBeUndefined();
+    expect(contents[3].imageUrl).toBeUndefined();
+    expect(contents[4].imageUrl).toBe("blob:1:3");
   });
 
   it("画面を離れると、作った URL をすべて破棄する", async () => {
     const env = makeDeps({ blobs: { a: blob("1"), b: blob("22") } });
     const mounted = mountWith(() => useScreenAssetUrls(env.deps));
-    await mounted.result.attach([{ media: "a" }, { media: "b" }]);
+    await mounted.result.attach([{ image: "a" }, { image: "b" }]);
     expect(env.revoked).toEqual([]);
 
     mounted.unmount();
@@ -161,7 +161,7 @@ describe("useScreenAssetUrls", () => {
   it("読み込み中に画面を離れたら、続きは読まず、新しい URL を作らない", async () => {
     const env = makeDeps({ blobs: { a: blob("1"), b: blob("22") }, hold: true });
     const mounted = mountWith(() => useScreenAssetUrls(env.deps));
-    const attaching = mounted.result.attach([{ media: "a" }, { media: "b" }]);
+    const attaching = mounted.result.attach([{ image: "a" }, { image: "b" }]);
     mounted.unmount();
     env.releaseAll();
     await attaching;
@@ -171,18 +171,25 @@ describe("useScreenAssetUrls", () => {
 });
 
 describe("useScreenMedia", () => {
-  const options = { screenName: "opening", settingName: "opening-screen-settings", fallback: () => ({ bgm: "", contents: [] as Array<{ media?: string; assetUrl?: string }> }) };
+  type Cfg = { bgm: string; items: Array<{ image?: string; se?: string; imageUrl?: string; seUrl?: string }> };
+  const options = {
+    screenName: "opening",
+    settingName: "opening-screen-settings",
+    parse: (raw: unknown): Cfg => ({ bgm: (raw as Cfg | null)?.bgm ?? "", items: (raw as Cfg | null)?.items ?? [] }),
+    items: (c: Cfg) => c.items,
+  };
 
   it("設定・BGM・画像の準備ができてから config を出し、BGM を鳴らす（画面が出た時点で画像が揃っている）", async () => {
     const env = makeDeps({
-      settings: { bgm: "bgm1", contents: [{ media: "img1" }, { type: "text" }] },
-      blobs: { bgm1: blob("abc"), img1: blob("xy") },
+      settings: { bgm: "bgm1", items: [{ image: "img1", se: "se1" }, { kind: "テキスト" }] },
+      blobs: { bgm1: blob("abc"), img1: blob("xy"), se1: blob("s") },
     });
     const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
     expect(media.config.value).toBeNull(); // 準備中
     await flush();
 
-    expect(media.config.value?.contents?.[0].assetUrl).toBe("blob:1:2");
+    expect(media.config.value?.items[0].imageUrl).toBe("blob:1:2");
+    expect(media.config.value?.items[0].seUrl).toBe("blob:2:1");
     expect(media.bgm.value).not.toBeNull();
     expect(env.audios[0].paused).toBe(false);
   });
@@ -191,7 +198,7 @@ describe("useScreenMedia", () => {
     const env = makeDeps({ settings: null });
     const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
     await flush();
-    expect(media.config.value).toEqual({ bgm: "", contents: [] });
+    expect(media.config.value).toEqual({ bgm: "", items: [] });
     expect(media.bgm.value).toBeNull();
   });
 
@@ -203,13 +210,13 @@ describe("useScreenMedia", () => {
     };
     const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
     await flush();
-    expect(media.config.value).toEqual({ bgm: "", contents: [] });
+    expect(media.config.value).toEqual({ bgm: "", items: [] });
     vi.restoreAllMocks();
   });
 
   it("準備中に画面を離れたら、config も BGM も出さず、作った URL を破棄する", async () => {
     const env = makeDeps({
-      settings: { bgm: "bgm1", contents: [{ media: "img1" }] },
+      settings: { bgm: "bgm1", items: [{ image: "img1" }] },
       blobs: { bgm1: blob("abc"), img1: blob("xy") },
       hold: true,
     });
@@ -228,7 +235,7 @@ describe("useScreenMedia", () => {
 
   it("画面を離れると、BGM を止めて URL を破棄する", async () => {
     const env = makeDeps({
-      settings: { bgm: "bgm1", contents: [{ media: "img1" }] },
+      settings: { bgm: "bgm1", items: [{ image: "img1" }] },
       blobs: { bgm1: blob("abc"), img1: blob("xy") },
     });
     const mounted = mountWith(() => useScreenMedia(options, env.deps));

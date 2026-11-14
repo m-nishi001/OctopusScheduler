@@ -18,11 +18,13 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 const tick = (ms: number) => vi.advanceTimersByTimeAsync(ms);
-const slides = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, type: "text", content: `スライド${i + 1}` }));
+const pages = (n: number) => Array.from({ length: n }, (_, i) => ({ kind: "テキスト", text: `ページ${i + 1}` }));
 
-async function scene(slideCount: number) {
+async function scene(pageCount: number, demo: { enabled?: boolean } = {}) {
   container.register(ScreenSettingsService, {
-    useValue: { fetchScreenSetting: async () => ({ bgm: "", contents: slides(slideCount) }) } as unknown as ScreenSettingsService,
+    useValue: {
+      fetchScreenSetting: async (screen: string) => (screen === "demo" ? { enabled: true, rounds: 1, bgm: "", ...demo } : { bgm: "", pages: pages(pageCount) }),
+    } as unknown as ScreenSettingsService,
   });
 
   const hub = makeHub();
@@ -37,6 +39,7 @@ async function scene(slideCount: number) {
     history: createMemoryHistory(),
     routes: [
       { path: "/jackpot-description", component: DescriptionContent },
+      { path: "/jackpot-demo-draw", component: { template: "<div>demo</div>" } },
       { path: "/jackpot-draw", component: { template: "<div>draw</div>" } },
     ],
   });
@@ -54,56 +57,63 @@ async function scene(slideCount: number) {
   return { wrapper, router, published, issue };
 }
 
-describe("説明画面: 管理端末からのスライド操作", () => {
-  it("読み込み後に、導入画面(index -1)とスライド枚数を公開する", async () => {
+describe("説明画面: 1ページずつ。Enter と管理端末の「次へ/前へ」で進む", () => {
+  it("読み込み後に、最初のページ(index 0)とページ数を公開する。固定の導入ページは無い", async () => {
     const { published, wrapper } = await scene(3);
-    expect(published()).toEqual(buildJackpotDescriptionState(-1, 3));
+    expect(published()).toEqual(buildJackpotDescriptionState(0, 3));
+    expect(wrapper.text()).toContain("ページ1");
+    expect(wrapper.text()).not.toContain("ここにゲームの説明を記載します");
     wrapper.unmount();
   });
 
-  it("advance で1枚ずつ進み、位置が公開される。back で戻り、導入より前には戻らない", async () => {
+  it("advance で1ページずつ進み、位置が公開される。back で戻り、最初のページより前には戻らない", async () => {
     const { published, issue, wrapper } = await scene(3);
     await issue("advance");
-    expect(published()).toMatchObject({ index: 0 });
-    expect(wrapper.text()).toContain("スライド1");
-    await issue("advance");
     expect(published()).toMatchObject({ index: 1 });
-    expect(wrapper.text()).toContain("スライド2");
+    expect(wrapper.text()).toContain("ページ2");
+    await issue("advance");
+    expect(published()).toMatchObject({ index: 2 });
 
     await issue("back");
+    expect(published()).toMatchObject({ index: 1 });
+    await issue("back");
     expect(published()).toMatchObject({ index: 0 });
-    expect(wrapper.text()).toContain("スライド1");
     await issue("back");
-    expect(published()).toMatchObject({ index: -1 });
-    await issue("back");
-    expect(published()).toMatchObject({ index: -1 });
+    expect(published()).toMatchObject({ index: 0 });
     wrapper.unmount();
   });
 
-  it("最後のスライドの次の advance で抽選画面へ進む(ホストの Enter と同じ)", async () => {
+  it("最後のページの次の advance で、デモ抽選 ON ならデモ抽選へ進む", async () => {
     const { published, issue, router, wrapper } = await scene(2);
-    await issue("advance");
     await issue("advance");
     expect(published()).toMatchObject({ index: 1, total: 2 });
     expect(router.currentRoute.value.path).toBe("/jackpot-description");
     await issue("advance");
+    expect(router.currentRoute.value.path).toBe("/jackpot-demo-draw");
+    wrapper.unmount();
+  });
+
+  it("デモ抽選が OFF なら、最後のページの次は本抽選へ直行する", async () => {
+    const { issue, router, wrapper } = await scene(2, { enabled: false });
+    await issue("advance");
+    await issue("advance");
     expect(router.currentRoute.value.path).toBe("/jackpot-draw");
     wrapper.unmount();
   });
 
-  it("ホストの Enter キーでも同じように進む(従来どおり)", async () => {
+  it("ホストの Enter キーでも同じように進む", async () => {
     const { published, wrapper } = await scene(2);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     await tick(4000);
-    expect(published()).toMatchObject({ index: 0 });
+    expect(published()).toMatchObject({ index: 1 });
     wrapper.unmount();
   });
 
-  it("スライドが0枚でも、最初の advance で抽選画面へ進む", async () => {
+  it("ページが0枚でも、最初の advance で次の画面へ進む", async () => {
     const { published, issue, router, wrapper } = await scene(0);
-    expect(published()).toEqual(buildJackpotDescriptionState(-1, 0));
+    expect(published()).toEqual(buildJackpotDescriptionState(0, 0));
     await issue("advance");
-    expect(router.currentRoute.value.path).toBe("/jackpot-draw");
+    expect(router.currentRoute.value.path).toBe("/jackpot-demo-draw");
     wrapper.unmount();
   });
 

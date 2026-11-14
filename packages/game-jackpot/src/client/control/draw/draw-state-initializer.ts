@@ -25,7 +25,8 @@ export class DrawStateInitializer {
 
     // 確変の回に当てる景品は、確変対応ONで未当選のものだけ。取り置くので、通常の抽選では当たらない(OFFの景品だけが当たる)
     const won = new Set((await store.results()).map((r) => r.wonPrize?.id).filter(Boolean));
-    const reservedPrizeIds = prizes.filter((p) => isKakuhenPrize(p) && !won.has(p.id)).map((p) => p.id);
+    // 確変なし(決め方「なし」)なら、取り置かない。確変対応ありの景品も、ふつうの景品として通常の演出で当たる
+    const reservedPrizeIds = plan.mode === "none" ? [] : prizes.filter((p) => isKakuhenPrize(p) && !won.has(p.id)).map((p) => p.id);
     const kakuhenTimings = this.prizeReservationService.calculateKakuhenTimings(prizes.length, plan, reservedPrizeIds.length);
     return store.ensurePlan(kakuhenTimings, reservedPrizeIds);
   }

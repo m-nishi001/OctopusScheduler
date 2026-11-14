@@ -1,5 +1,5 @@
 <template>
-	<ScreenContentEditor screen-name="description" setting-name="description-screen-settings" title="説明画面設定" />
+	<ScreenContentEditor screen-name="description" setting-name="description-screen-settings" title="説明画面設定" mode="description" />
 </template>
 
 <script setup lang="ts">

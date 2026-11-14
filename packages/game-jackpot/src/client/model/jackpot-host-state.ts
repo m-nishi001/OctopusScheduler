@@ -74,9 +74,17 @@ export function buildJackpotHostState(input: {
   };
 }
 
-/** 説明画面(スライド)の公開状態。管理端末が「次のスライドへ/前へ」を出し分けるために index/total を載せる。 */
+/** 説明画面(ページ)の公開状態。管理端末が「次のページへ/前へ」を出し分けるために index(0始まり)/total を載せる。 */
 export function buildJackpotDescriptionState(index: number, total: number): JackpotPublished {
   return { page: "description", stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null, index, total };
+}
+
+/**
+ * デモ抽選(練習抽選)の公開状態。ページ名だけで、当選者・景品・停止の操作(参加者への clientInput)は載せない。
+ * 練習の結果が参加者のスマホに出たり、参加者が練習の「止める」を押せたりしないことを、この関数が保証する。
+ */
+export function buildJackpotDemoDrawState(): JackpotPublished {
+  return { page: "demo-draw", stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null };
 }
 
 /** 結果・エンディングの画面の公開状態。抽選は終わっているので、止める操作も当選者・賞品も出さない(ポータルは終了の画面を出す)。 */

@@ -5,7 +5,7 @@ import { expect, newDevice, test } from "./fixtures";
  * 設定が実際の抽選に効くことは、単体テスト（draw-full-run.spec.ts / member-draw-service.spec.ts）で確かめている。
  */
 test.describe("ジャックポットの管理画面の設定", () => {
-  test("確変の起こし方を「回を指定する」にして保存でき、開き直しても残る。「おまかせ」に戻すと回の入力欄は隠れる", async ({ browser }) => {
+  test("確変の決め方を「回を指定」にして保存でき、開き直しても残る。「おまかせ」に戻すと回の入力欄は隠れる", async ({ browser }) => {
     const dev = await newDevice(browser, { signedIn: true });
     const page = dev.page;
     await page.goto("/#/execute/jackpot-admin/screens/draw");
@@ -26,7 +26,18 @@ test.describe("ジャックポットの管理画面の設定", () => {
     await expect(page.getByTestId("kakuhen-mode")).toHaveValue("fixed");
     await expect(page.getByTestId("kakuhen-timings")).toHaveValue("3, 7");
 
+    // 決め方は おまかせ / なし / 回を指定。「なし」は確変の回を持たず、保存して開き直しても残る
+    await expect(page.getByTestId("kakuhen-mode").locator("option")).toHaveText([/^おまかせ/, /^なし/, "回を指定"]);
+    await page.getByTestId("kakuhen-mode").selectOption("none");
+    await expect(page.getByTestId("kakuhen-timings")).toBeHidden();
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByText("保存しました")).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("kakuhen-mode")).toHaveValue("none");
+
     await page.getByTestId("kakuhen-mode").selectOption("auto");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByText("保存しました")).toBeVisible();
     await expect(page.getByTestId("kakuhen-timings")).toBeHidden();
     await dev.context.close();
   });

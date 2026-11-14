@@ -1,4 +1,4 @@
-import { buildJackpotHostState, revealableDrawId, type RevealTracker } from "@model/jackpot-host-state";
+import { buildJackpotDemoDrawState, buildJackpotHostState, revealableDrawId, type RevealTracker } from "@model/jackpot-host-state";
 import type { JackpotHost } from "../../composables/use-jackpot-host";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 
@@ -15,6 +15,11 @@ export interface HostPublisherDeps {
    * 公開は drawId ごとに成功するまで試すので、成功した drawId につき1回だけ呼ぶ。
    */
   onRevealed?(drawId: string): void;
+  /**
+   * デモ抽選(練習抽選)か。そうなら「デモ抽選」のページ名だけを公開し、当選者・景品・止める操作は載せない。
+   * 結果の確定・公開(reveal)の先は、呼び出し側が渡すメモリだけの置き場(練習の結果は記録しない)。
+   */
+  demoDraw?: boolean;
   phase(): string;
   /** 抽選が終わった(景品かメンバーが尽きて、終了の画面を出している)。 */
   ended(): boolean;
@@ -42,16 +47,19 @@ export function createHostPublisher(deps: HostPublisherDeps): HostPublisher {
   const inflight = new Set<Promise<void>>();
   const publish = () => {
     const result = deps.result();
+    // デモ抽選は「デモ抽選」のページ名だけ(当選者・景品・止める操作を載せない)。結果の確定・公開(reveal)は、メモリだけの置き場の中で本番と同じに進める
     deps.host.publish(
-      buildJackpotHostState({
-        phase: deps.phase(),
-        ended: deps.ended(),
-        nextLabel: deps.nextLabel(),
-        tracker: deps.tracker,
-        memberName: result?.wonMember?.name,
-        memberId: result?.wonMember?.id,
-        prizeName: result?.wonPrize?.name,
-      })
+      deps.demoDraw
+        ? buildJackpotDemoDrawState()
+        : buildJackpotHostState({
+            phase: deps.phase(),
+            ended: deps.ended(),
+            nextLabel: deps.nextLabel(),
+            tracker: deps.tracker,
+            memberName: result?.wonMember?.name,
+            memberId: result?.wonMember?.id,
+            prizeName: result?.wonPrize?.name,
+          })
     );
     const drawId = revealableDrawId(result, deps.tracker);
     if (!drawId || revealedDrawIds.has(drawId)) return;

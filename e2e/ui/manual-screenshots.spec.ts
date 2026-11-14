@@ -1,6 +1,7 @@
 import { appendFileSync, readFileSync, existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { strFromU8, unzipSync } from "fflate";
 import type { Page } from "@playwright/test";
 import { makeBadgePng } from "../../scripts/seed-content.js";
 import { adminRpc, expect, newDevice, openAdvanced, test } from "./fixtures";
@@ -312,18 +313,19 @@ test("ジャックポット管理(メンバー・景品・結果)", async ({ bro
     await go("ending");
     await shoot(page, "a-22-jp-screen-ending", [add]).catch(() => undefined);
 
-    // 画面設定のCSV: 書き出したCSVの1行を変え、同じ項目の重複行(エラー)を足して、取込のプレビューを出す
+    // 画面設定の取込: 書き出した screens.zip の pages.csv の1行を変え、種類が違う行(エラー)を足して、取込のプレビューを出す
     await go("opening");
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("table-export").click()]);
-    const lines = readFileSync(await download.path(), "utf-8").replace(/^\uFEFF/, "").trimEnd().split(/\r?\n/);
+    const pagesCsv = strFromU8(unzipSync(new Uint8Array(readFileSync(await download.path())))["pages.csv"]);
+    const lines = pagesCsv.replace(/^\uFEFF/, "").trimEnd().split(/\r?\n/);
     const cols = lines[0].split(",");
     const textCol = cols.indexOf("文字");
     const textRowIndex = lines.findIndex((l, i) => i > 0 && l.split(",")[textCol]);
     const changed = lines[textRowIndex].split(",");
     changed[textCol] = "本日はご参加ありがとうございます";
-    const edited = [...lines.slice(0, textRowIndex), changed.join(","), ...lines.slice(textRowIndex + 1), lines[1]].join("\r\n") + "\r\n";
+    const edited = [...lines.slice(0, textRowIndex), changed.join(","), ...lines.slice(textRowIndex + 1), "オープニング,動画,x,,,,,,"].join("\r\n") + "\r\n";
     await page.getByTestId("table-import-open").click();
-    await page.getByTestId("table-import-table").setInputFiles({ name: "screens.csv", mimeType: "text/csv", buffer: Buffer.from(edited, "utf-8") });
+    await page.getByTestId("table-import-table").setInputFiles({ name: "pages.csv", mimeType: "text/csv", buffer: Buffer.from(edited, "utf-8") });
     await expect(page.getByTestId("table-import-counts")).toBeVisible({ timeout: 30_000 });
     await settle(page);
     const imp = page.getByRole("dialog");
@@ -745,8 +747,11 @@ test("当日の操作(会場・手元・参加者)", async ({ browser, request }
     await pressNext(admin.page, "エントリーへ", 1500);
     await pressNext(admin.page, "説明へ", 3000);
     await shoot(host.page, "s-22-jp-description");
-    for (let i = 0; i < 3; i++) await pressNext(admin.page, "次のスライドへ", 1500);
-    await pressNext(admin.page, "抽選を始める", 3000);
+    for (let i = 0; i < 2; i++) await pressNext(admin.page, "次のページへ", 1500);
+    await pressNext(admin.page, "説明を終える", 3000);
+    // デモ抽選(練習。既定 ON)を「次へ」で進め、回し終えると本抽選の画面になる
+    await expect.poll(() => hostRoute(host.page)).toBe("/execute/jackpot-demo-draw");
+    for (let i = 0; i < 40 && (await hostRoute(host.page)) !== "/execute/jackpot-draw"; i++) await pressNext(admin.page, "次へ", 2500).catch(() => undefined);
     await expect.poll(() => hostRoute(host.page)).toBe("/execute/jackpot-draw");
     await shoot(host.page, "s-23-jp-draw-ready");
     await drawJackpot({ admin: admin.page, host: host.page, phones, shots: true });

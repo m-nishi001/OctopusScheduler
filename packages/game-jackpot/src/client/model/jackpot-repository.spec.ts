@@ -144,7 +144,7 @@ describe("JackpotRepository", () => {
   describe("素材の索引は保存のたびに作り直す", () => {
     it("景品と画面設定が共有している素材は、景品を消しても残り、どちらも参照しなくなると消える", async () => {
       await repo.addPrizes([prize("p1", { bgm1: "shared.mp3" })], files({ "shared.mp3": mp3("s") }));
-      await repo.updateScreenSettings([screen("demo", { demoBgm: "shared.mp3" })]);
+      await repo.updateScreenSettings([screen("demo", { bgm: "shared.mp3" })]);
       expect(Object.keys((await repo.readRecord()).media)).toEqual(["shared.mp3"]);
 
       await repo.deletePrizes(["p1"]);
@@ -158,7 +158,7 @@ describe("JackpotRepository", () => {
 
     it("画面設定の入れ子(コンテンツの画像・効果音、BGM の一覧)の参照も数える", async () => {
       await repo.updateScreenSettings(
-        [screen("opening", { bgm: "o.mp3", contents: [{ type: "image", media: "i.png", se: "se.mp3" }, { type: "text" }] }), screen("main", { memberLotteryBgms: ["m1.mp3", ""] })],
+        [screen("opening", { bgm: "o.mp3", items: [{ kind: "画像", image: "i.png", se: "se.mp3" }, { kind: "テキスト" }] }), screen("main", { memberLotteryBgms: ["m1.mp3", ""] })],
         files({ "o.mp3": mp3("1"), "i.png": png("2"), "se.mp3": mp3("3"), "m1.mp3": mp3("4"), "unused.mp3": mp3("5") })
       );
       expect(Object.keys((await repo.readRecord()).media).sort()).toEqual(["i.png", "m1.mp3", "o.mp3", "se.mp3"]);
@@ -176,7 +176,7 @@ describe("JackpotRepository", () => {
     it("参照先の素材が無い保存は、何も書かずに断る(参照切れは作れない)", async () => {
       await repo.addPrizes([prize("p1")]);
       await expect(repo.addPrizes([prize("p2", { image: "missing.png" })])).rejects.toThrow("missing.png");
-      await expect(repo.updateScreenSettings([screen("demo", { demoBgm: "missing.mp3" })])).rejects.toThrow("missing.mp3");
+      await expect(repo.updateScreenSettings([screen("demo", { bgm: "missing.mp3" })])).rejects.toThrow("missing.mp3");
       const record = await repo.readRecord();
       expect(record.prizes.map((p) => p.id)).toEqual(["p1"]);
       expect(record.screens).toEqual([]);

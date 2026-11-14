@@ -10,11 +10,11 @@
       <router-link v-for="s in screenTabs" :key="s.path" :to="`${BASE}/screens/${s.path}`" class="sub-link"
         active-class="active-sub">{{ s.label }}</router-link>
       <!-- 画面設定の全画面をまとめて書き出す・取り込む(取り込んだら、開いている画面の入力欄も読み直す) -->
-      <TableIoToolbar :count="rowCount" :on-export="screenIo.onExport" media-label="素材も含める(ZIP)" @import="importOpen = true" />
+      <TableIoToolbar :count="rowCount" :on-export="screenIo.onExport" media-label="素材も含める" @import="importOpen = true" />
     </template>
     <router-view :key="reloadKey" />
     <TableImportDialog v-model="importOpen" :on-preview="screenIo.onPreviewImport" media-label="素材フォルダ"
-      media-hint="CSVの素材・効果音の列のファイル名と同じファイルが入ったフォルダ。ZIPなら不要です。ファイルに出てくる画面だけを、まるごと置き換えます" />
+      media-hint="screens.csv・pages.csv の BGM・画像・効果音の列のファイル名と同じファイルが入ったフォルダ。ZIPなら不要です。ファイルに出てくる画面だけを、まるごと置き換えます" />
   </PageShell>
 </template>
 
@@ -26,8 +26,8 @@ import { eventBus } from '@octopus/client-common/events/event-bus';
 import { HeaderActions, PageShell, TableImportDialog, TableIoToolbar, UiButton, toast } from '@octopus/ui-kit';
 import { JackpotRepository } from '@model/jackpot-repository';
 import { screenTableIo } from '../../../../control/screen-table/screen-table-io';
-import { screensToRows } from '../../../../control/screen-table/screen-table';
-import { DEMO_QUERY_KEY, setJackpotScope } from '@model/jackpot-session';
+import { screensToTables } from '../../../../control/screen-table/screen-table';
+import { DEMO_QUERY_KEY, setDemoDrawScreen, setJackpotScope } from '@model/jackpot-session';
 import { SYNC_KIND_LABELS, useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
@@ -38,6 +38,7 @@ const { status, lastError, log } = useBackgroundSync();
 
 // 管理画面は常に本番(live)スコープ。デモ実行後に戻ってきた場合もここで戻す。
 setJackpotScope('live');
+setDemoDrawScreen(false);
 
 // 設定画面からの動作確認用。抽選結果・確変状態はデモ専用ストアに分離される。
 const startDemo = () => router.push({ path: '/jackpot-opening', query: { [DEMO_QUERY_KEY]: '1' } });
@@ -47,7 +48,7 @@ const repo = container.resolve(JackpotRepository);
 const importOpen = ref(false);
 const reloadKey = ref(0);
 const rowCount = ref(0);
-const refreshCount = async () => { rowCount.value = screensToRows(await repo.getScreenSettings()).length; };
+const refreshCount = async () => { const t = screensToTables(await repo.getScreenSettings()); rowCount.value = t.screens.length + t.pages.length; };
 const screenIo = screenTableIo({
   repo,
   afterImport: async () => { reloadKey.value++; await refreshCount(); },

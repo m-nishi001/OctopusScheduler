@@ -301,3 +301,27 @@ describe("DrawApplicationService", () => {
     });
   });
 });
+
+describe("確変の決め方「なし」", () => {
+  it("確変対応ありの景品も取り置かず(通常の抽選で当たる)、確変の回も無い。おまかせなら取り置く", async () => {
+    const none = setup();
+    const planNone = await none.service.initializeStateIfNeeded(none.prizes, { mode: "none", fixedTimings: [] });
+    expect(planNone).toMatchObject({ kakuhenTimings: [], reservedPrizeIds: [] });
+
+    const auto = setup();
+    const planAuto = await auto.service.initializeStateIfNeeded(auto.prizes);
+    expect(planAuto.reservedPrizeIds).toEqual(["p1", "p2"]);
+
+    // なしでは、確変対応ありの景品も含めて全景品を、確変でない演出で引ける
+    const drawn: boolean[] = [];
+    for (let i = 0; i < none.prizes.length; i++) {
+      const next = await none.service.drawNext(REQUEST);
+      if (next.kind !== "drawn") break;
+      drawn.push(next.outcome.result.isKakuhen ?? false);
+      await none.store.reveal(next.outcome.result.drawId);
+    }
+    expect(drawn).toHaveLength(4); // 対象メンバー4人まで
+    expect(drawn.every((k) => !k)).toBe(true);
+  });
+});
+

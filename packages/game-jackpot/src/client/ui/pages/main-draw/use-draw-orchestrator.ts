@@ -9,6 +9,8 @@ import { ScreenSettingsService } from "@control/screen-config/screen-settings-se
 import { parseParticipantStop, DEFAULT_PARTICIPANT_STOP } from "@model/draw/participant-stop";
 import { parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC } from "@model/draw/prize-stop-sec";
 import { parseKakuhenPlan, AUTO_KAKUHEN_PLAN, type KakuhenPlan } from "@model/draw/kakuhen-plan";
+import { parseDemoDrawSettings, DEFAULT_DEMO_DRAW } from "@model/screen-config/demo-draw-setting";
+import { nextScreen, SCREEN_PATH } from "@model/screen-flow";
 import { DrawConflictError } from "@model/errors";
 import type { MemberDto } from "@control/member/dto/member-dto";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
@@ -18,6 +20,7 @@ import type { DrawEndReason } from "@control/draw/dto/draw-progress";
 import { RevealTracker } from "@model/jackpot-host-state";
 import { useJackpotHost } from "../../composables/use-jackpot-host";
 import { useJackpotSession } from "../../composables/use-jackpot-session";
+import { useScreenBgm } from "../../composables/use-screen-media";
 import { usePrizeDrawState } from "./prize-animation-state";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
@@ -43,8 +46,17 @@ export function useDrawOrchestrator() {
   const prizeRepo = container.resolve(JackpotRepository);
   const memberRepo = container.resolve(MemberRepository);
   const drawService = container.resolve(DrawApplicationService);
-  const { to } = useJackpotSession();
+  const { to, isDemoDraw } = useJackpotSession();
   const router = useRouter();
+  /** デモ抽選(練習抽選)で回す回数。設定を読むまでは既定。 */
+  let demoRounds = DEFAULT_DEMO_DRAW.rounds;
+  /** デモ抽選で、ここまでに引いた回数。 */
+  let demoDrawn = 0;
+  /** 画面のバッジに出す、デモ抽選の何回目か・全部で何回か。 */
+  const demoRound = ref(0);
+  const demoRoundTotal = ref(DEFAULT_DEMO_DRAW.rounds);
+  /** デモ抽選を始めるまで流す BGM。最初の進行操作で止める(抽選中は、メンバー抽選・景品の BGM に任せる)。 */
+  const demoBgm = useScreenBgm();
 
   const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, buildPrizeItems, installPreparedPrizes, updateSelectedPrize } =
     usePrizeDrawState(prizeRepo);
@@ -172,6 +184,8 @@ export function useDrawOrchestrator() {
 
   /** 次のサイクルを、画面の状態に反映して進行役に渡す。 */
   const nextCycle = async (): Promise<NextCycle> => {
+    // デモ抽選は、決めた回数を引いたら次の画面(本抽選)へ進む
+    if (isDemoDraw && demoDrawn >= demoRounds) return { kind: "leave" };
     revealTracker.reset(); // 新しい抽選が始まったので、前回の当選者を参加者への公開から外す
     if (prefetchedStore !== drawService.store) {
       cycleSource.invalidate();
@@ -179,6 +193,8 @@ export function useDrawOrchestrator() {
     }
     const prepared = await cycleSource.next();
     if (prepared.kind === "finished") return prepared;
+    demoDrawn++;
+    demoRound.value = demoDrawn;
     return { kind: "cycle", steps: applyOutcome(prepared.outcome) };
   };
 
@@ -235,13 +251,22 @@ export function useDrawOrchestrator() {
     reveal: revealDraw,
     // いまの抽選が公開されたので、次のサイクルを裏で用意し始める(サーバーは公開されていない抽選がある間は次の確定を断る)
     onRevealed: (drawId) => {
+      // デモ抽選で決めた回数を引き終えていたら、先読みしない(次は画面を離れる)
+      if (isDemoDraw && demoDrawn >= demoRounds) return;
       if (!disposed && flow.ready && !flow.finished) cycleSource.prefetch(drawId);
     },
+    demoDraw: isDemoDraw,
     phase: () => phase.value,
     ended: () => endReason.value !== null,
     nextLabel: () => queue.peekLabel(),
     result: () => latestResult.value,
   });
+
+  /** 画面の流れ(nextScreen)に従って、次の画面へ進む。 */
+  const leaveToNext = () => {
+    const next = nextScreen(isDemoDraw ? "demo-draw" : "draw", { demoDraw: true, entry: false });
+    if (next) void router.push(to(SCREEN_PATH[next]));
+  };
 
   flow = new DrawFlowController({
     queue,
@@ -249,12 +274,17 @@ export function useDrawOrchestrator() {
     onDrawError,
     onStepError: (e) => console.error("[DrawOrchestrator] step failed", e),
     onFinished: (reason, progress) => {
+      // デモ抽選は、景品・メンバーが尽きても終了の画面を出さず、次の画面へ進む
+      if (isDemoDraw) return leaveToNext();
       endReason.value = reason;
       eligibleMembers.value = progress.eligibleMembers;
     },
-    // 終了後の「次へ」・Enter・OK は、結果の画面へ進む(エンディングへは結果の画面から進む)
-    onLeave: () => void router.push(to("/jackpot-result")),
-    onStarted: () => host.hold(),
+    // 終了後の「次へ」・Enter・OK は、次の画面へ進む(本抽選は結果の画面。エンディングへは結果の画面から進む。デモ抽選は本抽選)
+    onLeave: () => leaveToNext(),
+    onStarted: () => {
+      demoBgm.bgm.value?.pause();
+      host.hold();
+    },
     onSettled: publishHostState,
   });
 
@@ -276,12 +306,21 @@ export function useDrawOrchestrator() {
       const store = drawService.store;
       rehearsal.value = store.kind === "rehearsal";
       await store.load();
+      // デモ抽選は、開くたびに空の状態から始める(前回の練習の当選者が、今回の練習から外れないように)
+      if (isDemoDraw) await store.reset();
       storeLoadedAtMs = Date.now();
       // 確変にする回は、管理画面の設定（本抽選画面設定）に従って、セッションで最初の抽選のときに決める
       const mainSettings = await container.resolve(ScreenSettingsService).fetchScreenSetting("main", "main-screen-settings");
       kakuhenPlan = parseKakuhenPlan(mainSettings);
       ctx.prizeStopSec = parsePrizeStopSec(mainSettings);
       participantStop = parseParticipantStop(mainSettings);
+      if (isDemoDraw) {
+        const demo = parseDemoDrawSettings(await container.resolve(ScreenSettingsService).fetchScreenSetting("demo", "demo-screen-settings"));
+        demoRounds = demo.rounds;
+        demoRoundTotal.value = demo.rounds;
+        await demoBgm.load(demo.bgm);
+        demoBgm.play();
+      }
       await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
       // 確定済みで公開されていない抽選(再読み込み前に演出の途中だったもの)は、引き直さずに同じ結果で演出し直す
       const pending = await store.pending();
@@ -332,6 +371,9 @@ export function useDrawOrchestrator() {
     endReason,
     eligibleMembers,
     rehearsal,
+    isDemoDraw,
+    demoRound,
+    demoRoundTotal,
     notice,
     advance,
     kakuhenOverlayVisible,

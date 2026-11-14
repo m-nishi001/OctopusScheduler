@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { zipSync } from "fflate";
-import { buildZip, readZip } from "./zip";
+import { buildZip, buildZipOfCsvs, readZip } from "./zip";
 
 const bytes = (...n: number[]) => new Uint8Array(n);
 
@@ -28,6 +28,15 @@ describe("zip", () => {
     const out = readZip(zip);
     expect(out.csv).not.toBeNull();
     expect([...out.media.keys()]).toEqual(["a.png"]);
+  });
+
+  it("CSV を複数入れた ZIP を読み戻せる(csvs にすべて、csv に最初の1つ)", () => {
+    const zip = buildZipOfCsvs([["a.csv", "A\r\n"], ["b.csv", "B\r\n"]], [["x.png", bytes(1)]]);
+    const out = readZip(zip);
+    expect([...out.csvs.keys()]).toEqual(["a.csv", "b.csv"]);
+    expect(new TextDecoder().decode(out.csvs.get("b.csv")!)).toBe("B\r\n");
+    expect(new TextDecoder().decode(out.csv!)).toBe("A\r\n");
+    expect([...out.media.keys()]).toEqual(["x.png"]);
   });
 
   it("CSV が無い ZIP は csv が null", () => {
