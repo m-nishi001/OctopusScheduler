@@ -267,10 +267,13 @@ export class DrawApplicationService {
    * 確変の演出に使う内訳。ダミー当選は、実際に当たる景品とも他の取り置いた景品とも重ならないものから選ぶ。
    */
   private kakuhenPresentation(prizes: Prize[], results: DrawResultDto[], reservedPrizeIds: readonly string[], winnerPrizeId: string, drawId: string): DrawPrizeResponse {
+    // 当選景品にダミーの指定があり、その景品が存在して当選景品自身でなければそれを使う。なければランダム
+    const designatedId = prizes.find((p) => p.id === winnerPrizeId)?.kakuhenDummyPrizeId;
+    const designated = designatedId && designatedId !== winnerPrizeId ? prizes.find((p) => p.id === designatedId) : undefined;
     const dummyCandidates = this.prizeDrawService.getDrawablePrizes(prizes, results, reservedPrizeIds).filter((p) => p.id !== winnerPrizeId);
-    const dummyWinnerPrize = this.prizeDrawService.pickRandomPrizeFrom(
-      dummyCandidates.length > 0 ? dummyCandidates : prizes.filter((p) => p.id !== winnerPrizeId)
-    );
+    const dummyWinnerPrize =
+      designated ??
+      this.prizeDrawService.pickRandomPrizeFrom(dummyCandidates.length > 0 ? dummyCandidates : prizes.filter((p) => p.id !== winnerPrizeId));
     const dummyWinnerPrizeId = dummyWinnerPrize?.id || null;
     const excludedIds = new Set([winnerPrizeId, dummyWinnerPrizeId].filter(Boolean));
     return {

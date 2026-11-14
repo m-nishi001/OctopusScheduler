@@ -24,6 +24,10 @@
           ONにすると確変ターンで『当たり…だが！』のフェイク演出に使われます。1枚目＝フェイク、2枚目＝本当の結果。
           OFFの間は、確変_抽選画像・確変_当選画像・確変_当選BGMは使えません（入力済みの内容は消さずに残しますが、抽選・演出では使いません）。
         </p>
+        <div v-if="formData.kakuhen" class="kakuhen-dummy-field" data-testid="kakuhen-dummy-field">
+          <FieldSelect v-model="formData.kakuhenDummyPrizeId" :options="dummyOptions" allow-empty label="確変_ダミー当選景品（任意）" />
+          <p class="kakuhen-hint">確変の回で、この景品より先に「当たり」として見せる景品。未指定ならランダム。</p>
+        </div>
       </div>
 
       <div v-for="slot in IMAGE_SLOTS" :key="slot.field" :class="[slot.area, { 'kakuhen-dep': slot.second }]">
@@ -89,13 +93,14 @@ const animationOptions = [
   { value: 'slot', label: 'スロット' },
 ];
 
-type FormData = { name: string; rank: number; animation: string; kakuhen: boolean } & Record<MediaField, string>;
+type FormData = { name: string; rank: number; animation: string; kakuhen: boolean; kakuhenDummyPrizeId: string } & Record<MediaField, string>;
 
 const emptyFormData = (): FormData => ({
   name: '',
   rank: DEFAULT_PRIZE_RANK,
   animation: 'roulette',
   kakuhen: false,
+  kakuhenDummyPrizeId: '',
   image: '',
   image2: '',
   bgm1: '',
@@ -123,6 +128,12 @@ const oddsPreviewPercent = computed(() => {
   return ((currentWeight / totalWeight) * 100).toFixed(1);
 });
 
+// ダミー当選に指定できる景品(編集中の景品自身は除く)
+const dummyOptions = computed(() => {
+  const currentId = props.mode === 'edit' && props.prize ? props.prize.id : undefined;
+  return props.otherPrizes.filter((p) => p.id !== currentId).map((p) => ({ value: p.id, label: p.name }));
+});
+
 // 親のダイアログのフッターのボタンから呼べるようにする
 defineExpose({ submit, cancel });
 
@@ -137,16 +148,17 @@ function loadPrize(prize: Prize) {
     rank: prize.rank ?? DEFAULT_PRIZE_RANK,
     animation: prize.animation || 'roulette',
     kakuhen: isKakuhenPrize(prize),
+    kakuhenDummyPrizeId: prize.kakuhenDummyPrizeId || '',
     ...Object.fromEntries(MEDIA_FIELDS.map((f) => [f, prize[f] || ''])),
   };
 }
 
 function submit() {
   if (!isValid.value) return;
-  const { name, rank, animation, kakuhen } = formData.value;
+  const { name, rank, animation, kakuhen, kakuhenDummyPrizeId } = formData.value;
   const media = Object.fromEntries(MEDIA_FIELDS.map((f) => [f, formData.value[f] || undefined]));
   emit('submit', {
-    fields: { name, rank, animation, kakuhen, ...media },
+    fields: { name, rank, animation, kakuhen, kakuhenDummyPrizeId: kakuhenDummyPrizeId || undefined, ...media },
     files: draft.filesFor(MEDIA_FIELDS.map((f) => formData.value[f])),
   });
 }

@@ -2,11 +2,13 @@
  * 景品の表(CSV)への対応。汎用の判断(差分・往復・エラー)は `@octopus/table-io` に任せ、ここは列と検証だけを持つ。
  *
  * - 取り込む対象はレコードの景品そのもの({@link Prize})。画像・音声はファイル名(素材の名前)で持つ。
- * - 列: `ID, 名前*, 景品ランク, アニメーション(ルーレット|スロット), 確変対応(あり|なし), 抽選画像, 当選画像, 当選BGM, 確変_抽選画像, 確変_当選画像, 確変_当選BGM`。
+ * - 列: `ID, 名前*, 景品ランク, アニメーション(ルーレット|スロット), 確変対応(あり|なし), 抽選画像, 当選画像, 当選BGM, 確変_抽選画像, 確変_当選画像, 確変_当選BGM, 確変_ダミー当選景品ID`。
  *   内部の項目との対応: 抽選画像=image、当選画像=winningImage1、当選BGM=bgm1、確変_抽選画像=image2、確変_当選画像=winningImage2、確変_当選BGM=bgm2。
  * - 景品ランクは1〜5(標準3、5=豪華でレア)。古い書き出しの「当選確率の重み」列は意味が違うので読まずに無視する(ランクは既定の3になる)。
  * - 確変対応は あり/なし(それ以外の書き方はエラー)。ありの景品だけが確変ターンのフェイク演出に使われ、確変_ の3列が有効になる。
  *   列が無い・空のセルは、いまのまま(新規は未設定。2枚目の素材があればありとして扱う)。
+ * - 確変_ダミー当選景品ID は、確変の回にダミー当選として見せる景品の ID(任意)。空のセルはいまのまま、`-` で外す。
+ *   存在しない ID・自分自身の指定は抽選時に無視され、ダミーはランダムになる。
  * - 空のセル = いまのまま(新規なら未設定)。素材のセルは `-` で外す。
  * - 並び順(`order`)は列に無い。置き換えではファイルの行の順がそのまま並び順、追加・更新では既存の並びを保って新しい景品を末尾に足す
  *   ({@link orderImportedPrizes})。
@@ -27,6 +29,9 @@ const DEFAULT_ANIMATION = "roulette";
 const KAKUHEN_ON = "あり";
 const KAKUHEN_OFF = "なし";
 
+/** 値を外すセルの書き方。 */
+const CLEAR_CELL = "-";
+
 /** 素材の列(CSV の列名と内部の項目の対応)。確変_ で始まる列は確変対応ありの景品だけが使う2つ目の素材。 */
 const MEDIA_COLUMNS = [
   ["image", "抽選画像"],
@@ -44,6 +49,7 @@ export const PRIZE_HEADERS: readonly Header[] = [
   { key: "animation", label: "アニメーション" },
   { key: "kakuhen", label: "確変対応" },
   ...MEDIA_COLUMNS.map(([key, label]): Header => ({ key, label, media: true })),
+  { key: "kakuhenDummyPrizeId", label: "確変_ダミー当選景品ID" },
 ];
 
 /** 使えなくなった古い見出し → 今の見出し。ファイルに残っていれば、黙って無視せずエラーにする。 */
@@ -79,6 +85,7 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
       animation: ANIMATION_LABELS[p.animation ?? DEFAULT_ANIMATION] ?? p.animation ?? "",
       kakuhen: isKakuhenPrize(p) ? KAKUHEN_ON : KAKUHEN_OFF,
       ...Object.fromEntries(MEDIA_COLUMNS.map(([key]) => [key, p[key] ?? ""])),
+      kakuhenDummyPrizeId: p.kakuhenDummyPrizeId ?? "",
     }),
     fromRow(row, existing) {
       if (!row.name) return "名前が空です";
@@ -105,8 +112,15 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
         else return "確変対応は「あり」か「なし」で入力してください";
       }
 
+      let kakuhenDummyPrizeId = existing?.kakuhenDummyPrizeId;
+      if (row.kakuhenDummyPrizeId) {
+        const v = row.kakuhenDummyPrizeId.trim();
+        kakuhenDummyPrizeId = v === CLEAR_CELL ? undefined : v;
+      }
+
       const prize: Prize = { id: row.id, name: row.name, rank, animation, order: existing?.order ?? 0 };
       if (kakuhen !== undefined) prize.kakuhen = kakuhen;
+      if (kakuhenDummyPrizeId) prize.kakuhenDummyPrizeId = kakuhenDummyPrizeId;
       for (const [key, label] of MEDIA_COLUMNS) {
         const r = resolveMediaCell(row[key], existing?.[key], available);
         if ("missing" in r) return `${label}「${r.missing}」が見つかりません`;

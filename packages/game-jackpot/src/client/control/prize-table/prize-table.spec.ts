@@ -90,15 +90,27 @@ describe("prizeAdapter", () => {
     const withKakuhen = prize("k", { kakuhen: true, image: "i1.png", winningImage1: "w1.png", bgm1: "b1.mp3", image2: "i2.png", winningImage2: "w2.png", bgm2: "b2.mp3" });
     const plain = prize("p", { kakuhen: false, image: "pi.png", winningImage1: "pw.png", bgm1: "pb.mp3" });
     const lines = exportTable([withKakuhen, plain], prizeAdapter()).replace("\uFEFF", "").split("\r\n");
-    expect(lines[0]).toBe("ID,名前,景品ランク,アニメーション,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM");
-    expect(lines[1].split(",").slice(4)).toEqual(["あり", "i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3"]);
-    expect(lines[2].split(",").slice(4)).toEqual(["なし", "pi.png", "pw.png", "pb.mp3", "", "", ""]);
+    expect(lines[0]).toBe("ID,名前,景品ランク,アニメーション,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM,確変_ダミー当選景品ID");
+    expect(lines[1].split(",").slice(4)).toEqual(["あり", "i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3", ""]);
+    expect(lines[2].split(",").slice(4)).toEqual(["なし", "pi.png", "pw.png", "pb.mp3", "", "", "", ""]);
     const names = ["i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3", "pi.png", "pw.png", "pb.mp3"];
     const csv = "ID,名前,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM\n,K,あり,i1.png,w1.png,b1.mp3,i2.png,w2.png,b2.mp3\n,P,なし,pi.png,pw.png,pb.mp3,,,\n";
     const p = plan([], csv, "upsert", names);
     expect(p.upserts[0]).toMatchObject({ kakuhen: true, image: "i1.png", winningImage1: "w1.png", bgm1: "b1.mp3", image2: "i2.png", winningImage2: "w2.png", bgm2: "b2.mp3" });
     expect(p.upserts[1]).toMatchObject({ kakuhen: false, image: "pi.png", winningImage1: "pw.png", bgm1: "pb.mp3" });
     expect(p.upserts[1].image2).toBeUndefined();
+  });
+
+  it("確変_ダミー当選景品IDを書き出して読み戻すと同じ。空のセルはいまのまま、`-` で外せる", () => {
+    const current = [prize("a", { kakuhen: true, kakuhenDummyPrizeId: "b", order: 1 }), prize("b", { order: 2 })];
+    const csv = exportTable(current, prizeAdapter());
+    expect(csv).toContain("確変_ダミー当選景品ID");
+    expect(plan(current, csv, "replace").counts).toEqual({ add: 0, update: 0, unchanged: 2, delete: 0, error: 0 });
+    expect(plan([], csv, "upsert").upserts.find((x) => x.name === "景品a")).toMatchObject({ kakuhenDummyPrizeId: "b" });
+    expect(plan(current, "ID,名前\na,景品a\n").rows[0].status).toBe("unchanged");
+    expect(plan(current, "ID,名前,確変_ダミー当選景品ID\na,景品a,\n").rows[0].status).toBe("unchanged");
+    expect(plan(current, "ID,名前,確変_ダミー当選景品ID\na,景品a,-\n").upserts[0].kakuhenDummyPrizeId).toBeUndefined();
+    expect(plan(current, "ID,名前,確変_ダミー当選景品ID\na,景品a,c\n").upserts[0].kakuhenDummyPrizeId).toBe("c");
   });
 
   it("古い列名(画像1・当選画像2・BGM1 など)は、黙って無視せずエラーにする", () => {
