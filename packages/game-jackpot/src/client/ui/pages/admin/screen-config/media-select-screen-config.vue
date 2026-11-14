@@ -4,7 +4,8 @@
         <div class="tab-content">
             <div class="screen-config">
                 <div v-for="field in fields" :key="field.key" class="config-item">
-                    <MediaPicker :label="field.label" kind="audio" v-model="localConfig[field.key]"
+                    <MediaPicker :label="field.label" kind="audio" 
+                        :model-value="localConfig[field.key]" @update:model-value="form.set(field.key, $event)"
                         :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(localConfig[field.key])"
                         @pick="draft.pick" />
                 </div>
@@ -25,12 +26,13 @@
 
 <script setup lang="ts">
 import { UiBusyOverlay, UiButton } from '@octopus/ui-kit';
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { useMediaDraft } from '@ui/composables/use-media-draft';
+import { useFormDraft } from '@ui/composables/use-form-draft';
 import MediaPicker from '@ui/components/media-picker.vue';
 import UnsavedChangesDialog from './unsaved-changes-dialog.vue';
 
@@ -51,7 +53,6 @@ const draft = useMediaDraft();
 const saving = ref(false);
 const saveStatus = ref('');
 
-const hasUnsavedChanges = ref(false);
 const showUnsavedDialog = ref(false);
 const pendingRoute = ref<(() => void) | null>(null);
 
@@ -61,43 +62,32 @@ const buildEmptyConfig = () => {
     return empty;
 };
 
-const localConfig = ref<Record<string, string>>(buildEmptyConfig());
+/** サーバーの値(読み込み・同期で更新)に、利用者が選んだ項目だけを重ねて持つ。選択欄は読み込み前から操作できる。 */
+const fetchConfig = async (): Promise<Record<string, string>> => {
+    const cfg = await screenSettingsService.fetchScreenSetting(props.screenName, props.settingName);
+    const loaded = buildEmptyConfig();
+    if (cfg) {
+        for (const field of props.fields) loaded[field.key] = (cfg as any)[field.key] || '';
+    }
+    return loaded;
+};
+const form = useFormDraft<Record<string, string>>(buildEmptyConfig(), fetchConfig);
+const localConfig = form.view;
+const hasUnsavedChanges = form.dirty;
 draft.track(() => Object.values(localConfig.value));
 
-const loadConfig = async () => {
-    try {
-        const cfg = await screenSettingsService.fetchScreenSetting(props.screenName, props.settingName);
-        if (cfg) {
-            for (const field of props.fields) {
-                localConfig.value[field.key] = (cfg as any)[field.key] || '';
-            }
-        }
-    } catch (error) {
-        console.error(`Failed to load ${props.screenName} config:`, error);
-    }
-};
-
-// 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。編集中なら読み直さない
-const reloadAfterSync = async () => {
-    if (hasUnsavedChanges.value) return; // 入力の途中は消さない(保存すれば、新しいほうとして残る)
-    await loadConfig();
-    await nextTick();
-    hasUnsavedChanges.value = false;
-};
+// 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。
+// 読み込みは「サーバーの値」だけを更新し、選択の途中の項目には触れない
+const reloadAfterSync = () => form.load();
 
 onMounted(async () => {
     eventBus.on('syncPulled', reloadAfterSync);
-    await Promise.all([loadConfig(), draft.reload()]);
-    hasUnsavedChanges.value = false;
+    await Promise.all([form.load(), draft.reload()]);
 });
 
 onBeforeUnmount(() => {
     eventBus.off('syncPulled', reloadAfterSync);
 });
-
-watch(localConfig, () => {
-    hasUnsavedChanges.value = true;
-}, { deep: true });
 
 onBeforeRouteLeave((_to, _from, next) => {
     if (hasUnsavedChanges.value) {
@@ -112,13 +102,13 @@ const handleSaveClick = async () => {
     saving.value = true;
     saveStatus.value = '保存中...';
     try {
-        const payload: Record<string, string> = {};
-        for (const field of props.fields) payload[field.key] = localConfig.value[field.key];
-        await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload, draft.filesFor(Object.values(payload)));
-        await loadConfig();
+        await form.save(async (cfg) => {
+            const payload: Record<string, string> = {};
+            for (const field of props.fields) payload[field.key] = cfg[field.key];
+            await screenSettingsService.saveScreenSetting(props.screenName, props.settingName, payload, draft.filesFor(Object.values(payload)));
+        });
         await draft.reload();
         saveStatus.value = '保存しました';
-        hasUnsavedChanges.value = false;
     } catch (err) {
         console.error(`Failed to save ${props.screenName} config`, err);
         saveStatus.value = '保存に失敗しました';
@@ -129,7 +119,7 @@ const handleSaveClick = async () => {
 
 const handleDiscardChanges = () => {
     showUnsavedDialog.value = false;
-    hasUnsavedChanges.value = false;
+    form.discard();
     if (pendingRoute.value) {
         pendingRoute.value();
     }
