@@ -1,6 +1,6 @@
 import type { APIRequestContext, Browser } from "@playwright/test";
 import { makeBadgePng, makeWav, TUNES } from "../../scripts/seed-content.js";
-import { adminRpc, createSession, demoDrawSetting, expect, loginByQr, newDevice, nextButton, openEventTab, publishPortal, route, seedJackpot, test, type Device } from "./fixtures";
+import { adminRpc, createSession, demoDrawSetting, expect, isGas, loginByQr, newDevice, nextButton, openEventTab, publishPortal, route, seedJackpot, test, type Device } from "./fixtures";
 
 /**
  * ジャックポットの画面の流れ: オープニング → 説明(1ページずつ) → デモ抽選(練習。既定 ON) → 本抽選。
@@ -81,7 +81,9 @@ async function finishDescription(admin: Device, host: Device) {
 
 test.describe("画面の流れ", () => {
   test("デモ抽選 ON(2回): 説明 → デモ抽選(練習の画面・2回目まで) → 本抽選。デモ中、ポータルに当選のお知らせ・止めるボタン・結果の変化が出ず、サーバーに結果も残らない", async ({ browser, request }) => {
-    test.setTimeout(420_000);
+    // GAS は1回ごとの通信が遅く、練習2回 + 本抽選1回を通すと数分かかる。時間で打ち切る(回数では打ち切らない)
+    test.setTimeout(isGas ? 1_200_000 : 420_000);
+    const deadline = Date.now() + (isGas ? 1_000_000 : 360_000);
     const { admin, host, guests, sessionId } = await scene(browser, request, "流れON会場", { enabled: true, rounds: 2 }, 3);
     await finishDescription(admin, host);
 
@@ -93,7 +95,7 @@ test.describe("画面の流れ", () => {
 
     // 練習を「次へ」で進める。そのあいだずっと、参加者に当選のお知らせ・止めるボタンが出ず、結果タブの更新印も付かず、サーバーに結果も確変の予定も残らない
     let lastRound = "";
-    for (let i = 0; i < 120 && (await route(host.page)) === "/execute/jackpot-demo-draw"; i++) {
+    for (let i = 0; Date.now() < deadline && (await route(host.page)) === "/execute/jackpot-demo-draw"; i++) {
       for (const g of guests) {
         await expect(g.page.getByTestId("you-won")).toHaveCount(0);
         await expect(g.page.getByRole("button", { name: "ルーレットを止める" })).toHaveCount(0);
@@ -117,7 +119,7 @@ test.describe("画面の流れ", () => {
     await expect(host.page.getByTestId("demo-draw-badge")).toHaveCount(0);
     await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
     const revealed = async () => (await serverState(request, sessionId)).draws.filter((d) => d.revealedAtMs !== null).length;
-    for (let i = 0; i < 60 && (await revealed()) < 1; i++) {
+    for (let i = 0; Date.now() < deadline && (await revealed()) < 1; i++) {
       if (await nextButton(admin.page).isEnabled()) await nextButton(admin.page).click();
       await admin.page.waitForTimeout(1500);
     }
@@ -139,11 +141,12 @@ test.describe("画面の流れ", () => {
   });
 
   test("デモ抽選 ON(1回): 説明の最後の「次へ」でデモ抽選へ、1回で本抽選へ進む", async ({ browser, request }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(isGas ? 900_000 : 300_000);
+    const deadline = Date.now() + (isGas ? 800_000 : 240_000);
     const { admin, host, guests } = await scene(browser, request, "流れ1回会場", { enabled: true, rounds: 1 }, 1);
     await finishDescription(admin, host);
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-demo-draw");
-    for (let i = 0; i < 80 && (await route(host.page)) === "/execute/jackpot-demo-draw"; i++) {
+    for (let i = 0; Date.now() < deadline && (await route(host.page)) === "/execute/jackpot-demo-draw"; i++) {
       if (await nextButton(admin.page).isEnabled()) await nextButton(admin.page).click();
       await admin.page.waitForTimeout(1500);
     }
