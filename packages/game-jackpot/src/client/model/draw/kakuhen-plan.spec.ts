@@ -15,6 +15,10 @@ describe("parseKakuhenPlan（保存された画面設定から計画を取り出
     expect(parseKakuhenPlan({ kakuhenMode: "random", kakuhenFixedTimings: [3] })).toEqual(AUTO_KAKUHEN_PLAN);
   });
 
+  it("none は確変なし", () => {
+    expect(parseKakuhenPlan({ kakuhenMode: "none", kakuhenFixedTimings: [3] })).toEqual({ mode: "none", fixedTimings: [] });
+  });
+
   it("fixed なら指定した回を取り出す。整数でない値は捨てる", () => {
     expect(parseKakuhenPlan({ kakuhenMode: "fixed", kakuhenFixedTimings: [3, 7, 0, -1, 2.5, "x"] })).toEqual({
       mode: "fixed",
@@ -59,6 +63,10 @@ describe("PrizeReservationService.calculateKakuhenTimings（計画に従う）",
   it("計画を渡さなければ、これまでどおり（景品の真ん中あたりで続けて2回）", () => {
     expect(service.calculateKakuhenTimings(10)).toEqual([5, 6]);
     expect(service.calculateKakuhenTimings(10, AUTO_KAKUHEN_PLAN)).toEqual([5, 6]);
+  });
+
+  it("none なら確変の回は無い", () => {
+    expect(service.calculateKakuhenTimings(10, { mode: "none", fixedTimings: [] }, 3)).toEqual([]);
   });
 
   it("fixed なら指定した回（景品の数に収めて）", () => {

@@ -8,6 +8,8 @@ import { readZip } from "./zip";
 
 export interface ImportFiles {
   csv: Uint8Array;
+  /** CSV のすべて(ファイル名 → 中身)。ZIP に複数の CSV が入っているとき(画面設定の screens.csv と pages.csv)に使う。CSV を1つ選んだときは、そのファイルだけ。 */
+  csvs: Map<string, Uint8Array>;
   /** 取り込める素材(ファイル名 → 中身)。フォルダで選んだものは、ZIP の中の同名のものより優先する。 */
   files: Map<string, Blob>;
 }
@@ -16,6 +18,7 @@ export interface ImportFiles {
 export async function readImportFiles(table: File, media: readonly File[]): Promise<{ ok: true; value: ImportFiles } | { ok: false; errors: string[] }> {
   const files = new Map<string, Blob>();
   let csv: Uint8Array;
+  const csvs = new Map<string, Uint8Array>();
   if (/\.zip$/i.test(table.name)) {
     let zipped: ReturnType<typeof readZip>;
     try {
@@ -25,12 +28,14 @@ export async function readImportFiles(table: File, media: readonly File[]): Prom
     }
     if (!zipped.csv) return { ok: false, errors: ["ZIP の中に CSV が見つかりません"] };
     csv = zipped.csv;
+    for (const [name, bytes] of zipped.csvs) csvs.set(name, bytes);
     for (const [name, bytes] of zipped.media) files.set(name, new Blob([bytes as BlobPart], { type: mimeOfName(name) }));
   } else {
     csv = new Uint8Array(await table.arrayBuffer());
+    csvs.set(table.name, csv);
   }
   for (const f of media) files.set(f.name, f.type ? f : f.slice(0, f.size, mimeOfName(f.name)));
-  return { ok: true, value: { csv, files } };
+  return { ok: true, value: { csv, csvs, files } };
 }
 
 /** CSV の素材の列が指していて、選ばれたファイルにもある素材の名前(重複なし)。 */
