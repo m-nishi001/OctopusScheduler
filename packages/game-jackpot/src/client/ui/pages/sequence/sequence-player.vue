@@ -147,7 +147,8 @@ export default {
     background: black;
     color: #fff;
     text-align: center;
-    font-size: 2em;
+    /* 会場のスクリーンで遠くから読める大きさ(画面の幅に比例。小さい画面でも 1.75rem 以上) */
+    font-size: clamp(1.75rem, 3.6vw, 4.5rem);
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
@@ -181,9 +182,11 @@ export default {
     line-height: 1.6em;
 }
 
+/* 画像は、比率を保ったまま画面いっぱいに出す(小さい画像も大きく映す) */
 .seq-image {
-    max-width: 100%;
-    max-height: 90vh;
+    width: 100%;
+    height: 80vh;
+    object-fit: contain;
     display: block;
     margin: 0 auto;
 }
