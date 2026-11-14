@@ -1,6 +1,6 @@
 export { decodeCsvBytes, normalizeHeader, parseCsv, parseTable, stringifyCsv, stringifyTable } from "./csv";
 export type { CsvRecord, Header, HeadersSource, ParsedRow, ParsedTable, ParseTableOptions, Row } from "./csv";
-export { buildZip, MEDIA_DIR, readZip } from "./zip";
+export { buildZip, buildZipOfCsvs, MEDIA_DIR, readZip } from "./zip";
 export { exportTable, planImport } from "./table";
 export type { ImportMode, ImportPlan, PlanRow, RowStatus, TableAdapter } from "./table";
 export { deriveMedia, diffMedia, mediaFileName, REMOVE_MEDIA, resolveMediaCell } from "./media";

@@ -2,12 +2,13 @@
  * 確変（予約した景品を当てる回）をどの回で起こすかの計画。管理画面の「本抽選画面設定」で決める。
  *
  *   - auto : おまかせ。景品の数の真ん中あたりで、確変対応ONの景品の数だけ続けて確変にする（{@link PrizeReservationService.calculateKakuhenTimings}）。
- *   - fixed: 指定した回で起こす。「何回目の抽選か」を1始まりで並べる（例: 3,7）。空なら確変なし。
+ *   - none : なし。確変は起こさない。
+ *   - fixed: 回を指定。指定した回で起こす。「何回目の抽選か」を1始まりで並べる（例: 3,7）。空なら確変なし。
  *
  * 計画は、その本番の抽選を始めるときに一度だけ確定する（確変の回の状態として保存される）。
  * 抽選が始まったあとに設定を変えても、結果をリセットするまでは反映されない。
  */
-export type KakuhenMode = "auto" | "fixed";
+export type KakuhenMode = "auto" | "none" | "fixed";
 
 export interface KakuhenPlan {
   mode: KakuhenMode;
@@ -16,6 +17,7 @@ export interface KakuhenPlan {
 }
 
 export const AUTO_KAKUHEN_PLAN: KakuhenPlan = { mode: "auto", fixedTimings: [] };
+export const NO_KAKUHEN_PLAN: KakuhenPlan = { mode: "none", fixedTimings: [] };
 
 /**
  * 保存されている画面設定（`main-screen-settings`）から計画を取り出す。
@@ -24,6 +26,7 @@ export const AUTO_KAKUHEN_PLAN: KakuhenPlan = { mode: "auto", fixedTimings: [] }
 export function parseKakuhenPlan(settings: unknown): KakuhenPlan {
   if (typeof settings !== "object" || settings === null) return AUTO_KAKUHEN_PLAN;
   const { kakuhenMode, kakuhenFixedTimings } = settings as { kakuhenMode?: unknown; kakuhenFixedTimings?: unknown };
+  if (kakuhenMode === "none") return NO_KAKUHEN_PLAN;
   if (kakuhenMode !== "fixed") return AUTO_KAKUHEN_PLAN;
   return { mode: "fixed", fixedTimings: Array.isArray(kakuhenFixedTimings) ? kakuhenFixedTimings.filter(isPositiveInteger) : [] };
 }
