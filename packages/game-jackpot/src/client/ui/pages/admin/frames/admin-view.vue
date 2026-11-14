@@ -27,7 +27,7 @@ import { HeaderActions, PageShell, TableImportDialog, TableIoToolbar, UiButton, 
 import { JackpotRepository } from '@model/jackpot-repository';
 import { screenTableIo } from '../../../../control/screen-table/screen-table-io';
 import { screensToRows } from '../../../../control/screen-table/screen-table';
-import { DEMO_QUERY_KEY, setJackpotScope } from '@model/jackpot-session';
+import { DEMO_QUERY_KEY, setDemoDrawScreen, setJackpotScope } from '@model/jackpot-session';
 import { SYNC_KIND_LABELS, useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
@@ -38,6 +38,7 @@ const { status, lastError, log } = useBackgroundSync();
 
 // 管理画面は常に本番(live)スコープ。デモ実行後に戻ってきた場合もここで戻す。
 setJackpotScope('live');
+setDemoDrawScreen(false);
 
 // 設定画面からの動作確認用。抽選結果・確変状態はデモ専用ストアに分離される。
 const startDemo = () => router.push({ path: '/jackpot-opening', query: { [DEMO_QUERY_KEY]: '1' } });

@@ -250,7 +250,7 @@ const jackpotRecord = ({ prizeImage, screenBgm }) =>
     updatedAt: Date.now(),
     data: {
       prizes: prizeImage ? [{ id: "smoke-p", name: "p", order: 1, image: "prize.png" }] : [],
-      screens: screenBgm ? [{ screenName: "demo", settingName: "demo-screen-settings", settingValue: JSON.stringify({ demoBgm: "bgm.mp3" }) }] : [],
+      screens: screenBgm ? [{ screenName: "demo", settingName: "demo-screen-settings", settingValue: JSON.stringify({ enabled: true, rounds: 1, bgm: "bgm.mp3" }) }] : [],
       media: {
         ...(prizeImage ? { "prize.png": { hash: blobHashA, mime: "image/png", size: 2 } } : {}),
         ...(screenBgm ? { "bgm.mp3": { hash: blobHashB, mime: "audio/mpeg", size: 2 } } : {}),

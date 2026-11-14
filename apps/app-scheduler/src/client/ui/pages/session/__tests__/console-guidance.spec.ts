@@ -65,61 +65,62 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
       expect(at({ hostPath: "/jackpot-opening", pool: "auto", demo: true }).main).toMatchObject({ action: { kind: "navigate", path: "/jackpot-description?demo=1" } });
     });
 
-    it("オープニング → エントリー → 説明 → 抽選 の順に、主ボタンで画面を切り替える(エントリーした人のみ)", () => {
+    it("オープニング → エントリー → 説明 の順に、主ボタンで画面を切り替える(エントリーした人のみ)。説明の先はホスト画面が決める", () => {
       expect(at({ hostPath: "/jackpot-opening", pool: "entrants" }).main).toMatchObject({ label: "エントリーへ", action: { kind: "navigate", path: "/jackpot-entry" } });
       expect(at({ hostPath: "/execute/jackpot-entry" })).toMatchObject({
         now: expect.stringContaining("エントリー"),
         main: { label: "説明へ", action: { kind: "navigate", path: "/jackpot-description" } },
       });
-      expect(at({ hostPath: "/execute/jackpot-description" }).main).toMatchObject({ label: "抽選を始める", action: { kind: "navigate", path: "/jackpot-draw" } });
+      // 説明の先(デモ抽選か本抽選か)は設定で変わるので、コンソールは行き先を決めず「次へ」(advance)を送る
+      expect(at({ hostPath: "/execute/jackpot-description" }).main).toMatchObject({ label: "次へ", action: { kind: "advance" } });
       expect(at({ hostPath: "/jackpot-result" }).main).toMatchObject({ label: "エンディングへ", action: { kind: "navigate", path: "/jackpot-ending" } });
     });
 
-    describe("説明のスライド", () => {
+    it("デモ抽選(練習): 主ボタンは「次へ」(advance)だけ。止める操作は出さない", () => {
+      const g = at({ hostPath: "/execute/jackpot-demo-draw" });
+      expect(g.now).toContain("デモ抽選");
+      expect(g.main).toMatchObject({ label: "次へ", action: { kind: "advance" } });
+      expect(g.back ?? null).toBeNull();
+    });
+
+    describe("説明のページ", () => {
       const desc = (index: number, total: number, over: Partial<GuidanceInput> = {}) =>
         at({ hostPath: "/execute/jackpot-description", jackpot: { page: "description", index, total, stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null }, ...over });
 
-      it("導入画面: 主ボタンは最初のスライドへ(advance)。前へは無い", () => {
-        const g = desc(-1, 3);
-        expect(g.now).toContain("導入");
-        expect(g.main).toMatchObject({ label: "次のスライドへ (1/3)", action: { kind: "advance" } });
+      it("最初のページ: 主ボタンは次のページへ(advance)。前へは無い", () => {
+        const g = desc(0, 3);
+        expect(g.now).toContain("(1/3)");
+        expect(g.main).toMatchObject({ label: "次のページへ (2/3)", action: { kind: "advance" } });
         expect(g.back).toBeNull();
       });
 
-      it("途中のスライド: 次のスライド位置が出て、前へが使える", () => {
-        const first = desc(0, 3);
-        expect(first.now).toContain("(1/3)");
-        expect(first.main).toMatchObject({ label: "次のスライドへ (2/3)", action: { kind: "advance" } });
-        expect(first.back).toMatchObject({ label: "前へ" });
-        expect(first.back!.hint).toContain("導入");
-        expect(desc(1, 3).main).toMatchObject({ label: "次のスライドへ (3/3)", action: { kind: "advance" } });
-        expect(desc(1, 3).back!.hint).toContain("ひとつ前");
+      it("途中のページ: 次のページ位置が出て、前へが使える", () => {
+        const g = desc(1, 3);
+        expect(g.now).toContain("(2/3)");
+        expect(g.main).toMatchObject({ label: "次のページへ (3/3)", action: { kind: "advance" } });
+        expect(g.back).toMatchObject({ label: "前へ" });
+        expect(g.back!.hint).toContain("ひとつ前");
       });
 
-      it("最後のスライド: 主ボタンは「抽選を始める」(抽選画面へ切り替え)。前へは使える", () => {
+      it("最後のページ: 主ボタンは「説明を終える」(advance。行き先はホストが決める)。前へは使える", () => {
         const g = desc(2, 3);
-        expect(g.main).toMatchObject({ label: "抽選を始める", action: { kind: "navigate", path: "/jackpot-draw" } });
+        expect(g.main).toMatchObject({ label: "説明を終える", action: { kind: "advance" } });
         expect(g.back).not.toBeNull();
-        expect(desc(2, 3, { demo: true }).main).toMatchObject({ action: { kind: "navigate", path: "/jackpot-draw?demo=1" } });
+        expect(desc(2, 3, { demo: true }).main).toMatchObject({ action: { kind: "advance" } });
       });
 
-      it("スライドが0枚: 導入からそのまま「抽選を始める」。前へは無い", () => {
-        const g = desc(-1, 0);
-        expect(g.main).toMatchObject({ label: "抽選を始める", action: { kind: "navigate" } });
-        expect(g.back).toBeNull();
+      it("ページが0枚・1枚だけ: そのまま「説明を終える」。前へは無い", () => {
+        expect(desc(0, 0).main).toMatchObject({ label: "説明を終える", action: { kind: "advance" } });
+        expect(desc(0, 0).back).toBeNull();
+        expect(desc(0, 1).main).toMatchObject({ label: "説明を終える" });
+        expect(desc(0, 1).back).toBeNull();
       });
 
-      it("1枚だけ: 導入では次へ、そのスライドで「抽選を始める」", () => {
-        expect(desc(-1, 1).main).toMatchObject({ label: "次のスライドへ (1/1)", action: { kind: "advance" } });
-        expect(desc(0, 1).main).toMatchObject({ label: "抽選を始める" });
-        expect(desc(0, 1).back).not.toBeNull();
-      });
-
-      it("スライドの位置がまだ届いていない/別画面の状態が残っているときは、従来どおり「抽選を始める」で戻れない", () => {
+      it("ページの位置がまだ届いていない/別画面の状態が残っているときは、「次へ」(advance)だけで戻れない", () => {
         const stale: Array<JackpotPublished | null> = [null, { page: "main-draw", stage: "member", canStop: false, busy: false, member: null, memberId: null, prize: null }, { page: "main-draw", stage: "prize", canStop: true, busy: false, member: null, memberId: null, prize: null }];
         for (const jackpot of stale) {
           const g = at({ hostPath: "/execute/jackpot-description", jackpot });
-          expect(g.main).toMatchObject({ label: "抽選を始める", action: { kind: "navigate", path: "/jackpot-draw" } });
+          expect(g.main).toMatchObject({ label: "次へ", action: { kind: "advance" } });
           expect(g.back ?? null).toBeNull();
         }
       });

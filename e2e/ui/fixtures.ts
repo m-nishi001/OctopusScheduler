@@ -176,9 +176,24 @@ export async function seedQuizzes(page: Page, quizzes: unknown[]): Promise<void>
   await seedStore(page, "quiz-game", "QuizData", [{ id: "record", value: { data: { quizzes, media: {} }, updatedAt: Date.now() } }]);
 }
 
-/** ジャックポットの景品と画面設定(`{ schemaVersion, prizes, screens, media }` の1件のレコード)に、素材を持たない景品・画面設定を入れる。 */
-export async function seedJackpot(page: Page, record: { prizes?: unknown[]; screens?: unknown[] }): Promise<void> {
-  const data = { schemaVersion: 2, prizes: record.prizes ?? [], screens: record.screens ?? [], media: {} };
+/**
+ * デモ抽選(練習抽選)の画面設定のレコード。画面の流れの確認(デモ抽選そのもの)以外のテストは、説明から本抽選へ直行できるよう OFF にする。
+ * 本番の既定は ON(設定が無いときも ON)。
+ */
+export const demoDrawSetting = (enabled: boolean, rounds = 1) => ({
+  screenName: "demo",
+  settingName: "demo-screen-settings",
+  settingValue: JSON.stringify({ enabled, rounds, bgm: "" }),
+});
+
+/**
+ * ジャックポットの景品と画面設定(`{ schemaVersion, prizes, screens, media }` の1件のレコード)に、素材を持たない景品・画面設定を入れる。
+ * 画面設定にデモ抽選が無ければ、`demoDraw`(既定 false)で入れる。説明から本抽選へ直行する従来の流れのテストを、そのまま動かすため。
+ */
+export async function seedJackpot(page: Page, record: { prizes?: unknown[]; screens?: unknown[]; demoDraw?: boolean }): Promise<void> {
+  const screens = [...(record.screens ?? [])] as Array<{ settingName?: string }>;
+  if (!screens.some((s) => s.settingName === "demo-screen-settings")) screens.push(demoDrawSetting(record.demoDraw ?? false));
+  const data = { schemaVersion: 2, prizes: record.prizes ?? [], screens, media: {} };
   await seedStore(page, "jackpot-game", "JackpotData", [{ id: "record", value: { data, updatedAt: Date.now() } }]);
 }
 

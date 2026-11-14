@@ -268,6 +268,7 @@ const presets = computed(() => [
     { label: 'ジャックポット: オープニング', path: q('/jackpot-opening') },
     { label: 'ジャックポット: エントリー', path: '/jackpot-entry' },
     { label: 'ジャックポット: 説明', path: q('/jackpot-description') },
+    { label: 'ジャックポット: デモ抽選', path: q('/jackpot-demo-draw') },
     { label: 'ジャックポット: 抽選', path: q('/jackpot-draw') },
     { label: 'ジャックポット: 結果', path: q('/jackpot-result') },
     { label: 'ジャックポット: エンディング', path: q('/jackpot-ending') },
@@ -375,7 +376,7 @@ async function runMain() {
     });
 }
 
-/** 副ボタン「前へ」。説明のスライドをひとつ戻す。 */
+/** 副ボタン「前へ」。説明のページをひとつ戻す。 */
 async function runBack() {
     if (!guidance.value.back) return;
     await runMainOrBack('back', async () => {

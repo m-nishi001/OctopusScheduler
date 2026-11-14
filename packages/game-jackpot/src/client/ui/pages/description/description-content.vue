@@ -1,161 +1,97 @@
 <template>
-	<MainLayout>
-		<div class="description-screen">
-
-			<transition name="initial-to-slide" mode="out-in">
-				<div v-if="slideIndex === -1" class="description-content">
-					<h2 class="description-title">説明画面</h2>
-					<p class="description-text">ここにゲームの説明を記載します。</p>
-					<p class="description-text">Enterキーを押して次へ進んでください。</p>
-				</div>
-
-				<div v-else class="content-frame">
-					<div class="inner-border">
-						<div class="inner-frame">
-							<div class="slide-container">
-								<transition name="slide-transition" mode="out-in">
-									<div v-if="currentSlide" :key="slideIndex"
-										class="slide-content">
-										<template v-if="currentSlide.type === 'text'">
-											<div v-if="isHtml(getContent(currentSlide))" class="slide-html"
-												v-html="getContent(currentSlide)">
-											</div>
-											<div v-else class="slide-text">{{ getContent(currentSlide) }}</div>
-										</template>
-										<template v-if="currentSlide.type === 'image'">
-											<img :src="currentSlide.assetUrl" class="slide-image" />
-										</template>
-										<template v-if="currentSlide.type === 'html'">
-											<div class="slide-html" v-html="getContent(currentSlide)"></div>
-										</template>
-									</div>
-								</transition>
-							</div>
-						</div>
+	<MainLayout :fullScreen="true">
+		<div class="description-screen" data-testid="description-screen">
+			<Loader v-if="!ready" label="読み込み中..." />
+			<template v-else>
+				<!-- 1ページずつ。画像は画面いっぱいに比率を保って、テキストは中央に大きく出す -->
+				<transition name="page" mode="out-in">
+					<div v-if="page" :key="index" class="page" data-testid="description-page" :data-index="index">
+						<img v-if="page.kind === '画像' && page.imageUrl" :src="page.imageUrl" class="page-image" data-testid="description-image" alt="" />
+						<div v-else-if="page.kind === 'テキスト'" class="page-text" data-testid="description-text">{{ page.text }}</div>
 					</div>
+					<div v-else class="page-empty" data-testid="description-empty">説明のページがありません(Enterで次へ)</div>
+				</transition>
+				<div v-if="total > 1" class="progress-dots">
+					<span v-for="(_, i) in pages" :key="i" class="dot" :class="{ active: i === index }"></span>
 				</div>
-			</transition>
-
-			<div v-if="slideIndex !== -1">
-				<div class="navigation-hint">
-					<div class="progress-dots">
-						<span v-for="(_, index) in elements" :key="index" class="dot"
-							:class="{ active: index === slideIndex }"></span>
-					</div>
-				</div>
-			</div>
-
+			</template>
 		</div>
 	</MainLayout>
 </template>
 <script lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
-import { useScreenAssetUrls, useScreenBgm } from '../../composables/use-screen-media';
-import MainLayout from '../common/main-layout.vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { container } from 'tsyringe';
 import { useRouter } from 'vue-router';
+import MainLayout from '../common/main-layout.vue';
+import Loader from '../common/loader.vue';
+import { useScreenMedia } from '../../composables/use-screen-media';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { useJackpotHost } from '../../composables/use-jackpot-host';
 import { buildJackpotDescriptionState } from '@model/jackpot-host-state';
-import type { OpeningContent } from '@model/screen-config/opening-screen-setting';
+import { parseDescriptionSettings, stepPage } from '@model/screen-config/description-setting';
+import { parseDemoDrawSettings } from '@model/screen-config/demo-draw-setting';
+import { nextScreen, SCREEN_PATH } from '@model/screen-flow';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { container } from 'tsyringe';
+
 export default {
 	name: 'Description',
-	components: { MainLayout },
+	components: { MainLayout, Loader },
 	setup() {
 		const router = useRouter();
 		const session = useJackpotSession();
 
-		const screenConfig = ref<{ bgm: string; contents: OpeningContent[] } | null>(null);
-		const screenSettingsService = container.resolve(ScreenSettingsService);
-
-		const slideIndex = ref(-1);
-		const currentSlide = ref<OpeningContent | null>(null);
-
-		const elements = ref<OpeningContent[]>([]);
-
-
-
-		// 画像のURLとBGMの読み込みと後始末（画面を離れたら止めて、URLを破棄する）
-		const assetUrls = useScreenAssetUrls();
-		const bgm = useScreenBgm();
-		const ready = ref(false);
-
+		// 設定・BGM・画像の準備ができてから画面を出し、BGM を鳴らす。画面を離れたら止めて、後始末する。
+		const { config } = useScreenMedia({
+			screenName: 'description',
+			settingName: 'description-screen-settings',
+			parse: parseDescriptionSettings,
+			items: (c) => c.pages,
+		});
+		/** デモ抽選を挟むか(説明のあとの行き先を決める)。 */
+		const demoDraw = ref<boolean | null>(null);
 		onMounted(async () => {
-
-			const cfg = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings');
-
-
-			if (cfg) {
-
-				screenConfig.value = { bgm: cfg.bgm || '', contents: cfg.contents || [] };
-			} else {
-				screenConfig.value = null;
+			try {
+				demoDraw.value = parseDemoDrawSettings(await container.resolve(ScreenSettingsService).fetchScreenSetting('demo', 'demo-screen-settings')).enabled;
+			} catch (e) {
+				console.error('[Description] failed to load demo draw settings', e);
+				demoDraw.value = true;
 			}
-
-			elements.value = screenConfig.value?.contents || [];
-			// スライドの枚数が決まってから管理端末へ公開する(読み込み中に「枚数0」を見せない)
-			ready.value = true;
-
-
-			await assetUrls.attach(elements.value);
-			await bgm.load(screenConfig.value?.bgm);
-			bgm.play();
 		});
 
-		const nextSlide = () => {
-			if (slideIndex.value < elements.value.length - 1) {
-				slideIndex.value++;
+		const ready = computed(() => config.value !== null && demoDraw.value !== null);
+		const pages = computed(() => config.value?.pages ?? []);
+		const total = computed(() => pages.value.length);
+		const index = ref(0);
+		const page = computed(() => pages.value[index.value] ?? null);
 
-				if (slideIndex.value >= 0 && slideIndex.value < elements.value.length) {
-					currentSlide.value = elements.value[slideIndex.value];
-				} else {
-					currentSlide.value = null;
-				}
-			} else {
-
-				bgm.bgm.value?.pause();
-				router.push(session.to('/jackpot-draw'));
-			}
+		const leave = () => {
+			const next = nextScreen('description', { demoDraw: demoDraw.value ?? true, entry: false });
+			if (next) void router.push(session.to(SCREEN_PATH[next]));
 		};
-		const prevSlide = () => {
-			// 導入画面(-1)より前には戻らない
-			if (slideIndex.value < 0) return;
-			slideIndex.value--;
-			currentSlide.value = slideIndex.value >= 0 ? elements.value[slideIndex.value] : null;
+		const move = (delta: 1 | -1) => {
+			if (!ready.value) return;
+			const step = stepPage(index.value, total.value, delta);
+			if (step.kind === 'leave') leave();
+			else index.value = step.index;
 		};
+		const next = () => move(1);
+		const prev = () => move(-1);
 
 		// 管理端末(コントロール画面)の「次へ/前へ」を、この画面のEnterキーと同じ進行にする。現在位置を公開する。
 		// setup() の同期実行中に呼ぶ(コンポーネントの破棄時に後片付けを登録するため)。
-		const host = useJackpotHost({ advance: nextSlide, back: prevSlide, stopRoulette: () => undefined });
-		watch(
-			[ready, slideIndex, elements],
-			() => {
-				if (ready.value) host.publish(buildJackpotDescriptionState(slideIndex.value, elements.value.length));
-			},
-			{ immediate: true }
-		);
+		const host = useJackpotHost({ advance: next, back: prev, stopRoulette: () => undefined });
+		// ページ数が決まってから管理端末へ公開する(読み込み中に「0ページ」を見せない)
+		watch([ready, index, total], () => {
+			if (ready.value) host.publish(buildJackpotDescriptionState(index.value, total.value));
+		}, { immediate: true });
+
 		const handleKey = (e: KeyboardEvent) => {
-			if (e.key === 'Enter') nextSlide();
+			if (e.key === 'Enter') next();
 		};
 		onMounted(() => window.addEventListener('keydown', handleKey));
-		onUnmounted(() => {
-			try { window.removeEventListener('keydown', handleKey); } catch { }
-		});
+		onUnmounted(() => window.removeEventListener('keydown', handleKey));
 
-		const isHtml = (s: any) => {
-			if (!s || typeof s !== 'string') return false;
-			return /<[^>]+>/.test(s);
-		};
-
-		const getContent = (el: any) => {
-			if (!el) return '';
-			if (el.content && typeof el.content === 'string') return el.content;
-
-			return (el.text && typeof el.text === 'string') ? el.text : '';
-		};
-
-		return { screenConfig, currentSlide, slideIndex, elements, isHtml, getContent, nextSlide, prevSlide };
+		return { ready, pages, total, index, page };
 	},
 };
 </script>
@@ -164,7 +100,8 @@ export default {
 .description-screen {
 	width: 100vw;
 	height: 100vh;
-	background: linear-gradient(135deg, #2b1438 0%, #5a2b6f 50%, #2a1632 100%);
+	background: #0b0b0b;
+	color: #fff;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -173,252 +110,65 @@ export default {
 	overflow: hidden;
 }
 
-.description-screen::before {
-	content: '';
+.page {
 	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-		radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
-	pointer-events: none;
-}
-
-.description-content {
-	width: 100%;
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	color: #ffffff;
-	text-align: center;
-	z-index: 1;
-}
-
-.description-title {
-	font-size: 3.2rem;
-	font-weight: 300;
-	color: #ffffff;
-	text-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
-	margin-bottom: 1.6rem;
-}
-
-.description-text {
-	font-size: 1.25rem;
-	color: rgba(255, 255, 255, 0.85);
-	line-height: 1.6;
-	margin-bottom: 0.8rem;
-}
-
-.content-frame {
-	width: 86%;
-	height: 72%;
-	background: #0b0b0b;
+	inset: 0;
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	padding: 2.4rem;
-	position: relative;
-	overflow: hidden;
-}
-
-.inner-border {
-	width: 100%;
-	height: 100%;
-	padding: 1.2rem;
+	padding: 4vh 6vw;
 	box-sizing: border-box;
-	border: none;
-	display: flex;
-	justify-content: center;
-	align-items: center;
 }
 
-.inner-frame {
-	width: 100%;
-	height: 100%;
-	background: #0b0b0b;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	padding: 1.6rem;
-	min-height: 56vh;
-}
-
-.slide-container {
-	flex: 1 1 auto;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	width: 100%;
-	max-width: 100%;
-	padding: 1rem 0;
-	overflow: hidden;
-}
-
-.slide-content {
-	width: 100%;
-	max-width: 80%;
-	text-align: left;
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	justify-content: flex-start;
-}
-
-.slide-text {
-	/* smaller, centered simple text similar to attachment 1 */
-	font-size: 1rem;
-	font-weight: 300;
-	color: #dcdcdc;
-	line-height: 1.4;
-	margin: 0;
-	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.slide-html {
-	font-size: 1.8rem;
-	color: #e0e0e0;
-	line-height: 1.6;
-	margin-bottom: 2rem;
-	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+.page-image {
 	max-width: 100%;
 	max-height: 100%;
-	width: 100%;
-	height: 100%;
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
-	overflow: hidden;
+	object-fit: contain;
 }
 
-/* Force embedded HTML to respect container bounds */
-.slide-html,
-.slide-html * {
-	max-width: 100% !important;
-	box-sizing: border-box !important;
-}
-
-/* Make media scale down to fit the container */
-.slide-html img,
-.slide-html video,
-.slide-html iframe {
-	max-width: 100% !important;
-	height: auto !important;
-	display: block;
-}
-
-.slide-html h1,
-.slide-html h2,
-.slide-html h3 {
-	color: #ffffff;
-	margin-bottom: 1rem;
-}
-
-.slide-html p {
-	margin-bottom: 1rem;
-}
-
-.slide-image {
-	max-width: 80%;
-	max-height: 60vh;
-	border-radius: 12px;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.slide-modal {
-	background: rgba(255, 255, 255, 0.1);
-	backdrop-filter: blur(10px);
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	border-radius: 16px;
-	padding: 2rem;
-	max-width: 600px;
-	margin: 0 auto;
-	color: #ffffff;
-	font-size: 1.5rem;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.navigation-hint {
-	position: relative;
-	margin: 12px auto 4px auto;
-	left: 0;
-	transform: none;
+.page-text {
+	max-width: 90%;
+	font-size: clamp(2rem, 5vw, 4.5rem);
+	line-height: 1.5;
 	text-align: center;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.page-empty {
+	color: rgba(255, 255, 255, 0.6);
+	font-size: 1.25rem;
+}
+
+.progress-dots {
+	position: absolute;
+	bottom: 2.5vh;
+	display: flex;
+	gap: 0.6rem;
 	pointer-events: none;
-	/* make dots non-interactive */
-	width: 100%;
-	display: flex;
-	justify-content: center;
-}
-
-.progress-dots {
-	display: flex;
-	justify-content: center;
-	gap: 0.75rem;
-	margin-bottom: 0.8rem;
-}
-
-
-
-.hint-text {
-	color: #b0b0b0;
-	font-size: 1.2rem;
-	font-weight: 300;
-	margin-bottom: 1rem;
-	display: block;
-	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.progress-dots {
-	display: flex;
-	justify-content: center;
-	gap: 0.5rem;
 }
 
 .dot {
-	width: 12px;
-	height: 12px;
+	width: 10px;
+	height: 10px;
 	border-radius: 50%;
 	background: rgba(255, 255, 255, 0.3);
 	transition: all 0.3s ease;
 }
 
 .dot.active {
-	background: #ffffff;
-	box-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+	background: #fff;
+	box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
 	transform: scale(1.2);
 }
 
-.slide-transition-enter-active,
-.slide-transition-leave-active {
-	transition: all 0.5s ease;
+.page-enter-active,
+.page-leave-active {
+	transition: opacity 0.35s ease;
 }
 
-.slide-transition-enter-from {
+.page-enter-from,
+.page-leave-to {
 	opacity: 0;
-	transform: translateY(30px);
-}
-
-.slide-transition-leave-to {
-	opacity: 0;
-	transform: translateY(-30px);
-}
-
-.initial-to-slide-enter-active,
-.initial-to-slide-leave-active {
-	transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-.initial-to-slide-enter-from {
-	opacity: 0;
-	transform: translateY(24px) scale(0.995);
-}
-
-.initial-to-slide-leave-to {
-	opacity: 0;
-	transform: translateY(-18px) scale(0.995);
 }
 </style>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RevealTracker, buildJackpotDescriptionState, buildJackpotFinaleState, buildJackpotHostState, canStopAt, deriveStage, revealableDrawId } from "./jackpot-host-state";
+import { RevealTracker, buildJackpotDemoDrawState, buildJackpotDescriptionState, buildJackpotFinaleState, buildJackpotHostState, canStopAt, deriveStage, revealableDrawId } from "./jackpot-host-state";
 import { JACKPOT_STAGES, readJackpotState } from "@octopus/session-hub";
 
 describe("canStopAt", () => {
@@ -177,6 +177,14 @@ describe("buildJackpotFinaleState", () => {
   it("結果・エンディングの画面は、終了の場面で止める操作も当選者・賞品も出さず、共有の読み取りでそのまま読める", () => {
     const state = buildJackpotFinaleState();
     expect(state).toEqual({ page: "finale", stage: "ended", canStop: false, busy: false, member: null, memberId: null, prize: null });
+    expect(readJackpotState({ jackpot: state })).toEqual(state);
+  });
+});
+
+describe("buildJackpotDemoDrawState", () => {
+  it("デモ抽選(練習)の間は、ページ名だけを公開する。当選者・景品・止める操作は載せない", () => {
+    const state = buildJackpotDemoDrawState();
+    expect(state).toEqual({ page: "demo-draw", stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null });
     expect(readJackpotState({ jackpot: state })).toEqual(state);
   });
 });

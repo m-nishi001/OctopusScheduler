@@ -4,8 +4,11 @@ import type { ActionQueue, Step } from "./action-queue";
 /** 終了の画面が出た直後は、連打された進行操作で飛ばさない(この時間は見せる)。 */
 export const MIN_END_DISPLAY_MS = 1000;
 
-/** 次に進む先。終了(景品・メンバーのどちらが尽きた場合も endReason に出る)か、積むサイクルのステップ。 */
-export type NextCycle = { kind: "finished"; progress: DrawProgress } | { kind: "cycle"; steps: Step[] };
+/**
+ * 次に進む先。終了(景品・メンバーのどちらが尽きた場合も endReason に出る)か、積むサイクルのステップか、
+ * 抽選を打ち切って次の画面へ進む(leave。デモ抽選が決めた回数に達したとき。終了の画面は出さない)。
+ */
+export type NextCycle = { kind: "finished"; progress: DrawProgress } | { kind: "cycle"; steps: Step[] } | { kind: "leave" };
 
 export interface DrawFlowDeps {
   queue: ActionQueue;
@@ -20,7 +23,7 @@ export interface DrawFlowDeps {
   onStepError(error: unknown): void;
   /** 抽選が終わった(景品かメンバーが尽きた)。終了の画面を出す。 */
   onFinished(reason: DrawEndReason, progress: DrawProgress): void;
-  /** 終了の画面で進行操作(「次へ」・Enter・OK)があった。結果の画面へ進む。 */
+  /** 終了の画面で進行操作(「次へ」・Enter・OK)があった(または、抽選を打ち切った)。次の画面へ進む。 */
   onLeave(): void;
   /** 進行のステップを実行し始めた(無視された進行操作では呼ばない)。ホストが「演出中」を公開して、止める操作の二重押しを防ぐ。 */
   onStarted?(): void;
@@ -49,7 +52,7 @@ export class DrawFlowController {
   }
 
   async advance(): Promise<void> {
-    if (!this.ready || this.running) return;
+    if (!this.ready || this.running || this.left) return;
     if (this.endedAtMs !== null) {
       this.leave();
       return;
@@ -86,6 +89,11 @@ export class DrawFlowController {
   private async refill(): Promise<boolean> {
     try {
       const next = await this.deps.nextCycle();
+      if (next.kind === "leave") {
+        this.left = true;
+        this.deps.onLeave();
+        return false;
+      }
       if (next.kind === "finished") {
         this.endedAtMs = this.now();
         this.deps.onFinished(next.progress.endReason!, next.progress);
