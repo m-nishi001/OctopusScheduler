@@ -61,9 +61,18 @@ describe("useLotteryBgm", () => {
     await expect(useLotteryBgm("prizeLotteryBgms").playRandom()).resolves.toBeUndefined();
   });
 
-  it("fadeOut は 1.5秒のフェードアウトを頼む", async () => {
-    await useLotteryBgm("memberLotteryBgms").fadeOut();
+  it("fadeOut は 1.5秒のフェードアウトを頼む。流していない(未設定)ときは何もしない", async () => {
+    settings.mockResolvedValue({ memberLotteryBgms: ["m.mp3"] });
+    blobOf.mockResolvedValue(new Blob(["x"]));
+    const bgm = useLotteryBgm("memberLotteryBgms");
+    await bgm.fadeOut();
+    expect(audio.fadeOut).not.toHaveBeenCalled();
+
+    await bgm.playRandom();
+    await bgm.fadeOut();
     expect(audio.fadeOut).toHaveBeenCalledWith(LOTTERY_BGM_FADE_MS);
     expect(LOTTERY_BGM_FADE_MS).toBe(1500);
+    await bgm.fadeOut();
+    expect(audio.fadeOut).toHaveBeenCalledTimes(1);
   });
 });

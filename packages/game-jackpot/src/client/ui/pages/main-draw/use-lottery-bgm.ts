@@ -35,8 +35,13 @@ export function useLotteryBgm(key: LotteryBgmKey): LotteryBgmPlayer {
   const repo = container.resolve(JackpotRepository);
   const screenSettingsService = container.resolve(ScreenSettingsService);
   const { load, play, stop, fadeOut } = useAudio();
+  /** この抽選で曲を流しているか(未設定・読み込み失敗のときは false。フェードのログを出さない)。 */
+  let playing = false;
 
-  const playRandom = async (): Promise<void> => {
+  /** 読み込み中の再生(停止が先に来ても、再生が始まってからフェードアウトするため、待てるようにする)。 */
+  let pending: Promise<void> = Promise.resolve();
+
+  const start = async (): Promise<void> => {
     try {
       const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
       const name = pickLotteryBgm(cfg?.[key]);
@@ -47,14 +52,20 @@ export function useLotteryBgm(key: LotteryBgmKey): LotteryBgmPlayer {
       await load(blob);
       console.log(`[LotteryBgm] ${key} play`, name);
       await play({ isRepeat: true });
+      playing = true;
     } catch (e) {
       console.error(`Failed to play ${key}:`, e);
     }
   };
 
+  const playRandom = (): Promise<void> => (pending = start());
+
   return {
     playRandom,
     fadeOut: async () => {
+      await pending;
+      if (!playing) return;
+      playing = false;
       try {
         console.log(`[LotteryBgm] ${key} fadeOut`);
         await fadeOut(LOTTERY_BGM_FADE_MS);
@@ -62,6 +73,10 @@ export function useLotteryBgm(key: LotteryBgmKey): LotteryBgmPlayer {
         console.warn(`Failed to fade out ${key}:`, e);
       }
     },
-    stop,
+    stop: async () => {
+      await pending;
+      playing = false;
+      await stop();
+    },
   };
 }
