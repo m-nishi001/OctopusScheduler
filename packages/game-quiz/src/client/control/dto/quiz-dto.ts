@@ -3,6 +3,8 @@ export interface QuizSettings {
   prizeImage: Blob | null;
   prizeName: string | null;
   prizeBgm: Blob | null;
+  introBgm: Blob | null;
+  rankingBgm: Blob | null;
 }
 
 export interface QuizDto {

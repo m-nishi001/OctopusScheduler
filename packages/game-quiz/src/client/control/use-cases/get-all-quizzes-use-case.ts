@@ -28,6 +28,8 @@ export class GetAllQuizzesUseCase {
             prizeImage: quiz.settings.prizeImage,
             prizeName: quiz.settings.prizeName ?? null,
             prizeBgm: quiz.settings.prizeBgm,
+            introBgm: quiz.settings.introBgm,
+            rankingBgm: quiz.settings.rankingBgm,
           }
         : undefined,
     }));

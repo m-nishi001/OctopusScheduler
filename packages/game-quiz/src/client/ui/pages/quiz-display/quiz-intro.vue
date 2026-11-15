@@ -13,6 +13,7 @@ import { useQuizSession } from '../../composables/use-quiz-session';
 import { useQuizHost } from '../../composables/use-quiz-host';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import { buildQuizHostState } from '../../../model/quiz-host-state';
+import { useScreenBgm } from '../../composables/use-screen-bgm';
 
 const router = useRouter();
 const route = useRoute();
@@ -26,6 +27,8 @@ const goNext = () => {
 
 // セッションのホストなら、管理端末の「次へ」でも進める。
 const host = useQuizHost({ advance: goNext });
+// クイズ開始の画面にいる間、開始BGMを1回だけ流す
+const screenBgm = useScreenBgm();
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') goNext();
@@ -35,6 +38,7 @@ onMounted(async () => {
     document.addEventListener('keydown', handleKeydown);
     try {
         const quiz = await container.resolve(StartQuizUseCase).execute(quizId);
+        void screenBgm.playOnce(quiz?.settings?.introBgm);
         host.publish(buildQuizHostState({ page: 'intro', quizId, title: quiz?.title }));
     } catch {
         host.publish(buildQuizHostState({ page: 'intro', quizId }));

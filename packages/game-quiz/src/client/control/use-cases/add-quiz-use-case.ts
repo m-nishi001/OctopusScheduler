@@ -27,6 +27,8 @@ export class AddQuizUseCase {
             prizeImage: dto.settings.prizeImage ?? null,
             prizeName: dto.settings.prizeName ?? null,
             prizeBgm: dto.settings.prizeBgm ?? null,
+            introBgm: dto.settings.introBgm ?? null,
+            rankingBgm: dto.settings.rankingBgm ?? null,
           }
         : undefined,
     };

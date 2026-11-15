@@ -18,11 +18,11 @@ const quiz = (over: Partial<QuizRecordEntry> = {}): QuizRecordEntry => ({
   correctNo: 1,
   timeLimit: 20,
   bgm: "bgm.wav",
-  settings: { correctBgm: "ok.wav", prizeImage: "gift.png", prizeName: "お菓子", prizeBgm: null },
+  settings: { correctBgm: "ok.wav", prizeImage: "gift.png", prizeName: "お菓子", prizeBgm: null, introBgm: "intro.wav", rankingBgm: "rank.wav" },
   ...over,
 });
 
-const FILES = new Set(["tokyo.png", "bgm.wav", "ok.wav", "gift.png", "new.png"]);
+const FILES = new Set(["tokyo.png", "bgm.wav", "ok.wav", "gift.png", "new.png", "intro.wav", "rank.wav"]);
 
 function run(csv: string, current: QuizRecordEntry[], mode: ImportMode = "upsert", changed: string[] = [], files: ReadonlySet<string> = FILES) {
   const parsed = parseTable(bytes(csv), quizHeadersFromNames);
@@ -36,8 +36,8 @@ const exported = (items: QuizRecordEntry[]) => exportTable(items, quizAdapter({ 
 describe("クイズの列", () => {
   it("書き出しの列は、選択肢の番号の最大まで 選択肢k / 選択肢k画像 / 選択肢k色", () => {
     const head = exported([quiz()]).split("\r\n")[0].replace("﻿", "").split(",");
-    expect(head.slice(0, 10)).toEqual(["ID", "タイトル", "問題", "制限時間(秒)", "正解(選択肢の番号)", "BGM", "正解BGM", "景品名", "景品画像", "景品BGM"]);
-    expect(head.slice(10)).toEqual(["選択肢1", "選択肢1画像", "選択肢1色", "選択肢2", "選択肢2画像", "選択肢2色", "選択肢3", "選択肢3画像", "選択肢3色", "選択肢4", "選択肢4画像", "選択肢4色"]);
+    expect(head.slice(0, 12)).toEqual(["ID", "タイトル", "問題", "制限時間(秒)", "正解(選択肢の番号)", "BGM", "正解BGM", "景品名", "景品画像", "景品BGM", "開始BGM", "ランキングBGM"]);
+    expect(head.slice(12)).toEqual(["選択肢1", "選択肢1画像", "選択肢1色", "選択肢2", "選択肢2画像", "選択肢2色", "選択肢3", "選択肢3画像", "選択肢3色", "選択肢4", "選択肢4画像", "選択肢4色"]);
   });
 
   it("取込の列の数は CSV の見出しから決める(日本語と英語の別名、全角数字、画像・色だけの列も)", () => {
@@ -66,7 +66,7 @@ describe("往復", () => {
 
   it("CSV だけを取り込み直しても素材は変わらない(素材のセルが空 = いまのまま)", () => {
     const items = [quiz()];
-    const csv = exported(items).replace(/tokyo\.png|bgm\.wav|ok\.wav|gift\.png/g, "");
+    const csv = exported(items).replace(/tokyo\.png|bgm\.wav|ok\.wav|gift\.png|intro\.wav|rank\.wav/g, "");
     const plan = run(csv, items, "upsert", [], new Set());
     expect(plan.counts.unchanged).toBe(1);
   });
