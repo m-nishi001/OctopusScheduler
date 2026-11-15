@@ -111,6 +111,7 @@ test("@motion クイズの開始BGM・ランキングBGMは、その画面で1�
   // 締切 → 正解 → ランキング: ランキングBGMが1回だけ流れる
   const next = nextButton(admin.page);
   await next.click(); // 受付を締め切る
+  await expect(host.page.getByText("受付を終了しました")).toBeVisible({ timeout: 30_000 });
   await expect(next).not.toContainText("締め切る");
   await next.click(); // → 正解
   await expect.poll(() => route(host.page)).toBe(`/execute/quiz/${QUIZ_ID}/answer`);
