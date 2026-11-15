@@ -158,10 +158,10 @@ describe("JackpotRepository", () => {
 
     it("画面設定の入れ子(コンテンツの画像・効果音、BGM の一覧)の参照も数える", async () => {
       await repo.updateScreenSettings(
-        [screen("opening", { bgm: "o.mp3", items: [{ kind: "画像", image: "i.png", se: "se.mp3" }, { kind: "テキスト" }] }), screen("main", { memberLotteryBgms: ["m1.mp3", ""] })],
-        files({ "o.mp3": mp3("1"), "i.png": png("2"), "se.mp3": mp3("3"), "m1.mp3": mp3("4"), "unused.mp3": mp3("5") })
+        [screen("opening", { bgm: "o.mp3", items: [{ kind: "画像", image: "i.png", se: "se.mp3" }, { kind: "テキスト" }] }), screen("main", { memberLotteryBgms: ["m1.mp3", ""], prizeLotteryBgms: ["p1.mp3"] })],
+        files({ "o.mp3": mp3("1"), "i.png": png("2"), "se.mp3": mp3("3"), "m1.mp3": mp3("4"), "p1.mp3": mp3("6"), "unused.mp3": mp3("5") })
       );
-      expect(Object.keys((await repo.readRecord()).media).sort()).toEqual(["i.png", "m1.mp3", "o.mp3", "se.mp3"]);
+      expect(Object.keys((await repo.readRecord()).media).sort()).toEqual(["i.png", "m1.mp3", "o.mp3", "p1.mp3", "se.mp3"]);
     });
 
     it("同じ名前で別の中身のファイルを渡すと、その名前の素材を差し替える", async () => {

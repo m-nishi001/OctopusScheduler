@@ -34,15 +34,15 @@ import type { MemberDto } from '@control/member/dto/member-dto';
 import { MemberPhotoCache } from '@octopus/accounts';
 import type { DrawMemberResponse } from '@control/draw/dto/draw-member-response';
 import MemberWinnerDialog from './member-winner-dialog.vue';
-import { useMemberDrawBgm } from './use-member-draw-bgm';
-import { buildMemberStopSteps, pickMemberStopPattern, requiredLeadPx } from './member-stop-patterns';
+import { useLotteryBgm } from '../use-lottery-bgm';
+import { buildMemberStopSteps, pickMemberStopPattern, requiredLeadPx, scaleStopSteps } from './member-stop-patterns';
 
 // Public ref interface for parent components that call methods on this component
 export type MemberAnimRef = {
     startDraw: (winnerId?: string | null) => void;
     start: (speed?: number) => void;
-    stopAt: (id: string | null) => Promise<string | null>;
-    stopDraw: () => Promise<string | null>;
+    stopAt: (id: string | null, sec?: number) => Promise<string | null>;
+    stopDraw: (sec?: number) => Promise<string | null>;
 };
 
 export default {
@@ -67,7 +67,7 @@ export default {
 
         // メンバー抽選中のBGM再生はアニメーション本体と独立した関心事のため
         // composableに分離している。
-        const { playRandomMemberBgm, stopBgm } = useMemberDrawBgm();
+        const memberBgm = useLotteryBgm('memberLotteryBgms');
 
         const displayMembers = ref<MemberDto[]>([]);
 
@@ -269,7 +269,7 @@ export default {
          * 指定した参加者が表示の中に無いときは、別の人で止めず、例外にする(画面の当選と保存した抽選結果が食い違うため)。
          * 参加者を指定しない(null)ときだけ、中央にいちばん近い人で止める。
          */
-        const stopAt = (memberId: string | null): Promise<string | null> => {
+        const stopAt = (memberId: string | null, sec?: number): Promise<string | null> => {
             return new Promise((resolve, reject) => {
                 if (!track.value || !viewport.value) {
                     resolve(null);
@@ -341,7 +341,8 @@ export default {
                 const delta = viewportCenter - itemCenter;
                 const finalX = currentTransform + delta;
 
-                const steps = buildMemberStopSteps(stopPattern, finalX, pitch);
+                // 止まり方の形は変えず、全体の長さだけを `sec` に合わせて伸び縮みさせる(止まる位置は変わらない)
+                const steps = scaleStopSteps(buildMemberStopSteps(stopPattern, finalX, pitch), sec);
                 // e2e(jackpot-stop-patterns)が、選ばれた止まり方をこのログから読む。文言を変えるときはテストも直す。
                 console.log('[MemberDrawAnimation] stopAt: pattern', stopPattern);
                 const tl = gsap.timeline({
@@ -393,18 +394,20 @@ export default {
                     console.warn('[MemberDrawAnimation] startDraw: ensureWinnerInDisplay failed', e);
                 }
                 start();
-                void playRandomMemberBgm();
+                void memberBgm.playRandom();
             })();
             return plannedWinnerId;
         };
 
-        const stopDraw = async (): Promise<string | null> => {
+        /** `sec`: 停止から当選者が止まるまでの長さ(秒。管理画面の設定)。省略は止まり方ごとの標準の長さ。 */
+        const stopDraw = async (sec?: number): Promise<string | null> => {
             await starting;
             let id: string | null;
             try {
-                id = await stopAt(plannedWinnerId || null);
+                // 停止が始まったら、メンバー抽選BGMはフェードアウトする(止まるのを待たない)
+                void memberBgm.fadeOut();
+                id = await stopAt(plannedWinnerId || null, sec);
             } finally {
-                try { await stopBgm(); } catch (e) { /* ignore */ }
                 plannedWinnerId = null;
             }
             emit('member-selected', id);

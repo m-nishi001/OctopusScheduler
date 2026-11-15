@@ -39,7 +39,7 @@ function memberSteps(ctx: DrawContext): Step[] {
     pause(SETTLE_SEC.memberStage, ctx.wait),
     step(() => ctx.memberAnim.value?.startDraw(ctx.result.value?.wonMember?.id ?? null)),
     pause(SETTLE_SEC.spinning, ctx.wait),
-    step(() => ctx.memberAnim.value?.stopDraw(), "stopMemberDraw"),
+    step(() => ctx.memberAnim.value?.stopDraw(ctx.memberStopSec), "stopMemberDraw"),
     pause(SETTLE_SEC.stopped, ctx.wait),
     step(() => {
       ctx.phase.value = "prize";
@@ -48,18 +48,20 @@ function memberSteps(ctx: DrawContext): Step[] {
   ];
 }
 
-/** 通常の景品抽選1回ぶんの進行ステップ。回転を始める → 次の操作で BGM を鳴らして止める(この止める操作には `stopPrizeDraw` の目印がつく)。 */
+/** 通常の景品抽選1回ぶんの進行ステップ。回転を始める(景品抽選BGMを流す) → 次の操作で当選BGMを鳴らし、景品抽選BGMをフェードアウトして止める(この止める操作には `stopPrizeDraw` の目印がつく)。 */
 export function normalPrizeSteps(ctx: DrawContext): Step[] {
   return [
     step(async () => {
       const prize = requireSelectedPrize(ctx);
       await preloadBgm(prize.bgm1, ctx);
       ctx.prizeAnim.value?.startSpin?.();
+      ctx.prizeLotteryBgm.playRandom(); // 待たない(音の都合で進行を止めない)
     }),
     pause(SETTLE_SEC.prizeSpinning, ctx.wait),
     step(async () => {
       const prize = requireSelectedPrize(ctx);
       await playBgm(prize.bgm1, ctx);
+      void ctx.prizeLotteryBgm.fadeOut();
       await ctx.prizeAnim.value?.stopSpin?.(ctx.prizeStopSec, prize.id, 1);
     }, "stopPrizeDraw"),
   ];
@@ -67,13 +69,14 @@ export function normalPrizeSteps(ctx: DrawContext): Step[] {
 
 function winningDialogSteps(ctx: DrawContext): Step[] {
   return [
-    step(async () => {
-      await stopBgm();
+    step(() => {
+      // 当選BGMは止めずに、結果を見せている間も流す
       ctx.showPrizeWinningDialog.value = true;
     }),
     pause(SETTLE_SEC.dialog, ctx.wait),
-    step(() => {
+    step(async () => {
       ctx.showPrizeWinningDialog.value = false;
+      await stopBgm();
     }),
   ];
 }

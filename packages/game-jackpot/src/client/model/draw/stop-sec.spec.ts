@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_PRIZE_STOP_SEC, clampPrizeStopSec, parsePrizeStopSec } from "./prize-stop-sec";
+import { DEFAULT_PRIZE_STOP_SEC, clampPrizeStopSec, parseMemberStopSec, parsePrizeStopSec } from "./stop-sec";
 
 describe("parsePrizeStopSec（保存された画面設定から止まるまでの秒数を取り出す）", () => {
   it("設定が無い・形が違う・値が無いときは既定の4秒", () => {
@@ -21,5 +21,20 @@ describe("parsePrizeStopSec（保存された画面設定から止まるまで�
     expect(parsePrizeStopSec({ prizeStopSec: 99 })).toBe(15);
     expect(parsePrizeStopSec({ prizeStopSec: 3.3 })).toBe(3.5);
     expect(clampPrizeStopSec(Infinity)).toBe(4);
+  });
+});
+
+describe("parseMemberStopSec（メンバー抽選の停止秒数。景品抽選とは別の設定）", () => {
+  it("無い・形が違うときは既定(3.5秒)。景品抽選の設定には影響されない", () => {
+    expect(parseMemberStopSec(null)).toBe(3.5);
+    expect(parseMemberStopSec({ prizeStopSec: 9 })).toBe(3.5);
+    expect(parseMemberStopSec({ memberStopSec: "abc" })).toBe(3.5);
+  });
+
+  it("指定した秒数を使い、2〜15秒・0.5秒刻みに収める", () => {
+    expect(parseMemberStopSec({ memberStopSec: 6, prizeStopSec: 9 })).toBe(6);
+    expect(parseMemberStopSec({ memberStopSec: 1 })).toBe(2);
+    expect(parseMemberStopSec({ memberStopSec: 99 })).toBe(15);
+    expect(parseMemberStopSec({ memberStopSec: 3.3 })).toBe(3.5);
   });
 });

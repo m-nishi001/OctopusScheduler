@@ -12,8 +12,8 @@ const sleep = (ms: number) => delay(ms / 1000);
 /**
  * 確変(kakuhen)の景品抽選の2段階演出(1サイクルにつき1つ作る)。
  *
- * 同じ景品を2つのセクターに複製して出す。1つ目は景品の画像1、2つ目は画像2。
- * ダミー抽選で1つ目(occurrence=1)に止め、メッセージを挟んで、本抽選で2つ目(occurrence=2)に止める。
+ * 通常の抽選が2回。1回目はダミー当選景品(dummyWinnerPrizeId。無ければ本物の景品の画像1の複製)で止まり、
+ * メッセージを挟んで、2回目は本物の景品(画像2の複製)のセクターに止まる。
  * 段階をまたいで持つ状態はこのインスタンスだけが持つ(サイクルが途中で中断しても次に残らない)。
  */
 export class KakuhenSession {
@@ -34,36 +34,44 @@ export class KakuhenSession {
     const prizeRes = ctx.prizeRes.value;
     this.originalPrizes = prizes.slice();
 
-    // 当選景品と、ダミー用の景品だけをルーレットに流す(当選景品は2つに複製する)
-    const displayIds = [
-      prizeRes?.winnerPrizeId,
-      prizeRes?.dummyWinnerPrizeId,
-      ...(prizeRes?.dummyPrizeIds || []),
-    ].filter(Boolean) as string[];
+    // 当選景品(本物)と、ダミー用の景品だけをルーレットに流す。
+    // 1回目は dummyWinnerPrizeId の景品(名前・画像)で止まる。♪ダミー当選は確変景品の行の bgm1(景品シートの出力と同じ)。
+    // ダミーの指定が無い(null)・見つからないときは、本物の景品の複製(画像1)で止まる。
+    const winner = prizes.find((x) => x.id === prizeRes?.winnerPrizeId);
+    const designated = prizes.find((x) => x.id === prizeRes?.dummyWinnerPrizeId && x.id !== winner?.id);
     const shown: RoulettePrizeDto[] = [];
-    for (const id of displayIds) {
-      const p = prizes.find((x) => x.id === id);
-      if (!p) continue;
-      if (p.id !== prizeRes?.winnerPrizeId) {
-        shown.push(p);
-        continue;
-      }
-      this.dummy = {
-        ...p,
-        id: `${p.id}__k1`,
-        originalPrizeId: p.id,
-        winningImage1: p.winningImage1 || p.image,
-        winningImage2: undefined,
-      };
+    if (winner) {
       this.final = {
-        ...p,
-        id: `${p.id}__k2`,
-        image: p.image2,
-        originalPrizeId: p.id,
-        winningImage1: p.winningImage2 || p.image2,
+        ...winner,
+        id: `${winner.id}__k2`,
+        image: winner.image2,
+        originalPrizeId: winner.id,
+        winningImage1: winner.winningImage2 || winner.image2,
         winningImage2: undefined,
       };
+      if (designated) {
+        this.dummy = {
+          ...designated,
+          id: `${designated.id}__k1`,
+          originalPrizeId: designated.id,
+          winningImage1: designated.winningImage1 || designated.image,
+          winningImage2: undefined,
+          bgm1: winner.bgm1,
+        };
+      } else {
+        this.dummy = {
+          ...winner,
+          id: `${winner.id}__k1`,
+          originalPrizeId: winner.id,
+          winningImage1: winner.winningImage1 || winner.image,
+          winningImage2: undefined,
+        };
+      }
       shown.push(this.dummy, this.final);
+    }
+    for (const id of prizeRes?.dummyPrizeIds || []) {
+      const p = prizes.find((x) => x.id === id);
+      if (p) shown.push(p);
     }
 
     this.prepared = await ctx.preparePrizes(shown);
@@ -81,12 +89,14 @@ export class KakuhenSession {
       console.warn("[Kakuhen] failed to start the dummy spin", e);
     }
     await preloadBgm(this.dummy?.bgm1, ctx);
+    ctx.prizeLotteryBgm.playRandom(); // 待たない(音の都合で進行を止めない)
   }
 
   async stopDummyDraw(): Promise<void> {
     const anim = this.ctx.prizeAnim.value;
     if (!anim?.stopSpin) return;
     await playBgm(this.dummy?.bgm1, this.ctx);
+    void this.ctx.prizeLotteryBgm.fadeOut();
     await anim.stopSpin(KAKUHEN_TIMINGS.DUMMY_SPIN_DOWN_DURATION_MS / 1000, this.dummy?.id || null, 1);
   }
 
@@ -113,9 +123,10 @@ export class KakuhenSession {
       result.wonPrize = this.dummy as PrizeDto | null;
       if (this.dummy) ctx.setSelectedPrize(this.dummy as PrizeDto);
     }
-    await stopBgm();
     ctx.showPrizeWinningDialog.value = true;
     await sleep(KAKUHEN_TIMINGS.DUMMY_PRIZE_DIALOG_DISPLAY_MS);
+    // ♪ダミー当選は、結果を見せている間(「だが」の前まで)流す
+    await stopBgm();
   }
 
   closeDummyPrizeDialog(): void {
@@ -140,6 +151,7 @@ export class KakuhenSession {
     } catch (e) {
       console.warn("[Kakuhen] failed to start the final spin", e);
     }
+    ctx.prizeLotteryBgm.playRandom(); // 待たない(音の都合で進行を止めない)
   }
 
   async stopFinalDraw(): Promise<void> {
@@ -149,15 +161,16 @@ export class KakuhenSession {
     const anim = ctx.prizeAnim.value;
 
     await playBgm(final.bgm2, ctx);
+    void ctx.prizeLotteryBgm.fadeOut();
     if (anim?.stopSpin) {
       const items = await this.syncAnimationItems();
       const durationSec = KAKUHEN_TIMINGS.FINAL_SPIN_DOWN_DURATION_MS / 1000;
       if (items.length > 0 && !items.some((it) => it.id === final.id)) {
-        // 複製したセクターが見つからないときは、最後のセクターに止める
+        // 本物のセクターが見つからないときは、最後のセクターに止める
         console.warn("[Kakuhen] final prize not found in animation items; stopping on the last item");
         await anim.stopSpin(durationSec, items[items.length - 1].id, 1);
       } else {
-        await anim.stopSpin(durationSec, final.id, 2);
+        await anim.stopSpin(durationSec, final.id, 1);
       }
     }
 

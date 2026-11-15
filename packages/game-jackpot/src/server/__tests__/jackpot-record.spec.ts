@@ -36,7 +36,7 @@ describe("screenMediaNames", () => {
   it("デモ抽選・結果画面の BGM、本抽選のメンバー抽選 BGM の一覧を集める(空は含めない)", () => {
     expect(screenMediaNames(screen({ enabled: true, rounds: 1, bgm: "d.mp3" })).sort()).toEqual(["d.mp3"]);
     expect(screenMediaNames(screen({ resultBgm: "r.mp3" })).sort()).toEqual(["r.mp3"]);
-    expect(screenMediaNames(screen({ memberLotteryBgms: ["m1.mp3", "", "m2.mp3"], prizeStopSec: 3 })).sort()).toEqual(["m1.mp3", "m2.mp3"]);
+    expect(screenMediaNames(screen({ memberLotteryBgms: ["m1.mp3", "", "m2.mp3"], prizeLotteryBgms: ["p1.mp3", ""], prizeStopSec: 3 })).sort()).toEqual(["m1.mp3", "m2.mp3", "p1.mp3"]);
   });
 
   it("JSON でない値は何も参照していない", () => {

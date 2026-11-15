@@ -2,14 +2,15 @@
  * ジャックポット画面設定の表(CSV)への対応。画面設定は「画面ごとに1件の JSON」で、表は2つに分ける(`screens.zip` に2つの CSV が入る)。
  *
  * ## screens.csv — 画面ごとに1行。列は固定
- * `画面*, BGM, メンバー抽選BGM, デモ抽選, デモ回数, 停止秒数, 参加者の停止, 確変の決め方, 確変の回`
+ * `画面*, BGM, メンバー抽選BGM, 景品抽選BGM, デモ抽選, デモ回数, メンバー停止秒, 景品停止秒, 参加者の停止, 確変の決め方, 確変の回`
  * - 画面: オープニング / 説明 / デモ抽選 / 本抽選 / 最終結果 / エンディング(1画面1行)。
  * - その画面で使わない列は空欄にする(入っていたらエラー)。使う列:
  *   - オープニング・説明・最終結果・エンディング: BGM
  *   - デモ抽選: BGM・デモ抽選・デモ回数
- *   - 本抽選: メンバー抽選BGM・停止秒数・参加者の停止・確変の決め方・確変の回
- * - BGM: 音の素材の名前。メンバー抽選BGM: 音の素材の名前を `;` で区切って並べる。
- * - デモ抽選: あり / なし(空欄は あり)。デモ回数: 1〜3(空欄は 1)。停止秒数: 2〜15(0.5刻み。空欄は 4)。
+ *   - 本抽選: メンバー抽選BGM・景品抽選BGM・メンバー停止秒・景品停止秒・参加者の停止・確変の決め方・確変の回
+ * - BGM: 音の素材の名前。メンバー抽選BGM・景品抽選BGM: 音の素材の名前を `;` で区切って並べる(どちらも3つまで)。
+ *   抽選のたびに設定した中から1曲をランダムに選び、停止が始まるまで流してフェードアウトする(未設定なら無音)。
+ * - デモ抽選: あり / なし(空欄は あり)。デモ回数: 1〜3(空欄は 1)。メンバー停止秒・景品停止秒: 2〜15(0.5刻み。空欄は メンバー 3.5 / 景品 4)。
  * - 参加者の停止: 可 / 不可(空欄は 可)。
  * - 確変の決め方: おまかせ / なし / 回を指定(空欄は おまかせ)。確変の回: 「3, 7」のような回の並び。回を指定のときだけ書き、回を指定なら必須。
  *
@@ -32,7 +33,7 @@ import type { Header, Row } from "@octopus/table-io";
 import { mimeOfName } from "@octopus/table-io";
 import type { ScreenSettingRecord } from "../../../server/jackpot-api-contract";
 import { DEFAULT_PARTICIPANT_STOP, parseParticipantStop } from "../../model/draw/participant-stop";
-import { clampPrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC } from "../../model/draw/prize-stop-sec";
+import { clampMemberStopSec, clampPrizeStopSec, DEFAULT_MEMBER_STOP_SEC, DEFAULT_PRIZE_STOP_SEC, MAX_STOP_SEC, MIN_STOP_SEC } from "../../model/draw/stop-sec";
 import { kakuhenCountWarning, parseKakuhenPlan, parseTimingsText } from "../../model/draw/kakuhen-plan";
 import { MAX_DEMO_ROUNDS, MIN_DEMO_ROUNDS, parseDemoDrawSettings } from "../../model/screen-config/demo-draw-setting";
 import { parseDescriptionSettings } from "../../model/screen-config/description-setting";
@@ -53,9 +54,11 @@ export const SCREEN_HEADERS: readonly Header[] = [
   { key: "screen", label: "画面", aliases: ["screen"], required: true },
   { key: "bgm", label: "BGM", aliases: ["bgm"] },
   { key: "memberBgms", label: "メンバー抽選BGM" },
+  { key: "prizeBgms", label: "景品抽選BGM" },
   { key: "demoDraw", label: "デモ抽選" },
   { key: "demoRounds", label: "デモ回数" },
-  { key: "stopSec", label: "停止秒数" },
+  { key: "memberStopSec", label: "メンバー停止秒" },
+  { key: "prizeStopSec", label: "景品停止秒" },
   { key: "participantStop", label: "参加者の停止" },
   { key: "kakuhenMode", label: "確変の決め方" },
   { key: "kakuhenTimings", label: "確変の回" },
@@ -100,7 +103,7 @@ const COLUMNS_OF: Readonly<Record<ScreenKey, readonly string[]>> = {
   ending: ["bgm"],
   result: ["bgm"],
   demo: ["bgm", "demoDraw", "demoRounds"],
-  main: ["memberBgms", "stopSec", "participantStop", "kakuhenMode", "kakuhenTimings"],
+  main: ["memberBgms", "prizeBgms", "memberStopSec", "prizeStopSec", "participantStop", "kakuhenMode", "kakuhenTimings"],
 };
 const COLUMN_LABEL = new Map(SCREEN_HEADERS.map((h) => [h.key, h.label] as const));
 
@@ -113,6 +116,8 @@ export const KAKUHEN_AUTO = "おまかせ";
 export const KAKUHEN_NONE = "なし";
 export const KAKUHEN_FIXED = "回を指定";
 export const MEMBER_BGM_SEPARATOR = ";";
+/** 抽選BGM(メンバー・景品それぞれ)に設定できる曲数(管理画面と同じ)。 */
+export const MAX_LOTTERY_BGMS = 3;
 
 /** 値の照合用の形(NFKC・前後の空白・小文字)。 */
 const norm = (s: string | undefined): string => (s ?? "").normalize("NFKC").trim().toLowerCase();
@@ -157,8 +162,11 @@ export function screensToTables(records: readonly ScreenSettingRecord[]): { scre
         break;
       case "main": {
         const plan = parseKakuhenPlan(v);
-        row.memberBgms = (Array.isArray(v.memberLotteryBgms) ? v.memberLotteryBgms : []).filter((n): n is string => typeof n === "string" && n !== "").join(MEMBER_BGM_SEPARATOR);
-        row.stopSec = String(clampPrizeStopSec(v.prizeStopSec));
+        const namesOf = (list: unknown): string => (Array.isArray(list) ? list : []).filter((n): n is string => typeof n === "string" && n !== "").join(MEMBER_BGM_SEPARATOR);
+        row.memberBgms = namesOf(v.memberLotteryBgms);
+        row.prizeBgms = namesOf(v.prizeLotteryBgms);
+        row.memberStopSec = String(clampMemberStopSec(v.memberStopSec));
+        row.prizeStopSec = String(clampPrizeStopSec(v.prizeStopSec));
         row.participantStop = parseParticipantStop(v) ? PARTICIPANT_STOP_ON : PARTICIPANT_STOP_OFF;
         row.kakuhenMode = plan.mode === "auto" ? KAKUHEN_AUTO : plan.mode === "none" ? KAKUHEN_NONE : KAKUHEN_FIXED;
         row.kakuhenTimings = plan.mode === "fixed" ? plan.fixedTimings.join(", ") : "";
@@ -288,22 +296,33 @@ export function tablesToScreens(tables: ScreenTables, options: TablesToScreensOp
         break;
       }
       case "main": {
-        const names = (row.memberBgms ?? "").split(MEMBER_BGM_SEPARATOR).map((n) => n.trim());
-        const memberLotteryBgms: string[] = [];
-        names.forEach((n, k) => {
-          if (n === "") {
-            if (names.length > 1 || k > 0) failScreen(i, `メンバー抽選BGM に空の名前があります(${MEMBER_BGM_SEPARATOR} で区切って並べます): ${row.memberBgms}`);
-            return;
+        const bgmList = (text: string | undefined, label: string, max: number): string[] => {
+          const names = (text ?? "").split(MEMBER_BGM_SEPARATOR).map((n) => n.trim());
+          const list: string[] = [];
+          names.forEach((n, k) => {
+            if (n === "") {
+              if (names.length > 1 || k > 0) failScreen(i, `${label} に空の名前があります(${MEMBER_BGM_SEPARATOR} で区切って並べます): ${text}`);
+              return;
+            }
+            const name = mediaCell(n, label, "audio", (m) => failScreen(i, m));
+            if (name) list.push(name);
+          });
+          if (list.length > max) failScreen(i, `${label} は${max}つまでです(${list.length}つ書かれています): ${text}`);
+          return list;
+        };
+        const memberLotteryBgms = bgmList(row.memberBgms, "メンバー抽選BGM", MAX_LOTTERY_BGMS);
+        const prizeLotteryBgms = bgmList(row.prizeBgms, "景品抽選BGM", MAX_LOTTERY_BGMS);
+        const stopSecOf = (text: string | undefined, label: string, fallback: number): number => {
+          if (isBlank(text)) return fallback;
+          const n = Number(norm(text));
+          if (!Number.isFinite(n) || n < MIN_STOP_SEC || n > MAX_STOP_SEC) {
+            failScreen(i, `${label}は${MIN_STOP_SEC}〜${MAX_STOP_SEC}の数(秒)です: ${text}`);
+            return fallback;
           }
-          const name = mediaCell(n, "メンバー抽選BGM", "audio", (m) => failScreen(i, m));
-          if (name) memberLotteryBgms.push(name);
-        });
-        let prizeStopSec = DEFAULT_PRIZE_STOP_SEC;
-        if (!isBlank(row.stopSec)) {
-          const n = Number(norm(row.stopSec));
-          if (!Number.isFinite(n) || n < MIN_PRIZE_STOP_SEC || n > MAX_PRIZE_STOP_SEC) failScreen(i, `停止秒数は${MIN_PRIZE_STOP_SEC}〜${MAX_PRIZE_STOP_SEC}の数(秒)です: ${row.stopSec}`);
-          else prizeStopSec = clampPrizeStopSec(n);
-        }
+          return clampPrizeStopSec(n);
+        };
+        const memberStopSec = stopSecOf(row.memberStopSec, "メンバー停止秒", DEFAULT_MEMBER_STOP_SEC);
+        const prizeStopSec = stopSecOf(row.prizeStopSec, "景品停止秒", DEFAULT_PRIZE_STOP_SEC);
         let participantStop = DEFAULT_PARTICIPANT_STOP;
         if (!isBlank(row.participantStop)) {
           if (same(row.participantStop, PARTICIPANT_STOP_ON)) participantStop = true;
@@ -332,7 +351,7 @@ export function tablesToScreens(tables: ScreenTables, options: TablesToScreensOp
         } else if (!isBlank(row.kakuhenTimings)) {
           failScreen(i, `確変の回は、確変の決め方が「${KAKUHEN_FIXED}」のときだけ書けます(いまは「${mode === "auto" ? KAKUHEN_AUTO : KAKUHEN_NONE}」): ${row.kakuhenTimings}`);
         }
-        parsedScreen.set("main", { memberLotteryBgms, kakuhenMode: mode, kakuhenFixedTimings: timings, prizeStopSec, participantStop });
+        parsedScreen.set("main", { memberLotteryBgms, prizeLotteryBgms, kakuhenMode: mode, kakuhenFixedTimings: timings, memberStopSec, prizeStopSec, participantStop });
         break;
       }
       case "result":
@@ -430,12 +449,12 @@ export const screenLabelOf = (settingName: string): string => SCREENS.find((s) =
 /** 行を比べるための文字列(列の順に並べた値)。 */
 export const rowText = (headers: readonly Header[], row: Row): string => JSON.stringify(headers.map((h) => row[h.key] ?? ""));
 
-/** 表の行が参照している素材の名前(重複なし)。BGM・メンバー抽選BGM・画像・効果音。 */
+/** 表の行が参照している素材の名前(重複なし)。BGM・メンバー抽選BGM・景品抽選BGM・画像・効果音。 */
 export function mediaNamesOf(tables: { screens: readonly Row[]; pages: readonly Row[] | null }): string[] {
   const names = new Set<string>();
   for (const r of tables.screens) {
     if (r.bgm) names.add(r.bgm.trim());
-    for (const n of (r.memberBgms ?? "").split(MEMBER_BGM_SEPARATOR)) if (n.trim()) names.add(n.trim());
+    for (const n of `${r.memberBgms ?? ""}${MEMBER_BGM_SEPARATOR}${r.prizeBgms ?? ""}`.split(MEMBER_BGM_SEPARATOR)) if (n.trim()) names.add(n.trim());
   }
   for (const r of tables.pages ?? []) {
     if (r.image) names.add(r.image.trim());

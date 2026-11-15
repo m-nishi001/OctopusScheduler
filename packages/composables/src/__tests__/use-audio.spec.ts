@@ -129,4 +129,85 @@ describe("useAudio", () => {
       expect(await audio.tryResume()).toBe(false);
     });
   });
+
+  describe("fadeOut", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("音量を下げていき、下げ終えたら止めて、音量を元に戻す", async () => {
+      vi.useFakeTimers();
+      const audio = useAudio();
+      audio.setVolume(0.8);
+      await audio.load(blob());
+      await audio.play({ isRepeat: true });
+      const el = FakeAudio.instances[0];
+      el.currentTime = 30;
+
+      const done = audio.fadeOut(1000);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(el.volume).toBeGreaterThan(0.2);
+      expect(el.volume).toBeLessThan(0.6);
+      expect(el.paused).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(600);
+      await done;
+      expect(el.paused).toBe(true);
+      expect(el.currentTime).toBe(0);
+      expect(audio.isPlaying.value).toBe(false);
+      expect(el.volume).toBe(0.8);
+      expect(audio.volume.value).toBe(0.8);
+    });
+
+    it("曲が無ければ何もしない", async () => {
+      const audio = useAudio();
+      await expect(audio.fadeOut(1000)).resolves.toBeUndefined();
+    });
+
+    it("フェードの途中で stop すると、そこで打ち切って音量を戻す", async () => {
+      vi.useFakeTimers();
+      const audio = useAudio();
+      await audio.load(blob());
+      await audio.play();
+      const el = FakeAudio.instances[0];
+      const done = audio.fadeOut(1000);
+      await vi.advanceTimersByTimeAsync(300);
+      await audio.stop();
+      await vi.advanceTimersByTimeAsync(100);
+      await done;
+      expect(el.paused).toBe(true);
+      expect(el.volume).toBe(1);
+    });
+
+    it("フェードの途中で新しい曲を読み込んでも、新しい曲の音量に触らない", async () => {
+      vi.useFakeTimers();
+      const audio = useAudio();
+      await audio.load(blob());
+      await audio.play();
+      const done = audio.fadeOut(1000);
+      await vi.advanceTimersByTimeAsync(300);
+      await audio.load(blob());
+      await audio.play();
+      await vi.advanceTimersByTimeAsync(1200);
+      await done;
+      expect(FakeAudio.instances[1].volume).toBe(1);
+      expect(FakeAudio.instances[1].paused).toBe(false);
+    });
+  });
+});
+
+describe("fadeOut は描画のフレームに頼らない", () => {
+  afterEach(() => vi.useRealTimers());
+  it("requestAnimationFrame が呼ばれなくても(隠れたタブ・間引き)、時間が経てば終わって止まる", async () => {
+    vi.useFakeTimers();
+    const raf = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", raf);
+    const audio = useAudio();
+    await audio.load(blob());
+    await audio.play();
+    const done = audio.fadeOut(1500);
+    await vi.advanceTimersByTimeAsync(1700);
+    await done;
+    expect(raf).not.toHaveBeenCalled();
+    expect(FakeAudio.instances[0].paused).toBe(true);
+    expect(FakeAudio.instances[0].volume).toBe(1);
+  });
 });
