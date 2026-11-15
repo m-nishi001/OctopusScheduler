@@ -28,12 +28,15 @@ import RankingBoard from '../../components/result/ranking-board.vue';
 import { usePrizeOrchestrator } from '../../composables/use-prize-orchestrator';
 import { useRankingReveal } from '../../composables/use-ranking-reveal';
 import { useQuizSession } from '../../composables/use-quiz-session';
+import { useScreenBgm } from '../../composables/use-screen-bgm';
 
 const router = useRouter();
 const route = useRoute();
 const session = useQuizSession();
 // セッションのホストなら、管理端末の「次へ」(順位発表→賞品→ホーム)でも進める。Enter キーと同じ進行。
 const host = useQuizHost({ advance: () => advance() });
+// ランキングの画面にいる間、ランキングBGMを1回だけ流す
+const screenBgm = useScreenBgm();
 
 type DisplayResult = RankedResult & { rank: number };
 
@@ -138,6 +141,7 @@ onMounted(() => {
 
             if (disposed) return;
             currentQuiz.value = quiz;
+            void screenBgm.playOnce(quiz?.settings?.rankingBgm);
             publishResult = (reveal: QuizRevealPhase) =>
                 host.publish(
                     buildQuizHostState({

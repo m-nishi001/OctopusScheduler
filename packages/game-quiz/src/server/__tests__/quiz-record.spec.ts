@@ -33,8 +33,8 @@ describe("quizMediaNames", () => {
       correctNo: 1,
       timeLimit: 30,
       bgm: "bgm.wav",
-      settings: { correctBgm: "bgm.wav", prizeImage: "p.png", prizeName: "", prizeBgm: null },
+      settings: { correctBgm: "bgm.wav", prizeImage: "p.png", prizeName: "", prizeBgm: null, introBgm: "intro.wav", rankingBgm: "rank.wav" },
     };
-    expect(quizMediaNames(entry).sort()).toEqual(["a.png", "bgm.wav", "p.png"]);
+    expect(quizMediaNames(entry).sort()).toEqual(["a.png", "bgm.wav", "intro.wav", "p.png", "rank.wav"]);
   });
 });

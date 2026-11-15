@@ -179,6 +179,8 @@ export class QuizRepository {
             prizeImage: await refOf(s.prizeImage),
             prizeName: s.prizeName ?? "",
             prizeBgm: await refOf(s.prizeBgm),
+            introBgm: await refOf(s.introBgm),
+            rankingBgm: await refOf(s.rankingBgm),
           }
         : undefined,
     };
@@ -209,6 +211,8 @@ export class QuizRepository {
             prizeImage: await blobOf(s.prizeImage),
             prizeName: s.prizeName,
             prizeBgm: await blobOf(s.prizeBgm),
+            introBgm: await blobOf(s.introBgm),
+            rankingBgm: await blobOf(s.rankingBgm),
           }
         : undefined,
     });

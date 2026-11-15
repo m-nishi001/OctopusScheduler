@@ -31,6 +31,8 @@ const FIXED_HEADERS: readonly Header[] = [
   { key: "prizeName", label: "景品名", aliases: ["当選景品名", "prizeName"] },
   { key: "prizeImage", label: "景品画像", aliases: ["当選景品画像", "prizeImage"], media: true },
   { key: "prizeBgm", label: "景品BGM", aliases: ["当選景品BGM", "prizeBgm"], media: true },
+  { key: "introBgm", label: "開始BGM", aliases: ["introBgm"], media: true },
+  { key: "rankingBgm", label: "ランキングBGM", aliases: ["rankingBgm"], media: true },
 ];
 
 const optionKeys = (k: number) => ({ text: `o${k}`, image: `o${k}Image`, color: `o${k}Color` });
@@ -132,6 +134,8 @@ export function quizAdapter({ optionCount, available }: QuizAdapterOptions): Tab
         prizeImage: mediaRef("景品画像", row.prizeImage, before?.prizeImage),
         prizeName: row.prizeName ?? "",
         prizeBgm: mediaRef("景品BGM", row.prizeBgm, before?.prizeBgm),
+        introBgm: mediaRef("開始BGM", row.introBgm, before?.introBgm),
+        rankingBgm: mediaRef("ランキングBGM", row.rankingBgm, before?.rankingBgm),
       },
     };
   }
@@ -156,6 +160,8 @@ export function quizAdapter({ optionCount, available }: QuizAdapterOptions): Tab
         prizeName: s?.prizeName ?? "",
         prizeImage: s?.prizeImage ?? "",
         prizeBgm: s?.prizeBgm ?? "",
+        introBgm: s?.introBgm ?? "",
+        rankingBgm: s?.rankingBgm ?? "",
       };
       for (const o of q.options) {
         const key = optionKeys(o.no);

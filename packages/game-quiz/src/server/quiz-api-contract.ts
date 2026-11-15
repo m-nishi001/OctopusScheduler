@@ -47,6 +47,8 @@ export interface QuizRecordEntry {
     prizeImage: string | null;
     prizeName: string;
     prizeBgm: string | null;
+    introBgm: string | null;
+    rankingBgm: string | null;
   };
 }
 
@@ -69,7 +71,7 @@ export interface QuizRecord {
 /** クイズ1件が参照している素材の名前(重複・空は含めない)。 */
 export function quizMediaNames(entry: QuizRecordEntry): string[] {
   const s = entry.settings;
-  const names = [entry.bgm, s?.correctBgm, s?.prizeImage, s?.prizeBgm, ...entry.options.map((o) => o.image)];
+  const names = [entry.bgm, s?.correctBgm, s?.prizeImage, s?.prizeBgm, s?.introBgm, s?.rankingBgm, ...entry.options.map((o) => o.image)];
   return [...new Set(names.filter((n): n is string => !!n))];
 }
 

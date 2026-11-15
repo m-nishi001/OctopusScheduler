@@ -3,6 +3,10 @@ export interface QuizSettings {
   prizeImage: Blob | null;
   prizeName: string | null;
   prizeBgm: Blob | null;
+  /** クイズ開始(イントロ)画面で1回だけ流すBGM。 */
+  introBgm: Blob | null;
+  /** ランキング画面で1回だけ流すBGM。 */
+  rankingBgm: Blob | null;
 }
 
 /** クイズ1問(問題・選択肢・正解・制限時間・BGM・設定)。選択肢の画像と BGM は Blob で持つ。 */

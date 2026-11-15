@@ -28,12 +28,12 @@ function mediaDir(tune: Parameters<typeof makeWav>[0]): string {
   return dir;
 }
 
-const header = "ID,タイトル,問題,制限時間(秒),正解(選択肢の番号),BGM,選択肢1,選択肢1画像,選択肢1色,選択肢2,選択肢2色";
+const header = "ID,タイトル,問題,制限時間(秒),正解(選択肢の番号),BGM,開始BGM,ランキングBGM,選択肢1,選択肢1画像,選択肢1色,選択肢2,選択肢2色";
 const csvOf = () =>
-  [header, ...Array.from({ length: COUNT }, (_, i) => `${idOf(i + 1)},${titleOf(i + 1)},問題${i + 1},20,2,shared-bgm.wav,はい,option.png,#3b82f6,いいえ,`)].join("\r\n") + "\r\n";
+  [header, ...Array.from({ length: COUNT }, (_, i) => `${idOf(i + 1)},${titleOf(i + 1)},問題${i + 1},20,2,shared-bgm.wav,shared-bgm.wav,shared-bgm.wav,はい,option.png,#3b82f6,いいえ,`)].join("\r\n") + "\r\n";
 const table = (text: string, name = "quizzes.csv") => ({ name, mimeType: "text/csv", buffer: Buffer.from(text, "utf-8") });
 
-type Record = { quizzes: Array<{ id: string; bgm: string | null }>; media: { [name: string]: { hash: string } } };
+type Record = { quizzes: Array<{ id: string; bgm: string | null; settings?: { introBgm: string | null; rankingBgm: string | null } }>; media: { [name: string]: { hash: string } } };
 const serverRecord = async (request: APIRequestContext): Promise<Record> => {
   const { json } = await adminRpc<{ json: string | null }>(request, "quizGame_getRecord", {});
   return json ? JSON.parse(json).data : { quizzes: [], media: {} };
@@ -77,7 +77,7 @@ test.describe("クイズ一覧の CSV 取込・書き出し", () => {
 
     // 選択肢の画像と色の検証: 正解が存在しない番号の行はエラー(取り込めない)
     await admin.page.getByTestId("table-import-open").click();
-    await admin.page.getByTestId("table-import-table").setInputFiles(table(csvOf() + `${idOf(11)},壊れた,問題,20,5,,はい,,,いいえ,\r\n`));
+    await admin.page.getByTestId("table-import-table").setInputFiles(table(csvOf() + `${idOf(11)},壊れた,問題,20,5,,,,はい,,,いいえ,\r\n`));
     await admin.page.getByTestId("table-import-media").setInputFiles(mediaDir(TUNES.quiz));
     await expect(admin.page.getByTestId("table-import-counts")).toContainText("エラー 1");
     await expect(admin.page.getByTestId("table-import-errors")).toHaveCount(0);
@@ -99,6 +99,7 @@ test.describe("クイズ一覧の CSV 取込・書き出し", () => {
     const record = await serverRecord(request);
     expect(Object.keys(record.media).sort()).toEqual(expect.arrayContaining(["option.png", "shared-bgm.wav"]));
     expect(myQuizzes(record).every((q) => q.bgm === "shared-bgm.wav")).toBe(true);
+    expect(myQuizzes(record).every((q) => q.settings?.introBgm === "shared-bgm.wav" && q.settings?.rankingBgm === "shared-bgm.wav"), "開始BGM・ランキングBGMも取り込まれる").toBe(true);
     expect(rpc.count("putBlob")).toBe(2);
     expect(rpc.count("quizGame_saveRecord")).toBe(1);
     expect(await blobExists(request, record.media["shared-bgm.wav"].hash)).toBe(true);
@@ -116,7 +117,7 @@ test.describe("クイズ一覧の CSV 取込・書き出し", () => {
     const csvFile = await csvDownload;
     expect(csvFile.suggestedFilename()).toBe("quizzes.csv");
     const csvText = readFileSync(await csvFile.path(), "utf-8");
-    expect(csvText.startsWith("﻿ID,タイトル,問題,制限時間(秒),正解(選択肢の番号),BGM,正解BGM,景品名,景品画像,景品BGM,選択肢1,")).toBe(true);
+    expect(csvText.startsWith("﻿ID,タイトル,問題,制限時間(秒),正解(選択肢の番号),BGM,正解BGM,景品名,景品画像,景品BGM,開始BGM,ランキングBGM,選択肢1,")).toBe(true);
     expect(csvText).toContain(`${idOf(1)},${titleOf(1)},問題1,20,2,shared-bgm.wav,`);
 
     await admin.page.getByTestId("table-export-media").check();

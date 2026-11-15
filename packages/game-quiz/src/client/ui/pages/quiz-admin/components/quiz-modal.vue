@@ -90,6 +90,8 @@ onMounted(() => {
             prizeImage: null,
             prizeName: null,
             prizeBgm: null,
+            introBgm: null,
+            rankingBgm: null,
         };
     }
 });

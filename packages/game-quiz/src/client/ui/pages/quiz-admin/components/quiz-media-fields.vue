@@ -23,6 +23,16 @@
         <input type="file" accept="audio/*" @change="onPrizeBgmChange" />
         <audio v-if="prizeBgmPreview" :src="prizeBgmPreview" controls class="audio-preview"></audio>
     </div>
+    <div class="form-group">
+        <label>開始BGM(クイズ開始の画面で1回だけ流れます)</label>
+        <input type="file" accept="audio/*" data-testid="intro-bgm-input" @change="onIntroBgmChange" />
+        <audio v-if="introBgmPreview" :src="introBgmPreview" controls class="audio-preview"></audio>
+    </div>
+    <div class="form-group">
+        <label>ランキングBGM(ランキングの画面で1回だけ流れます)</label>
+        <input type="file" accept="audio/*" data-testid="ranking-bgm-input" @change="onRankingBgmChange" />
+        <audio v-if="rankingBgmPreview" :src="rankingBgmPreview" controls class="audio-preview"></audio>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -49,6 +59,13 @@ const prizeBgmPreview = computed(() =>
     objectUrlStore.ensure('prizeBgm', props.currentQuiz.settings?.prizeBgm)
 );
 
+const introBgmPreview = computed(() =>
+    objectUrlStore.ensure('introBgm', props.currentQuiz.settings?.introBgm)
+);
+const rankingBgmPreview = computed(() =>
+    objectUrlStore.ensure('rankingBgm', props.currentQuiz.settings?.rankingBgm)
+);
+
 const prizeName = computed({
     get: () => props.currentQuiz.settings?.prizeName || '',
     set: (value: string) => {
@@ -72,6 +89,14 @@ const onPrizeImageChange = (event: Event) => {
 
 const onPrizeBgmChange = (event: Event) => {
     props.currentQuiz.settings!.prizeBgm = (event.target as HTMLInputElement).files?.[0] ?? null;
+};
+
+const onIntroBgmChange = (event: Event) => {
+    props.currentQuiz.settings!.introBgm = (event.target as HTMLInputElement).files?.[0] ?? null;
+};
+
+const onRankingBgmChange = (event: Event) => {
+    props.currentQuiz.settings!.rankingBgm = (event.target as HTMLInputElement).files?.[0] ?? null;
 };
 </script>
 

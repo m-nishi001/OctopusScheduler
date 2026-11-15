@@ -92,6 +92,8 @@ const currentQuiz = ref<QuizDto>({
         prizeImage: null,
         prizeName: null,
         prizeBgm: null,
+        introBgm: null,
+        rankingBgm: null,
     },
 });
 
@@ -142,6 +144,8 @@ const addQuiz = () => {
             prizeImage: null,
             prizeName: null,
             prizeBgm: null,
+            introBgm: null,
+            rankingBgm: null,
         },
     };
     isEditing.value = false;
