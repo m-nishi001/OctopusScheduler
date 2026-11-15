@@ -54,6 +54,7 @@ export const SCREEN_HEADERS: readonly Header[] = [
   { key: "screen", label: "画面", aliases: ["screen"], required: true },
   { key: "bgm", label: "BGM", aliases: ["bgm"] },
   { key: "memberBgms", label: "メンバー抽選BGM" },
+  { key: "memberResultBgms", label: "メンバー結果BGM" },
   { key: "prizeBgms", label: "景品抽選BGM" },
   { key: "demoDraw", label: "デモ抽選" },
   { key: "demoRounds", label: "デモ回数" },
@@ -103,7 +104,7 @@ const COLUMNS_OF: Readonly<Record<ScreenKey, readonly string[]>> = {
   ending: ["bgm"],
   result: ["bgm"],
   demo: ["bgm", "demoDraw", "demoRounds"],
-  main: ["memberBgms", "prizeBgms", "memberStopSec", "prizeStopSec", "participantStop", "kakuhenMode", "kakuhenTimings"],
+  main: ["memberBgms", "memberResultBgms", "prizeBgms", "memberStopSec", "prizeStopSec", "participantStop", "kakuhenMode", "kakuhenTimings"],
 };
 const COLUMN_LABEL = new Map(SCREEN_HEADERS.map((h) => [h.key, h.label] as const));
 
@@ -164,6 +165,7 @@ export function screensToTables(records: readonly ScreenSettingRecord[]): { scre
         const plan = parseKakuhenPlan(v);
         const namesOf = (list: unknown): string => (Array.isArray(list) ? list : []).filter((n): n is string => typeof n === "string" && n !== "").join(MEMBER_BGM_SEPARATOR);
         row.memberBgms = namesOf(v.memberLotteryBgms);
+        row.memberResultBgms = namesOf(v.memberResultBgms);
         row.prizeBgms = namesOf(v.prizeLotteryBgms);
         row.memberStopSec = String(clampMemberStopSec(v.memberStopSec));
         row.prizeStopSec = String(clampPrizeStopSec(v.prizeStopSec));
@@ -311,6 +313,7 @@ export function tablesToScreens(tables: ScreenTables, options: TablesToScreensOp
           return list;
         };
         const memberLotteryBgms = bgmList(row.memberBgms, "メンバー抽選BGM", MAX_LOTTERY_BGMS);
+        const memberResultBgms = bgmList(row.memberResultBgms, "メンバー結果BGM", MAX_LOTTERY_BGMS);
         const prizeLotteryBgms = bgmList(row.prizeBgms, "景品抽選BGM", MAX_LOTTERY_BGMS);
         const stopSecOf = (text: string | undefined, label: string, fallback: number): number => {
           if (isBlank(text)) return fallback;
@@ -351,7 +354,7 @@ export function tablesToScreens(tables: ScreenTables, options: TablesToScreensOp
         } else if (!isBlank(row.kakuhenTimings)) {
           failScreen(i, `確変の回は、確変の決め方が「${KAKUHEN_FIXED}」のときだけ書けます(いまは「${mode === "auto" ? KAKUHEN_AUTO : KAKUHEN_NONE}」): ${row.kakuhenTimings}`);
         }
-        parsedScreen.set("main", { memberLotteryBgms, prizeLotteryBgms, kakuhenMode: mode, kakuhenFixedTimings: timings, memberStopSec, prizeStopSec, participantStop });
+        parsedScreen.set("main", { memberLotteryBgms, memberResultBgms, prizeLotteryBgms, kakuhenMode: mode, kakuhenFixedTimings: timings, memberStopSec, prizeStopSec, participantStop });
         break;
       }
       case "result":
@@ -449,12 +452,12 @@ export const screenLabelOf = (settingName: string): string => SCREENS.find((s) =
 /** 行を比べるための文字列(列の順に並べた値)。 */
 export const rowText = (headers: readonly Header[], row: Row): string => JSON.stringify(headers.map((h) => row[h.key] ?? ""));
 
-/** 表の行が参照している素材の名前(重複なし)。BGM・メンバー抽選BGM・景品抽選BGM・画像・効果音。 */
+/** 表の行が参照している素材の名前(重複なし)。BGM・メンバー抽選BGM・メンバー結果BGM・景品抽選BGM・画像・効果音。 */
 export function mediaNamesOf(tables: { screens: readonly Row[]; pages: readonly Row[] | null }): string[] {
   const names = new Set<string>();
   for (const r of tables.screens) {
     if (r.bgm) names.add(r.bgm.trim());
-    for (const n of `${r.memberBgms ?? ""}${MEMBER_BGM_SEPARATOR}${r.prizeBgms ?? ""}`.split(MEMBER_BGM_SEPARATOR)) if (n.trim()) names.add(n.trim());
+    for (const n of `${r.memberBgms ?? ""}${MEMBER_BGM_SEPARATOR}${r.memberResultBgms ?? ""}${MEMBER_BGM_SEPARATOR}${r.prizeBgms ?? ""}`.split(MEMBER_BGM_SEPARATOR)) if (n.trim()) names.add(n.trim());
   }
   for (const r of tables.pages ?? []) {
     if (r.image) names.add(r.image.trim());

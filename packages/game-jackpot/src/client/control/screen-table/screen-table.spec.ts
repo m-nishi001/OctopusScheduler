@@ -5,7 +5,7 @@ import type { ScreenSettingRecord } from "../../../server/jackpot-api-contract";
 import { mediaNamesOf, PAGE_HEADERS, rowText, SCREEN_HEADERS, screensToTables, tablesToScreens } from "./screen-table";
 
 const rec = (screenName: string, settingName: string, value: unknown): ScreenSettingRecord => ({ screenName, settingName, settingValue: JSON.stringify(value) });
-const AVAILABLE = new Set(["o.mp3", "pic.png", "se.wav", "a.mp3", "b.mp3", "c.mp3", "d.mp3", "m.mp3", "p1.mp3", "p2.mp3"]);
+const AVAILABLE = new Set(["o.mp3", "pic.png", "se.wav", "a.mp3", "b.mp3", "c.mp3", "d.mp3", "m.mp3", "p1.mp3", "p2.mp3", "r.mp3"]);
 const toScreens = (screens: Row[], pages: Row[] | null = [], over: { current?: ScreenSettingRecord[]; kakuhenPrizeCount?: number } = {}) =>
   tablesToScreens({ screens, pages }, { available: AVAILABLE, mimeOf: () => "", current: over.current ?? [], kakuhenPrizeCount: over.kakuhenPrizeCount ?? 2 });
 const valueOf = (records: ScreenSettingRecord[], settingName: string) => JSON.parse(records.find((r) => r.settingName === settingName)!.settingValue);
@@ -21,7 +21,7 @@ const ALL: ScreenSettingRecord[] = [
   }),
   rec("description", "description-screen-settings", { bgm: "", pages: [{ kind: "テキスト", text: "説明" }, { kind: "画像", image: "pic.png" }] }),
   rec("demo", "demo-screen-settings", { enabled: false, rounds: 2, bgm: "a.mp3" }),
-  rec("main", "main-screen-settings", { memberLotteryBgms: ["a.mp3", "b.mp3"], prizeLotteryBgms: ["o.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [3, 7], memberStopSec: 5, prizeStopSec: 6, participantStop: false }),
+  rec("main", "main-screen-settings", { memberLotteryBgms: ["a.mp3", "b.mp3"], memberResultBgms: ["r.mp3"], prizeLotteryBgms: ["o.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [3, 7], memberStopSec: 5, prizeStopSec: 6, participantStop: false }),
   rec("result", "result-screen-settings", { resultBgm: "b.mp3" }),
   rec("ending", "ending-screen-settings", { bgm: "", items: [] }),
 ];
@@ -33,7 +33,7 @@ describe("画面設定 -> 2つの表", () => {
       { screen: "オープニング", bgm: "o.mp3" },
       { screen: "説明", bgm: "" },
       { screen: "デモ抽選", bgm: "a.mp3", demoDraw: "なし", demoRounds: "2" },
-      { screen: "本抽選", memberBgms: "a.mp3;b.mp3", prizeBgms: "o.mp3", memberStopSec: "5", prizeStopSec: "6", participantStop: "不可", kakuhenMode: "回を指定", kakuhenTimings: "3, 7" },
+      { screen: "本抽選", memberBgms: "a.mp3;b.mp3", memberResultBgms: "r.mp3", prizeBgms: "o.mp3", memberStopSec: "5", prizeStopSec: "6", participantStop: "不可", kakuhenMode: "回を指定", kakuhenTimings: "3, 7" },
       { screen: "最終結果", bgm: "b.mp3" },
       { screen: "エンディング", bgm: "" },
     ]);
@@ -47,13 +47,13 @@ describe("画面設定 -> 2つの表", () => {
   it("設定が無い画面は行が無い。確変の決め方は おまかせ・なし・回を指定", () => {
     expect(screensToTables([])).toEqual({ screens: [], pages: [] });
     const row = (v: unknown) => screensToTables([rec("main", "main-screen-settings", v)]).screens[0];
-    expect(row({})).toMatchObject({ kakuhenMode: "おまかせ", kakuhenTimings: "", memberStopSec: "3.5", prizeStopSec: "4", participantStop: "可", prizeBgms: "" });
+    expect(row({})).toMatchObject({ kakuhenMode: "おまかせ", kakuhenTimings: "", memberStopSec: "3.5", prizeStopSec: "4", participantStop: "可", memberResultBgms: "", prizeBgms: "" });
     expect(row({ kakuhenMode: "none" })).toMatchObject({ kakuhenMode: "なし", kakuhenTimings: "" });
     expect(row({ kakuhenMode: "fixed", kakuhenFixedTimings: [2, 5] })).toMatchObject({ kakuhenMode: "回を指定", kakuhenTimings: "2, 5" });
   });
 
-  it("参照している素材の名前を集める(BGM・メンバー抽選BGM・景品抽選BGM・画像・効果音)", () => {
-    expect(mediaNamesOf(screensToTables(ALL)).sort()).toEqual(["a.mp3", "b.mp3", "o.mp3", "pic.png", "se.wav"]);
+  it("参照している素材の名前を集める(BGM・メンバー抽選BGM・メンバー結果BGM・景品抽選BGM・画像・効果音)", () => {
+    expect(mediaNamesOf(screensToTables(ALL)).sort()).toEqual(["a.mp3", "b.mp3", "o.mp3", "pic.png", "r.mp3", "se.wav"]);
   });
 });
 
@@ -71,7 +71,7 @@ describe("書き出し -> 取り込み(往復)", () => {
     expect(again.screens.map((r) => rowText(SCREEN_HEADERS, r))).toEqual(t.screens.map((r) => rowText(SCREEN_HEADERS, r)));
     expect(again.pages.map((r) => rowText(PAGE_HEADERS, r))).toEqual(t.pages.map((r) => rowText(PAGE_HEADERS, r)));
     expect(back.records.map((r) => r.settingName)).toEqual(ALL.map((r) => r.settingName));
-    expect(valueOf(back.records, "main-screen-settings")).toEqual({ memberLotteryBgms: ["a.mp3", "b.mp3"], prizeLotteryBgms: ["o.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [3, 7], memberStopSec: 5, prizeStopSec: 6, participantStop: false });
+    expect(valueOf(back.records, "main-screen-settings")).toEqual({ memberLotteryBgms: ["a.mp3", "b.mp3"], memberResultBgms: ["r.mp3"], prizeLotteryBgms: ["o.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [3, 7], memberStopSec: 5, prizeStopSec: 6, participantStop: false });
     expect(valueOf(back.records, "demo-screen-settings")).toEqual({ enabled: false, rounds: 2, bgm: "a.mp3" });
   });
 
@@ -86,7 +86,7 @@ describe("書き出し -> 取り込み(往復)", () => {
     expect(records).toHaveLength(1);
     expect(valueOf(records, "demo-screen-settings")).toEqual({ enabled: true, rounds: 3, bgm: "" });
     const main = toScreens([{ screen: "本抽選", kakuhenMode: "おまかせ" }], null).records[0];
-    expect(JSON.parse(main.settingValue)).toEqual({ memberLotteryBgms: [], prizeLotteryBgms: [], kakuhenMode: "auto", kakuhenFixedTimings: [], memberStopSec: 3.5, prizeStopSec: 4, participantStop: true });
+    expect(JSON.parse(main.settingValue)).toEqual({ memberLotteryBgms: [], memberResultBgms: [], prizeLotteryBgms: [], kakuhenMode: "auto", kakuhenFixedTimings: [], memberStopSec: 3.5, prizeStopSec: 4, participantStop: true });
   });
 });
 
@@ -197,12 +197,13 @@ describe("screens.csv のエラー", () => {
     expect(e[1]).toContain("景品抽選BGM は3つまで");
     expect(e[2]).toContain("景品抽選BGM に空の名前");
     expect(e[3]).toContain("メンバー抽選BGM は3つまで");
+    expect(errorsOf([{ screen: "本抽選", memberResultBgms: "a.mp3;b.mp3;c.mp3;d.mp3" }])[0]).toContain("メンバー結果BGM は3つまで");
     const v = valueOf(toScreens([{ screen: "本抽選", memberBgms: "m.mp3", prizeBgms: "p1.mp3; p2.mp3" }]).records, "main-screen-settings");
     expect(v).toMatchObject({ memberLotteryBgms: ["m.mp3"], prizeLotteryBgms: ["p1.mp3", "p2.mp3"] });
   });
 
-  it("screens.csv の列の並び(メンバー抽選BGM の直後に 景品抽選BGM、メンバー停止秒・景品停止秒)", () => {
-    expect(SCREEN_HEADERS.map((h) => h.label).join(",")).toBe("画面,BGM,メンバー抽選BGM,景品抽選BGM,デモ抽選,デモ回数,メンバー停止秒,景品停止秒,参加者の停止,確変の決め方,確変の回");
+  it("screens.csv の列の並び(メンバー抽選BGM の直後に メンバー結果BGM・景品抽選BGM、メンバー停止秒・景品停止秒)", () => {
+    expect(SCREEN_HEADERS.map((h) => h.label).join(",")).toBe("画面,BGM,メンバー抽選BGM,メンバー結果BGM,景品抽選BGM,デモ抽選,デモ回数,メンバー停止秒,景品停止秒,参加者の停止,確変の決め方,確変の回");
   });
 
   it("確変の決め方: おまかせ・なし・回を指定だけ。回は 回を指定 のときだけ書け、回を指定なら必須", () => {

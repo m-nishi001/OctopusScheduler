@@ -5,9 +5,9 @@ import { toDrawProgress } from "@control/draw/dto/draw-progress";
 import { buildCycle, normalPrizeSteps, remainingSteps, SETTLE_SEC } from "./draw-cycle";
 import { DrawStateError } from "./draw-context";
 import { createTestContext } from "./draw-context.test-helper";
-import { playBgm, stopBgm } from "./bgm";
+import { playWinningBgm } from "./bgm";
 
-vi.mock("./bgm", () => ({ playBgm: vi.fn().mockResolvedValue(undefined), stopBgm: vi.fn().mockResolvedValue(undefined), preloadBgm: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./bgm", () => ({ playWinningBgm: vi.fn().mockResolvedValue(undefined), preloadBgm: vi.fn().mockResolvedValue(undefined) }));
 
 const labelsOf = (steps: Step[]) => steps.filter((s) => s.label).map((s) => s.label);
 /** 各ステップが「Enter待ちか」を 1 / 0 で並べる。進行の“形”を固定するための表現。 */
@@ -120,11 +120,11 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
     await advance(); // 止めて、当選ダイアログを出す
     expect(ctx.prizeAnim.value.stopSpin).toHaveBeenCalledWith(6, "p1", 1); // 管理画面で決めた、止まるまでの秒数
     expect(ctx.showPrizeWinningDialog.value).toBe(true);
-    expect(stopBgm).not.toHaveBeenCalled(); // 当選BGMは結果を見せている間も流す
+    expect(ctx.prizeLotteryBgm.stop).toHaveBeenCalledTimes(1); // 景品抽選BGMは停止開始で即止める
+    expect(playWinningBgm).toHaveBeenCalledWith(null, 6, ctx); // 当選BGMは停止秒に合わせて消える
 
     await advance(); // ダイアログを閉じて、残数を確認する
     expect(ctx.showPrizeWinningDialog.value).toBe(false);
-    expect(stopBgm).toHaveBeenCalledTimes(1); // 結果を閉じるときに止める
     expect(queue.isEmpty()).toBe(true);
   });
 });
@@ -132,13 +132,13 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
 describe("景品抽選BGM(通常)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("開始で景品抽選BGMを流し、停止で ♪当選 → フェードアウトの順に進める", async () => {
+  it("開始で景品抽選BGMを流し、停止で 景品抽選BGMを即止め → ♪当選(停止秒つき)の順に進める", async () => {
     const ctx = createTestContext();
     ctx.selectedPrize.value = { id: "p1", bgm1: "win.mp3" };
     const order: string[] = [];
     ctx.prizeLotteryBgm.playRandom.mockImplementation(async () => void order.push("lottery:play"));
-    ctx.prizeLotteryBgm.fadeOut.mockImplementation(async () => void order.push("lottery:fadeOut"));
-    (playBgm as any).mockImplementation(async () => void order.push("win:play"));
+    ctx.prizeLotteryBgm.stop.mockImplementation(async () => void order.push("lottery:stop"));
+    (playWinningBgm as any).mockImplementation(async () => void order.push("win:play"));
     ctx.prizeAnim.value.stopSpin.mockImplementation(async () => void order.push("stopSpin"));
     const [start, , stop] = normalPrizeSteps(ctx);
 
@@ -146,8 +146,8 @@ describe("景品抽選BGM(通常)", () => {
     expect(ctx.prizeAnim.value.startSpin).toHaveBeenCalledTimes(1);
     await stop.run();
 
-    expect(order).toEqual(["lottery:play", "win:play", "lottery:fadeOut", "stopSpin"]);
-    expect(playBgm).toHaveBeenCalledWith("win.mp3", ctx);
+    expect(order).toEqual(["lottery:play", "lottery:stop", "win:play", "stopSpin"]);
+    expect(playWinningBgm).toHaveBeenCalledWith("win.mp3", 4, ctx);
   });
 
   it("景品抽選BGMが未設定(何も鳴らさない)でも、今までどおり進む", async () => {
@@ -164,11 +164,11 @@ describe("音が終わらなくても進行は止まらない(退行: 抽選BGM�
   beforeEach(() => vi.clearAllMocks());
   const forever = () => new Promise<void>(() => {});
 
-  it("通常: 景品抽選BGMの再生・フェードアウトが永久に解決しなくても、開始・停止のステップは最後まで進む", async () => {
+  it("通常: 景品抽選BGMの再生・停止が永久に解決しなくても、開始・停止のステップは最後まで進む", async () => {
     const ctx = createTestContext();
     ctx.selectedPrize.value = { id: "p1", bgm1: "win.mp3" };
     ctx.prizeLotteryBgm.playRandom.mockImplementation(forever);
-    ctx.prizeLotteryBgm.fadeOut.mockImplementation(forever);
+    ctx.prizeLotteryBgm.stop.mockImplementation(forever);
     const [start, , stop] = normalPrizeSteps(ctx);
     await start.run();
     await stop.run();

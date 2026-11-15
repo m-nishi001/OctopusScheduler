@@ -1,5 +1,5 @@
 import { delay, pause, step, type Step } from "./action-queue";
-import { playBgm, preloadBgm, stopBgm } from "./bgm";
+import { playWinningBgm, preloadBgm } from "./bgm";
 import { requireSelectedPrize, type DrawContext } from "./draw-context";
 import { kakuhenPrizeSteps } from "./kakuhen-session";
 
@@ -48,7 +48,7 @@ function memberSteps(ctx: DrawContext): Step[] {
   ];
 }
 
-/** 通常の景品抽選1回ぶんの進行ステップ。回転を始める(景品抽選BGMを流す) → 次の操作で当選BGMを鳴らし、景品抽選BGMをフェードアウトして止める(この止める操作には `stopPrizeDraw` の目印がつく)。 */
+/** 通常の景品抽選1回ぶんの進行ステップ。回転を始める(景品抽選BGMを流す) → 次の操作で景品抽選BGMを止めて当選BGMを1回鳴らす(止まる瞬間に無音になる)(この止める操作には `stopPrizeDraw` の目印がつく)。 */
 export function normalPrizeSteps(ctx: DrawContext): Step[] {
   return [
     step(async () => {
@@ -60,8 +60,8 @@ export function normalPrizeSteps(ctx: DrawContext): Step[] {
     pause(SETTLE_SEC.prizeSpinning, ctx.wait),
     step(async () => {
       const prize = requireSelectedPrize(ctx);
-      await playBgm(prize.bgm1, ctx);
-      void ctx.prizeLotteryBgm.fadeOut();
+      void ctx.prizeLotteryBgm.stop(); // 景品抽選BGMは停止開始で即止める
+      await playWinningBgm(prize.bgm1, ctx.prizeStopSec, ctx);
       await ctx.prizeAnim.value?.stopSpin?.(ctx.prizeStopSec, prize.id, 1);
     }, "stopPrizeDraw"),
   ];
@@ -70,13 +70,11 @@ export function normalPrizeSteps(ctx: DrawContext): Step[] {
 function winningDialogSteps(ctx: DrawContext): Step[] {
   return [
     step(() => {
-      // 当選BGMは止めずに、結果を見せている間も流す
       ctx.showPrizeWinningDialog.value = true;
     }),
     pause(SETTLE_SEC.dialog, ctx.wait),
-    step(async () => {
+    step(() => {
       ctx.showPrizeWinningDialog.value = false;
-      await stopBgm();
     }),
   ];
 }

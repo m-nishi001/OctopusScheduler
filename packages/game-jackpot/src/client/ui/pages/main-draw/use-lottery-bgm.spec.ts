@@ -34,7 +34,7 @@ describe("useLotteryBgm", () => {
     container.registerInstance(JackpotRepository, { blobOf } as unknown as JackpotRepository);
   });
 
-  it("設定した中から1曲を読み込み、ループで流す", async () => {
+  it("設定した中から1曲を読み込み、1回だけ流す(ループ指定はしない)", async () => {
     settings.mockResolvedValue({ prizeLotteryBgms: ["only.mp3"], memberLotteryBgms: ["m.mp3"] });
     const blob = new Blob(["x"]);
     blobOf.mockResolvedValue(blob);
@@ -44,7 +44,15 @@ describe("useLotteryBgm", () => {
 
     expect(blobOf).toHaveBeenCalledWith("only.mp3");
     expect(audio.load).toHaveBeenCalledWith(blob);
-    expect(audio.play).toHaveBeenCalledWith({ isRepeat: true });
+    expect(audio.play).toHaveBeenCalledWith();
+  });
+
+  it("メンバー結果BGMのキーでも、その欄から1曲を選ぶ", async () => {
+    settings.mockResolvedValue({ memberResultBgms: ["r.mp3"], memberLotteryBgms: ["m.mp3"] });
+    blobOf.mockResolvedValue(new Blob(["x"]));
+    useLotteryBgm("memberResultBgms").playRandom();
+    await vi.waitFor(() => expect(audio.play).toHaveBeenCalled());
+    expect(blobOf).toHaveBeenCalledWith("r.mp3");
   });
 
   it("未設定(0件)なら何もしない。エラーにもしない", async () => {
