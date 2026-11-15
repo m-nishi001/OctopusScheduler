@@ -6,15 +6,15 @@ import { useAudio } from '@octopus/composables/use-audio';
 /** 停止が始まってから、抽選BGMが消えるまでの長さ(ミリ秒)。 */
 export const LOTTERY_BGM_FADE_MS = 1500;
 
-/** `main-screen-settings` で曲を並べる項目(メンバー抽選BGM・景品抽選BGM)。 */
-export type LotteryBgmKey = 'memberLotteryBgms' | 'prizeLotteryBgms';
+/** `main-screen-settings` で曲を並べる項目(メンバー抽選BGM・メンバー結果BGM・景品抽選BGM)。 */
+export type LotteryBgmKey = 'memberLotteryBgms' | 'memberResultBgms' | 'prizeLotteryBgms';
 
 /**
  * 抽選BGMを扱う側(抽選の進行)から見た口。音の再生・フェードは進行を止めない: どちらも待たずに呼べて、
  * 失敗したり終わらなくても(自動再生が止められた・読み込みが終わらないなど)、抽選の進行は続く。
  */
 export interface LotteryBgmPlayer {
-  /** 設定した中から1曲をランダムに選び、ループで流し始める(待たない)。未設定なら何もしない(無音)。 */
+  /** 設定した中から1曲をランダムに選び、1回だけ流し始める(待たない)。未設定なら何もしない(無音)。 */
   playRandom(): void;
   /** フェードアウトして止める。鳴っていなければ何もしない。例外にはならない。 */
   fadeOut(): Promise<void>;
@@ -61,7 +61,7 @@ export function useLotteryBgm(key: LotteryBgmKey): LotteryBgmPlayer {
       console.log(`[LotteryBgm] ${key} play`, name);
       playing = true;
       // play() は、自動再生が止められると終わらないことがある。終わるのを誰も待たない
-      const started = play({ isRepeat: true });
+      const started = play();
       settle();
       await started;
     } catch (e) {

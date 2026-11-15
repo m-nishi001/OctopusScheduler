@@ -95,7 +95,7 @@ const SCREEN_MEDIA_KEYS: ReadonlySet<string> = new Set([
   "bgm", "image", "se", "resultBgm",
 ]);
 /** 値が素材の名前の配列である項目(本抽選のメンバー抽選 BGM・景品抽選 BGM)。 */
-const SCREEN_MEDIA_LIST_KEYS: ReadonlySet<string> = new Set(["memberLotteryBgms", "prizeLotteryBgms"]);
+const SCREEN_MEDIA_LIST_KEYS: ReadonlySet<string> = new Set(["memberLotteryBgms", "memberResultBgms", "prizeLotteryBgms"]);
 
 /** 画面設定1項目が参照している素材の名前(重複・空は含めない)。値が JSON でなければ何も参照していない。 */
 export function screenMediaNames(s: ScreenSettingRecord): string[] {
