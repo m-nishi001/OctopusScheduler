@@ -88,6 +88,11 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   });
   const pageErrors: string[] = [];
   host.page.on("pageerror", (e) => pageErrors.push(e.message));
+  // 演出の途中の失敗(進行の「step failed」など)は、画面に出ずコンソールにだけ出る。落ちたときに原因が分かるよう残す
+  const consoleErrors: string[] = [];
+  host.page.on("console", (m) => {
+    if (m.type() === "error") consoleErrors.push(m.text());
+  });
   // 先にホスト画面を開いて、セッションが読み込まれる(タイトルが出る)のを待つ。ほかの景品抽選の spec と同じ順序。
   // 一覧の画面から画面設定を入れてすぐ開き直すと、実行環境(GAS は通信が遅い)によっては、セッションが見つかる前に15秒が過ぎる。
   await host.page.goto(`/#/session/host/${sessionId}`);
@@ -99,7 +104,7 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   await openAdvanced(admin.page);
   await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
   await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
-  return { admin, host, guest, logs, pageErrors };
+  return { admin, host, guest, logs, pageErrors, consoleErrors };
 }
 
 const prizesOf = (kind: "roulette" | "slot") => ["特賞", "一等", "二等"].map((name, i) => ({ id: `jp-bgm-${kind}-${i + 1}`, name, order: i + 1, rank: 3, animation: kind }));
@@ -146,7 +151,7 @@ function fadeOf(log: Awaited<ReturnType<typeof audioLog>>, id: number) {
 for (const kind of ["roulette", "slot"] as const) {
   test(`@motion 抽選BGM(${kind}): メンバー・景品とも、開始で設定した曲をループで流し、停止でフェードアウトして止める`, async ({ browser, request }) => {
     test.setTimeout(300_000);
-    const { admin, host, guest, logs, pageErrors } = await scene(browser, request, `抽選BGM-${kind}`, async (page) => {
+    const { admin, host, guest, logs, pageErrors, consoleErrors } = await scene(browser, request, `抽選BGM-${kind}`, async (page) => {
       await seedJackpot(page, { prizes: prizesOf(kind) });
       await page.goto("/#/execute/jackpot-admin/screens/opening");
       await page.reload();
@@ -166,9 +171,14 @@ for (const kind of ["roulette", "slot"] as const) {
     // 景品抽選: 開始で流れ、停止でフェードアウト
     await advanceUntilStop(admin.page, "景品");
     await expect.poll(() => logs.join("\n")).toContain(`prizeLotteryBgms play ${PRIZE_BGM}`);
+    // 回っているのを見てから止める(状態を待つ。回り始める前の「止める」は効かない)
+    const reel = host.page.locator(`.${kind}-container`);
+    await expect(reel.and(host.page.locator(".spinning")), "景品抽選が回っている").toBeVisible();
     await nextButton(admin.page).click();
     await expect.poll(() => logs.join("\n")).toContain("prizeLotteryBgms fadeOut");
-    await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 60_000 });
+    // 止まる演出が終わる(回転が止まる)のを待ち、そのあと結果が出る。失敗したら、画面で起きたエラーを添える
+    await expect(reel.and(host.page.locator(".spinning")), `止まる演出が終わらない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeHidden({ timeout: 30_000 });
+    await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeVisible({ timeout: 60_000 });
 
     // 順序: メンバー(再生 → フェード)→ 景品(再生 → フェード)。メンバーと景品は別々の曲
     expect(logs.map((l) => l.replace("[LotteryBgm] ", "").replace(/ \S+\.wav$/, ""))).toEqual(["memberLotteryBgms play", "memberLotteryBgms fadeOut", "prizeLotteryBgms play", "prizeLotteryBgms fadeOut"]);
