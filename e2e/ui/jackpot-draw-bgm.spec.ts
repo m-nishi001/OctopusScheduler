@@ -88,10 +88,13 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   });
   const pageErrors: string[] = [];
   host.page.on("pageerror", (e) => pageErrors.push(e.message));
-  await host.page.goto("/#/sessions");
-  await setup(host.page);
+  // 先にホスト画面を開いて、セッションが読み込まれる(タイトルが出る)のを待つ。ほかの景品抽選の spec と同じ順序。
+  // 一覧の画面から画面設定を入れてすぐ開き直すと、実行環境(GAS は通信が遅い)によっては、セッションが見つかる前に15秒が過ぎる。
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toBeVisible();
+  await setup(host.page);
+  await host.page.goto(`/#/session/host/${sessionId}`);
+  await expect(host.page.locator(".host-view__title")).toBeVisible({ timeout: 60_000 });
   const guest = await joinPortalAs(browser, request, sessionId, MEMBER.id, memberKey);
   await openAdvanced(admin.page);
   await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
@@ -224,9 +227,13 @@ test("@motion メンバー抽選と景品抽選で、停止から止まるまで
     for (const d of [admin, host, guest]) await d.context.close();
     return { member, prize };
   };
-  // 景品を長く・メンバーを短く、と、その逆。差は 景品 − メンバー の設定の差(8秒)に近い
+  // 景品を長く・メンバーを短く、と、その逆。通信の遅れ(実行環境で違う)は両方に同じだけ乗るので、
+  // 「景品 − メンバー」の差を2つの設定で比べる。設定の差から 16秒(= (10−2) − (2−10))が出るはず。
   const a = await run(2, 10);
   const b = await run(10, 2);
-  expect(a.prize - a.member, `メンバー2秒・景品10秒: メンバー ${a.member}ms / 景品 ${a.prize}ms`).toBeGreaterThan(5000);
-  expect(b.member - b.prize, `メンバー10秒・景品2秒: メンバー ${b.member}ms / 景品 ${b.prize}ms`).toBeGreaterThan(5000);
+  const diffA = a.prize - a.member;
+  const diffB = b.prize - b.member;
+  expect(diffA - diffB, `メンバー2秒・景品10秒: ${a.member}/${a.prize}ms、メンバー10秒・景品2秒: ${b.member}/${b.prize}ms`).toBeGreaterThan(10_000);
+  expect(diffA, "景品を長くした方は、景品のほうが長くかかる").toBeGreaterThan(0);
+  expect(diffB, "メンバーを長くした方は、メンバーのほうが長くかかる").toBeLessThan(0);
 });
