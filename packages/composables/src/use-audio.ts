@@ -1,6 +1,9 @@
 /// <reference lib="dom" />
 import { getCurrentScope, onScopeDispose, readonly, ref } from "vue";
 
+/** フェードアウトで音量を更新する間隔(ミリ秒)。 */
+const FADE_TICK_MS = 40;
+
 export interface PlayOptions {
   /** 繰り返し再生する（BGM 向け）。 */
   isRepeat?: boolean;
@@ -123,7 +126,8 @@ export function useAudio() {
 
   /**
    * 音量を `ms` ミリ秒かけて 0 まで下げ、下げ終えたら止めて、音量を元に戻す。
-   * 途中で stop・load・fadeOut が呼ばれたら、そこで打ち切る(音量は戻す)。曲が無ければ何もしない。
+   * 時刻(performance.now)とタイマーで進めるので、描画のフレームに頼らない(タブが隠れていても進み、必ず終わる)。
+   * 途中で stop・load・fadeOut が呼ばれたら、そこで打ち切る(音量は戻す)。打ち切られても、曲が無くても、例外にはせず必ず解決する。
    */
   async function fadeOut(ms: number): Promise<void> {
     const element = audio;
@@ -133,22 +137,29 @@ export function useAudio() {
     const startedAt = performance.now();
     const interrupted = (): boolean => token !== fadeToken || audio !== element;
     await new Promise<void>((resolve) => {
-      const nextFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame : (cb: () => void) => setTimeout(cb, 16);
-      const tick = (): void => {
-        if (interrupted()) return resolve();
-        const progress = ms <= 0 ? 1 : Math.min(1, (performance.now() - startedAt) / ms);
-        element.volume = original * (1 - progress);
-        if (progress >= 1) return resolve();
-        nextFrame(tick);
-      };
-      nextFrame(tick);
+      const timer = setInterval(() => {
+        try {
+          if (interrupted()) throw new Error("interrupted");
+          const progress = ms <= 0 ? 1 : Math.min(1, (performance.now() - startedAt) / ms);
+          element.volume = original * (1 - progress);
+          if (progress < 1) return;
+        } catch {
+          // 打ち切り、または音量を変えられなかった: ここで終える
+        }
+        clearInterval(timer);
+        resolve();
+      }, FADE_TICK_MS);
     });
-    if (interrupted()) {
-      if (audio === element) element.volume = volume.value;
-      return;
+    try {
+      if (interrupted()) {
+        if (audio === element) element.volume = volume.value;
+        return;
+      }
+      await stop();
+      element.volume = original;
+    } catch (cause) {
+      console.warn("[useAudio] fadeOut failed", cause);
     }
-    await stop();
-    element.volume = original;
   }
 
   if (getCurrentScope()) {

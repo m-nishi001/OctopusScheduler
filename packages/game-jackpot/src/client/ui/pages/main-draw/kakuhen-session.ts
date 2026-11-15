@@ -89,7 +89,7 @@ export class KakuhenSession {
       console.warn("[Kakuhen] failed to start the dummy spin", e);
     }
     await preloadBgm(this.dummy?.bgm1, ctx);
-    await ctx.prizeLotteryBgm.playRandom();
+    ctx.prizeLotteryBgm.playRandom(); // 待たない(音の都合で進行を止めない)
   }
 
   async stopDummyDraw(): Promise<void> {
@@ -151,7 +151,7 @@ export class KakuhenSession {
     } catch (e) {
       console.warn("[Kakuhen] failed to start the final spin", e);
     }
-    await ctx.prizeLotteryBgm.playRandom();
+    ctx.prizeLotteryBgm.playRandom(); // 待たない(音の都合で進行を止めない)
   }
 
   async stopFinalDraw(): Promise<void> {

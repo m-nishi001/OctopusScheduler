@@ -160,6 +160,22 @@ describe("景品抽選BGM(通常)", () => {
   });
 });
 
+describe("音が終わらなくても進行は止まらない(退行: 抽選BGMの再生・フェードを待たない)", () => {
+  beforeEach(() => vi.clearAllMocks());
+  const forever = () => new Promise<void>(() => {});
+
+  it("通常: 景品抽選BGMの再生・フェードアウトが永久に解決しなくても、開始・停止のステップは最後まで進む", async () => {
+    const ctx = createTestContext();
+    ctx.selectedPrize.value = { id: "p1", bgm1: "win.mp3" };
+    ctx.prizeLotteryBgm.playRandom.mockImplementation(forever);
+    ctx.prizeLotteryBgm.fadeOut.mockImplementation(forever);
+    const [start, , stop] = normalPrizeSteps(ctx);
+    await start.run();
+    await stop.run();
+    expect(ctx.prizeAnim.value.stopSpin).toHaveBeenCalledWith(4, "p1", 1);
+  });
+});
+
 describe("normalPrizeSteps", () => {
   it("景品が選ばれていない状態で動かしても、null 参照ではなく原因の分かるエラーになる(今回の不具合)", async () => {
     const ctx = createTestContext();

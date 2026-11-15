@@ -55,7 +55,7 @@ export function normalPrizeSteps(ctx: DrawContext): Step[] {
       const prize = requireSelectedPrize(ctx);
       await preloadBgm(prize.bgm1, ctx);
       ctx.prizeAnim.value?.startSpin?.();
-      await ctx.prizeLotteryBgm.playRandom();
+      ctx.prizeLotteryBgm.playRandom(); // 待たない(音の都合で進行を止めない)
     }),
     pause(SETTLE_SEC.prizeSpinning, ctx.wait),
     step(async () => {

@@ -41,8 +41,8 @@ const zipOf = (mainRow: string) => ({
 });
 
 /** ホスト画面の <audio> の動きを記録する(play / pause / volume)。 */
-async function installAudioLog(page: Page) {
-  await page.context().addInitScript(() => {
+async function installAudioLog(page: Page, stallPlay = false) {
+  await page.context().addInitScript((stall: boolean) => {
     const log: Array<{ t: number; e: string; id: number; loop?: boolean; v?: number }> = [];
     (window as unknown as { __audioLog: typeof log }).__audioLog = log;
     const ids = new WeakMap<object, number>();
@@ -55,7 +55,8 @@ async function installAudioLog(page: Page) {
     const play = proto.play;
     proto.play = function (this: HTMLMediaElement) {
       log.push({ t: performance.now(), e: "play", id: idOf(this), loop: this.loop });
-      return play.call(this);
+      // 自動再生が止められたときのように、play() が解決も拒否もしない状況を作る
+      return stall ? new Promise<void>(() => {}) : play.call(this);
     };
     const pause = proto.pause;
     proto.pause = function (this: HTMLMediaElement) {
@@ -71,17 +72,17 @@ async function installAudioLog(page: Page) {
         volume.set!.call(this, v);
       },
     });
-  });
+  }, stallPlay);
 }
 const audioLog = (page: Page) => page.evaluate(() => (window as unknown as { __audioLog: Array<{ t: number; e: string; id: number; loop?: boolean; v?: number }> }).__audioLog);
 
-async function scene(browser: Browser, request: APIRequestContext, label: string, setup: (host: Page) => Promise<void>) {
+async function scene(browser: Browser, request: APIRequestContext, label: string, setup: (host: Page) => Promise<void>, options: { stallPlay?: boolean } = {}) {
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, label);
   sessionIds.push(sessionId);
   const host = await newDevice(browser, { signedIn: true, projector: true });
   host.page.on("dialog", (d) => void d.dismiss());
-  await installAudioLog(host.page);
+  await installAudioLog(host.page, options.stallPlay);
   const logs: string[] = [];
   host.page.on("console", (m) => {
     if (m.text().startsWith("[LotteryBgm]")) logs.push(m.text());
@@ -217,6 +218,34 @@ test("@motion 抽選BGMが未設定なら、何も鳴らさず(エラーにも�
   await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 60_000 });
   expect(logs, "設定が無いので、抽選BGMは鳴らさない").toEqual([]);
   expect((await audioLog(host.page)).filter((x) => x.e === "play" && x.loop)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+  for (const d of [admin, host, guest]) await d.context.close();
+});
+
+test("@motion 音の play() が終わらない(自動再生が止められるなど)状況でも、抽選は当選まで進む。フェードアウトの指示も出る", async ({ browser, request }) => {
+  test.setTimeout(300_000);
+  const { admin, host, guest, logs, pageErrors, consoleErrors } = await scene(
+    browser,
+    request,
+    "抽選BGM-play停滞",
+    async (page) => {
+      await seedJackpot(page, { prizes: prizesOf("roulette") });
+      await page.goto("/#/execute/jackpot-admin/screens/opening");
+      await page.reload();
+      await expect(page.getByTestId("table-export")).toBeVisible();
+      await page.getByTestId("table-import-open").click();
+      await page.getByTestId("table-import-table").setInputFiles(zipOf(`本抽選,,${MEMBER_BGM},${PRIZE_BGM},,,,,,なし,`));
+      await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
+      await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
+    },
+    { stallPlay: true }
+  );
+  await advanceUntilStop(admin.page, "メンバー");
+  await stopAndMeasure(admin.page);
+  await advanceUntilStop(admin.page, "景品");
+  await stopAndMeasure(admin.page);
+  await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeVisible({ timeout: 60_000 });
+  expect(logs.some((l) => l.includes("prizeLotteryBgms play"))).toBe(true);
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host, guest]) await d.context.close();
 });

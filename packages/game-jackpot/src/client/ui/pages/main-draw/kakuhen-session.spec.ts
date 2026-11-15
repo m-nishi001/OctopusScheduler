@@ -228,6 +228,18 @@ describe("KakuhenSession", () => {
     });
   });
 
+  it("景品抽選BGMの再生・フェードアウトが永久に解決しなくても、確変の進行は最後まで進む(退行)", async () => {
+    const { ctx, session } = setup({ items: [{ id: "p1__k2" }] });
+    ctx.prizeLotteryBgm.playRandom.mockImplementation(() => new Promise(() => {}));
+    ctx.prizeLotteryBgm.fadeOut.mockImplementation(() => new Promise(() => {}));
+    await settle(session.startDummyDraw());
+    await settle(session.stopDummyDraw());
+    await settle(session.showDummyPrizeDialog());
+    await settle(session.startFinalDraw());
+    await settle(session.stopFinalDraw());
+    expect(ctx.prizeAnim.value.stopSpin).toHaveBeenLastCalledWith(5, "p1__k2", 1);
+  });
+
   it("セッションごとに状態が独立している(前のサイクルの残りが次に影響しない)", async () => {
     const first = setup();
     await settle(first.session.startDummyDraw());

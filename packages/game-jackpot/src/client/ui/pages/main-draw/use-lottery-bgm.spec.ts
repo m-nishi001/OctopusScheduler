@@ -7,7 +7,7 @@ import { ScreenSettingsService } from "@control/screen-config/screen-settings-se
 const audio = vi.hoisted(() => ({ load: vi.fn(), play: vi.fn(), stop: vi.fn(), fadeOut: vi.fn() }));
 vi.mock("@octopus/composables/use-audio", () => ({ useAudio: () => audio }));
 
-import { LOTTERY_BGM_FADE_MS, pickLotteryBgm, useLotteryBgm } from "./use-lottery-bgm";
+import { LOTTERY_BGM_FADE_MS, LOTTERY_BGM_START_WAIT_MS, pickLotteryBgm, useLotteryBgm } from "./use-lottery-bgm";
 
 describe("pickLotteryBgm(0〜3件から1つを選ぶ)", () => {
   it("0件・未設定・空の名前だけなら null(無音)", () => {
@@ -28,6 +28,7 @@ describe("useLotteryBgm", () => {
   const blobOf = vi.fn();
   beforeEach(() => {
     vi.clearAllMocks();
+    audio.play.mockReset();
     container.clearInstances();
     container.registerInstance(ScreenSettingsService, { fetchScreenSetting: settings } as unknown as ScreenSettingsService);
     container.registerInstance(JackpotRepository, { blobOf } as unknown as JackpotRepository);
@@ -38,7 +39,8 @@ describe("useLotteryBgm", () => {
     const blob = new Blob(["x"]);
     blobOf.mockResolvedValue(blob);
 
-    await useLotteryBgm("prizeLotteryBgms").playRandom();
+    useLotteryBgm("prizeLotteryBgms").playRandom();
+    await vi.waitFor(() => expect(audio.play).toHaveBeenCalled());
 
     expect(blobOf).toHaveBeenCalledWith("only.mp3");
     expect(audio.load).toHaveBeenCalledWith(blob);
@@ -47,9 +49,12 @@ describe("useLotteryBgm", () => {
 
   it("未設定(0件)なら何もしない。エラーにもしない", async () => {
     settings.mockResolvedValue({ prizeLotteryBgms: [] });
-    await expect(useLotteryBgm("prizeLotteryBgms").playRandom()).resolves.toBeUndefined();
+    const bgm = useLotteryBgm("prizeLotteryBgms");
+    bgm.playRandom();
+    await bgm.fadeOut();
     settings.mockResolvedValue(null);
-    await expect(useLotteryBgm("prizeLotteryBgms").playRandom()).resolves.toBeUndefined();
+    bgm.playRandom();
+    await bgm.fadeOut();
     expect(audio.load).not.toHaveBeenCalled();
     expect(audio.play).not.toHaveBeenCalled();
   });
@@ -58,7 +63,9 @@ describe("useLotteryBgm", () => {
     settings.mockResolvedValue({ prizeLotteryBgms: ["a.mp3"] });
     blobOf.mockRejectedValue(new Error("boom"));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(useLotteryBgm("prizeLotteryBgms").playRandom()).resolves.toBeUndefined();
+    const bgm = useLotteryBgm("prizeLotteryBgms");
+    bgm.playRandom();
+    await expect(bgm.fadeOut()).resolves.toBeUndefined();
   });
 
   it("fadeOut は 1.5秒のフェードアウトを頼む。流していない(未設定)ときは何もしない", async () => {
@@ -68,11 +75,41 @@ describe("useLotteryBgm", () => {
     await bgm.fadeOut();
     expect(audio.fadeOut).not.toHaveBeenCalled();
 
-    await bgm.playRandom();
+    bgm.playRandom();
     await bgm.fadeOut();
     expect(audio.fadeOut).toHaveBeenCalledWith(LOTTERY_BGM_FADE_MS);
     expect(LOTTERY_BGM_FADE_MS).toBe(1500);
     await bgm.fadeOut();
     expect(audio.fadeOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("play() が終わらなくても(自動再生が止められるなど)、フェードアウトは先へ進み、終わる", async () => {
+    settings.mockResolvedValue({ prizeLotteryBgms: ["a.mp3"] });
+    blobOf.mockResolvedValue(new Blob(["x"]));
+    audio.play.mockReturnValue(new Promise<void>(() => {}));
+    const bgm = useLotteryBgm("prizeLotteryBgms");
+    bgm.playRandom(); // 待たなくてよい(例外も出ない)
+    await bgm.fadeOut();
+    expect(audio.fadeOut).toHaveBeenCalledWith(LOTTERY_BGM_FADE_MS);
+  });
+
+  it("再生の準備(素材の読み込み)が終わらなくても、フェードアウトは待ちきれずに取りやめ、あとから鳴り出さない", async () => {
+    vi.useFakeTimers();
+    try {
+      settings.mockResolvedValue({ prizeLotteryBgms: ["a.mp3"] });
+      let release: (b: Blob) => void = () => {};
+      blobOf.mockReturnValue(new Promise<Blob>((resolve) => (release = resolve)));
+      const bgm = useLotteryBgm("prizeLotteryBgms");
+      bgm.playRandom();
+      const fading = bgm.fadeOut();
+      await vi.advanceTimersByTimeAsync(LOTTERY_BGM_START_WAIT_MS + 100);
+      await fading;
+      release(new Blob(["x"]));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(audio.fadeOut).not.toHaveBeenCalled();
+      expect(audio.play).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

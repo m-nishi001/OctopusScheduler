@@ -193,3 +193,21 @@ describe("useAudio", () => {
     });
   });
 });
+
+describe("fadeOut は描画のフレームに頼らない", () => {
+  afterEach(() => vi.useRealTimers());
+  it("requestAnimationFrame が呼ばれなくても(隠れたタブ・間引き)、時間が経てば終わって止まる", async () => {
+    vi.useFakeTimers();
+    const raf = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", raf);
+    const audio = useAudio();
+    await audio.load(blob());
+    await audio.play();
+    const done = audio.fadeOut(1500);
+    await vi.advanceTimersByTimeAsync(1700);
+    await done;
+    expect(raf).not.toHaveBeenCalled();
+    expect(FakeAudio.instances[0].paused).toBe(true);
+    expect(FakeAudio.instances[0].volume).toBe(1);
+  });
+});
