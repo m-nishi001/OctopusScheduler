@@ -252,7 +252,7 @@ test("@motion 当選BGMは1回だけ流れ、リールが止まる瞬間に無�
   expect(log.filter((x) => x.e === "play" && x.loop), "当選BGMはループしない").toEqual([]);
   const f = fadeOf(log, play.id);
   expect(f.zeroAt, "当選BGMの音量が 0 まで下がる").toBeDefined();
-  expect(Math.abs(f.zeroAt! - reelStoppedAt), "リールが止まる瞬間(前後1.5秒以内)に無音になる").toBeLessThan(1500);
+  expect(f.zeroAt!, "リールが止まったと分かる時点より後まで、音が残らない").toBeLessThan(reelStoppedAt + 500);
   expect(f.zeroAt! - play.t, `再生から停止秒(${STOP_SEC}秒)ほどで無音になる`).toBeGreaterThan((STOP_SEC - 1.5) * 1000);
   expect(f.zeroAt! - play.t).toBeLessThan((STOP_SEC + 1.5) * 1000);
   expect(f.pauseAt, "無音になってから止まる").toBeGreaterThanOrEqual(f.zeroAt!);
