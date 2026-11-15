@@ -7,7 +7,7 @@ import { JackpotRepository } from "@model/jackpot-repository";
 import { MemberRepository } from "@model/member/member-repository";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
 import { parseParticipantStop, DEFAULT_PARTICIPANT_STOP } from "@model/draw/participant-stop";
-import { parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC } from "@model/draw/prize-stop-sec";
+import { parseMemberStopSec, parsePrizeStopSec, DEFAULT_MEMBER_STOP_SEC, DEFAULT_PRIZE_STOP_SEC } from "@model/draw/stop-sec";
 import { parseKakuhenPlan, AUTO_KAKUHEN_PLAN, type KakuhenPlan } from "@model/draw/kakuhen-plan";
 import { parseDemoDrawSettings, DEFAULT_DEMO_DRAW } from "@model/screen-config/demo-draw-setting";
 import { nextScreen, SCREEN_PATH } from "@model/screen-flow";
@@ -30,6 +30,7 @@ import { revokePreparedPrizes } from "./roulette/roulette-prize-preparer";
 import { createBgmBlobLoader } from "./bgm-blob-loader";
 import type { DrawContext } from "./draw-context";
 import { buildCycle } from "./draw-cycle";
+import { useLotteryBgm } from "./use-lottery-bgm";
 import { DrawFlowController, type NextCycle } from "./draw-flow-controller";
 import { createHostPublisher } from "./host-publisher";
 import { performNext, performResume, type DrawOutcome, type NextCycleResult } from "./perform-draw";
@@ -57,6 +58,8 @@ export function useDrawOrchestrator() {
   const demoRoundTotal = ref(DEFAULT_DEMO_DRAW.rounds);
   /** デモ抽選を始めるまで流す BGM。最初の進行操作で止める(抽選中は、メンバー抽選・景品の BGM に任せる)。 */
   const demoBgm = useScreenBgm();
+  /** 景品抽選BGM(開始から停止開始まで)。当選BGM(RouletteBgmManager)とは別に鳴らす。 */
+  const prizeLotteryBgm = useLotteryBgm("prizeLotteryBgms");
 
   const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, buildPrizeItems, installPreparedPrizes, updateSelectedPrize } =
     usePrizeDrawState(prizeRepo);
@@ -99,6 +102,8 @@ export function useDrawOrchestrator() {
     showPrizeWinningDialog,
     showHalfRemainingDialog,
     kakuhenOverlayVisible,
+    prizeLotteryBgm,
+    memberStopSec: DEFAULT_MEMBER_STOP_SEC,
     prizeStopSec: DEFAULT_PRIZE_STOP_SEC,
   };
 
@@ -312,6 +317,7 @@ export function useDrawOrchestrator() {
       // 確変にする回は、管理画面の設定（本抽選画面設定）に従って、セッションで最初の抽選のときに決める
       const mainSettings = await container.resolve(ScreenSettingsService).fetchScreenSetting("main", "main-screen-settings");
       kakuhenPlan = parseKakuhenPlan(mainSettings);
+      ctx.memberStopSec = parseMemberStopSec(mainSettings);
       ctx.prizeStopSec = parsePrizeStopSec(mainSettings);
       participantStop = parseParticipantStop(mainSettings);
       if (isDemoDraw) {
@@ -353,6 +359,7 @@ export function useDrawOrchestrator() {
     flow.ready = false;
     cycleSource.invalidate();
     void RouletteBgmManager.stop();
+    void prizeLotteryBgm.stop();
     revokePreparedPrizes(preparedPrizes.value);
   });
 

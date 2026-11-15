@@ -28,6 +28,8 @@ export function createTestContext(overrides: Record<string, unknown> = {}) {
     showPrizeWinningDialog: ref(false),
     showHalfRemainingDialog: ref(false),
     kakuhenOverlayVisible: ref(false),
+    prizeLotteryBgm: { playRandom: vi.fn().mockResolvedValue(undefined), fadeOut: vi.fn().mockResolvedValue(undefined), stop: vi.fn().mockResolvedValue(undefined) },
+    memberStopSec: 3.5,
     prizeStopSec: 4,
     ...overrides,
   };

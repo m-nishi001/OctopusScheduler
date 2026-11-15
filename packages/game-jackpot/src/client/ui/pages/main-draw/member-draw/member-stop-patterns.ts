@@ -89,3 +89,16 @@ export function buildMemberStopSteps(pattern: MemberStopPattern, finalX: number,
       return [{ x: finalX, duration: 3.0, ease: "power2.out" }];
   }
 }
+
+/** ステップ列の全体の長さ(秒。待ちを含む)。 */
+export function totalStopSeconds(steps: readonly TweenStep[]): number {
+  return steps.reduce((sum, s) => sum + s.duration + (s.delay ?? 0), 0);
+}
+
+/** 止まり方の形(位置・イージングの比)は変えず、全体の長さが `sec` 秒になるよう、各ステップの長さと待ちを同じ比で伸び縮みさせる。`sec` が無い・0以下なら、そのまま。 */
+export function scaleStopSteps(steps: readonly TweenStep[], sec: number | undefined): TweenStep[] {
+  const total = totalStopSeconds(steps);
+  if (sec === undefined || !Number.isFinite(sec) || sec <= 0 || total <= 0) return steps.map((s) => ({ ...s }));
+  const k = sec / total;
+  return steps.map((s) => ({ ...s, duration: s.duration * k, ...(s.delay ? { delay: s.delay * k } : {}) }));
+}

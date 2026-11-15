@@ -2,6 +2,7 @@ import type { DrawApplicationService } from "@control/draw/draw-application-serv
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
+import type { LotteryBgmPlayer } from "./use-lottery-bgm";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
 import type { RoulettePrizeDto } from "./roulette/roulette-prize-preparer";
 
@@ -36,6 +37,10 @@ export interface DrawContext {
   showHalfRemainingDialog: Writable<boolean>;
   /** 確変メッセージのオーバーレイ。 */
   kakuhenOverlayVisible: Writable<boolean>;
+  /** 景品抽選BGM(開始から停止開始まで。設定から1曲をランダムに選んでループ)。未設定なら何も鳴らさない。 */
+  prizeLotteryBgm: LotteryBgmPlayer;
+  /** メンバー抽選で、停止から当選者が止まるまでの長さ(秒)。管理画面の設定。 */
+  memberStopSec: number;
   /** 景品抽選で、停止から最後の景品が止まるまでの長さ(秒)。管理画面の設定。スロット・ルーレット共通(確変は対象外)。 */
   prizeStopSec: number;
   /** 演出の待ち(秒)。省略すると実際に待つ。テストで差し替える。 */

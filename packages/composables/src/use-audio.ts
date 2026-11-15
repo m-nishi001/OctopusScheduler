@@ -29,6 +29,7 @@ export function useAudio() {
 
   /** 鳴らしている曲を止めて捨てる（Blob の URL も破棄）。 */
   const release = (): void => {
+    fadeToken++;
     if (audio) {
       audio.pause();
       audio = null;
@@ -102,8 +103,12 @@ export function useAudio() {
     audio?.pause();
   }
 
+  /** 進行中のフェードを無効にする印。stop・load・release・次の fadeOut で進める。 */
+  let fadeToken = 0;
+
   /** 止めて、先頭に戻す。 */
   async function stop(): Promise<void> {
+    fadeToken++;
     if (!audio) return;
     audio.pause();
     audio.currentTime = 0;
@@ -114,6 +119,36 @@ export function useAudio() {
   function setVolume(next: number): void {
     volume.value = Math.max(0, Math.min(1, next));
     if (audio) audio.volume = volume.value;
+  }
+
+  /**
+   * 音量を `ms` ミリ秒かけて 0 まで下げ、下げ終えたら止めて、音量を元に戻す。
+   * 途中で stop・load・fadeOut が呼ばれたら、そこで打ち切る(音量は戻す)。曲が無ければ何もしない。
+   */
+  async function fadeOut(ms: number): Promise<void> {
+    const element = audio;
+    if (!element) return;
+    const token = ++fadeToken;
+    const original = volume.value;
+    const startedAt = performance.now();
+    const interrupted = (): boolean => token !== fadeToken || audio !== element;
+    await new Promise<void>((resolve) => {
+      const nextFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame : (cb: () => void) => setTimeout(cb, 16);
+      const tick = (): void => {
+        if (interrupted()) return resolve();
+        const progress = ms <= 0 ? 1 : Math.min(1, (performance.now() - startedAt) / ms);
+        element.volume = original * (1 - progress);
+        if (progress >= 1) return resolve();
+        nextFrame(tick);
+      };
+      nextFrame(tick);
+    });
+    if (interrupted()) {
+      if (audio === element) element.volume = volume.value;
+      return;
+    }
+    await stop();
+    element.volume = original;
   }
 
   if (getCurrentScope()) {
@@ -130,6 +165,7 @@ export function useAudio() {
     play,
     pause,
     stop,
+    fadeOut,
     setVolume,
     tryResume,
   };

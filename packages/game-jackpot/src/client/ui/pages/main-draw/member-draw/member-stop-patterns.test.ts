@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MEMBER_STOP_PATTERNS, buildMemberStopSteps, pickMemberStopPattern, requiredLeadPx } from "./member-stop-patterns";
+import { MEMBER_STOP_PATTERNS, buildMemberStopSteps, pickMemberStopPattern, requiredLeadPx, scaleStopSteps, totalStopSeconds } from "./member-stop-patterns";
 
 const PITCH = 180;
 
@@ -73,5 +73,37 @@ describe("メンバー抽選の止まり方", () => {
     for (let i = 0; i < 1000; i++) if (pickMemberStopPattern(() => i / 1000) === "smooth") smooth++;
     expect(smooth).toBeGreaterThanOrEqual(150);
     expect(smooth).toBeLessThanOrEqual(400);
+  });
+});
+
+describe("停止秒数に合わせた伸び縮み(scaleStopSteps)", () => {
+  it("どの止まり方も、渡した秒数で止まる(長さ・待ちの合計が秒数に一致する)", () => {
+    for (const pattern of MEMBER_STOP_PATTERNS) {
+      for (const sec of [2, 3.5, 8, 15]) {
+        const scaled = scaleStopSteps(buildMemberStopSteps(pattern, -500, PITCH), sec);
+        expect(totalStopSeconds(scaled), `${pattern} ${sec}`).toBeCloseTo(sec, 6);
+      }
+    }
+  });
+
+  it("位置とイージングは変えない(当選者の位置に止まる計算は不変)", () => {
+    for (const pattern of MEMBER_STOP_PATTERNS) {
+      const base = buildMemberStopSteps(pattern, -500, PITCH);
+      const scaled = scaleStopSteps(base, 9);
+      expect(scaled.map((s) => [s.x, s.ease])).toEqual(base.map((s) => [s.x, s.ease]));
+    }
+  });
+
+  it("秒数が無い・不正なときは、元のまま", () => {
+    const base = buildMemberStopSteps("bounce", -500, PITCH);
+    expect(scaleStopSteps(base, undefined)).toEqual(base);
+    expect(scaleStopSteps(base, 0)).toEqual(base);
+    expect(scaleStopSteps(base, NaN)).toEqual(base);
+  });
+
+  it("既定の停止秒(3.5秒)は、止まり方ごとの標準の長さ(3.0〜4.0秒)の重み付き平均に近い", () => {
+    const weights: Record<string, number> = { smooth: 22, bounce: 14, swing: 14, nearMiss: 18, creep: 16, fakeout: 16 };
+    const avg = MEMBER_STOP_PATTERNS.reduce((sum, p) => sum + weights[p] * totalStopSeconds(buildMemberStopSteps(p, -500, PITCH)), 0) / 100;
+    expect(Math.abs(avg - 3.5)).toBeLessThan(0.25);
   });
 });

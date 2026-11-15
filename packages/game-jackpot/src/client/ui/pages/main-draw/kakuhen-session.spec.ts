@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { KakuhenSession } from "./kakuhen-session";
 import { DrawStateError } from "./draw-context";
 import { createTestContext } from "./draw-context.test-helper";
+import { playBgm, stopBgm } from "./bgm";
+
+vi.mock("./bgm", () => ({ playBgm: vi.fn().mockResolvedValue(undefined), stopBgm: vi.fn().mockResolvedValue(undefined), preloadBgm: vi.fn().mockResolvedValue(undefined) }));
 
 const prizeRes = { winnerPrizeId: "p1", dummyWinnerPrizeId: null, dummyPrizeIds: [], drawId: "d1" };
 
@@ -18,6 +21,8 @@ function setup(overrides: { items?: Array<{ id: string }> } = {}) {
 describe("KakuhenSession", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
+
+  beforeEach(() => vi.clearAllMocks());
 
   const settle = async (p: Promise<unknown>) => {
     await vi.runAllTimersAsync();
@@ -107,7 +112,7 @@ describe("KakuhenSession", () => {
 
       await settle(session.stopFinalDraw());
 
-      expect(ctx.prizeAnim.value.stopSpin).toHaveBeenLastCalledWith(5, "p1__k2", 2);
+      expect(ctx.prizeAnim.value.stopSpin).toHaveBeenLastCalledWith(5, "p1__k2", 1);
       expect(ctx.preparePrizes).toHaveBeenLastCalledWith([winner, { id: "p2", name: "p2", order: 2 }]); // 複製を除いた元の一覧
       expect(ctx.result.value?.wonPrize).toMatchObject({
         id: "p1",
@@ -132,12 +137,94 @@ describe("KakuhenSession", () => {
 
       await settle(session.stopFinalDraw());
 
-      expect(ctx.prizeAnim.value.stopSpin).toHaveBeenLastCalledWith(5, "p1__k2", 2);
+      expect(ctx.prizeAnim.value.stopSpin).toHaveBeenLastCalledWith(5, "p1__k2", 1);
     });
 
     it("ダミー抽選をしていない状態で止めようとしたら、原因の分かるエラーにする", async () => {
       const { session } = setup();
       await expect(session.stopFinalDraw()).rejects.toBeInstanceOf(DrawStateError);
+    });
+  });
+
+  describe("1回目はダミー当選景品(dummyWinnerPrizeId)", () => {
+    function withDummy() {
+      const winner = { id: "p1", name: "確変景品", order: 1, image: "img1", image2: "img2", winningImage1: "win1", winningImage2: "win2", bgm1: "dummy.mp3", bgm2: "win.mp3" };
+      const dummy = { id: "p2", name: "ダミー景品", order: 2, image: "d-img", winningImage1: "d-win", bgm1: "normal.mp3" };
+      const ctx = createTestContext();
+      ctx.prizes.value = [winner, dummy, { id: "p3", name: "p3", order: 3 }];
+      ctx.prizeRes.value = { winnerPrizeId: "p1", dummyWinnerPrizeId: "p2", dummyPrizeIds: ["p3"], drawId: "d1" } as any;
+      ctx.result.value = { wonPrize: winner, wonMember: { id: "m1" } } as any;
+      return { ctx, winner, session: new KakuhenSession(ctx) };
+    }
+
+    it("ルーレットには、ダミー景品・本物の景品・ほかのダミーを流す。止まる先と当選ダイアログはダミー景品の名前・画像", async () => {
+      const { ctx, session } = withDummy();
+      await settle(session.startDummyDraw());
+      const shown = ctx.preparePrizes.mock.calls[0][0] as any[];
+      expect(shown.map((p) => p.id)).toEqual(["p2__k1", "p1__k2", "p3"]);
+
+      await settle(session.stopDummyDraw());
+      expect(ctx.prizeAnim.value.stopSpin).toHaveBeenCalledWith(2, "p2__k1", 1);
+
+      await settle(session.showDummyPrizeDialog());
+      expect(ctx.result.value?.wonPrize).toMatchObject({ id: "p2__k1", name: "ダミー景品", originalPrizeId: "p2", winningImage1: "d-win" });
+    });
+
+    it("♪ダミー当選は、確変景品の行の bgm1(ダミー景品の bgm1 ではない)。最終は確変景品の bgm2", async () => {
+      const { session } = withDummy();
+      await settle(session.startDummyDraw());
+      await settle(session.stopDummyDraw());
+      expect(playBgm).toHaveBeenLastCalledWith("dummy.mp3", expect.anything());
+
+      await settle(session.stopFinalDraw());
+      expect(playBgm).toHaveBeenLastCalledWith("win.mp3", expect.anything());
+    });
+
+    it("最終は本物のセクター(1つしかない)に止まり、本物の景品を見せる", async () => {
+      const { ctx, session } = withDummy();
+      ctx.prizeAnim.value.getInternalItems = vi.fn(() => [{ id: "p2__k1" }, { id: "p1__k2" }, { id: "p3" }]);
+      await settle(session.startDummyDraw());
+      await settle(session.stopFinalDraw());
+      expect(ctx.prizeAnim.value.stopSpin).toHaveBeenLastCalledWith(5, "p1__k2", 1);
+      expect(ctx.result.value?.wonPrize).toMatchObject({ id: "p1", name: "確変景品" });
+    });
+
+    it("指定が無い(null)ときは、本物の景品の複製(今までどおり)", async () => {
+      const { ctx, session } = setup();
+      await settle(session.startDummyDraw());
+      expect((ctx.preparePrizes.mock.calls[0][0] as any[]).map((p) => p.id)).toEqual(["p1__k1", "p1__k2"]);
+    });
+  });
+
+  describe("景品抽選BGMと当選BGM", () => {
+    it("ダミー開始で景品抽選BGMを流し、ダミー停止で ♪ダミー当選 → フェードアウトの順。♪ダミー当選は結果を見せたあとに止める", async () => {
+      const { ctx, session } = setup();
+      const order: string[] = [];
+      ctx.prizeLotteryBgm.playRandom.mockImplementation(async () => void order.push("lottery:play"));
+      ctx.prizeLotteryBgm.fadeOut.mockImplementation(async () => void order.push("lottery:fadeOut"));
+      (playBgm as any).mockImplementation(async () => void order.push("win:play"));
+      (stopBgm as any).mockImplementation(async () => void order.push("win:stop"));
+
+      await settle(session.startDummyDraw());
+      await settle(session.stopDummyDraw());
+      expect(order).toEqual(["lottery:play", "win:play", "lottery:fadeOut"]);
+
+      await settle(session.showDummyPrizeDialog());
+      expect(order).toEqual(["lottery:play", "win:play", "lottery:fadeOut", "win:stop"]);
+    });
+
+    it("本抽選は、開始でもう一度景品抽選BGMを流し、停止で ♪当選 → フェードアウト。当選BGMはここでは止めない", async () => {
+      const { ctx, session } = setup({ items: [{ id: "p1__k2" }] });
+      await settle(session.startDummyDraw());
+      ctx.prizeLotteryBgm.playRandom.mockClear();
+      (stopBgm as any).mockClear();
+
+      await settle(session.startFinalDraw());
+      expect(ctx.prizeLotteryBgm.playRandom).toHaveBeenCalledTimes(1);
+
+      await settle(session.stopFinalDraw());
+      expect(ctx.prizeLotteryBgm.fadeOut).toHaveBeenCalledTimes(1);
+      expect(stopBgm).not.toHaveBeenCalled();
     });
   });
 

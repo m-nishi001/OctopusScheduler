@@ -1,0 +1,69 @@
+import "reflect-metadata";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { container } from "tsyringe";
+import { JackpotRepository } from "@model/jackpot-repository";
+import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
+
+const audio = vi.hoisted(() => ({ load: vi.fn(), play: vi.fn(), stop: vi.fn(), fadeOut: vi.fn() }));
+vi.mock("@octopus/composables/use-audio", () => ({ useAudio: () => audio }));
+
+import { LOTTERY_BGM_FADE_MS, pickLotteryBgm, useLotteryBgm } from "./use-lottery-bgm";
+
+describe("pickLotteryBgm(0〜3件から1つを選ぶ)", () => {
+  it("0件・未設定・空の名前だけなら null(無音)", () => {
+    expect(pickLotteryBgm([])).toBeNull();
+    expect(pickLotteryBgm(undefined)).toBeNull();
+    expect(pickLotteryBgm(["", "  ", null])).toBeNull();
+  });
+
+  it("1件ならそれ。複数なら乱数で1つ選び、空の名前は候補にしない", () => {
+    expect(pickLotteryBgm(["a.mp3"])).toBe("a.mp3");
+    const names = ["a.mp3", "", "b.mp3", "c.mp3"];
+    expect([0, 0.34, 0.67, 0.999].map((r) => pickLotteryBgm(names, () => r))).toEqual(["a.mp3", "b.mp3", "c.mp3", "c.mp3"]);
+  });
+});
+
+describe("useLotteryBgm", () => {
+  const settings = vi.fn();
+  const blobOf = vi.fn();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    container.clearInstances();
+    container.registerInstance(ScreenSettingsService, { fetchScreenSetting: settings } as unknown as ScreenSettingsService);
+    container.registerInstance(JackpotRepository, { blobOf } as unknown as JackpotRepository);
+  });
+
+  it("設定した中から1曲を読み込み、ループで流す", async () => {
+    settings.mockResolvedValue({ prizeLotteryBgms: ["only.mp3"], memberLotteryBgms: ["m.mp3"] });
+    const blob = new Blob(["x"]);
+    blobOf.mockResolvedValue(blob);
+
+    await useLotteryBgm("prizeLotteryBgms").playRandom();
+
+    expect(blobOf).toHaveBeenCalledWith("only.mp3");
+    expect(audio.load).toHaveBeenCalledWith(blob);
+    expect(audio.play).toHaveBeenCalledWith({ isRepeat: true });
+  });
+
+  it("未設定(0件)なら何もしない。エラーにもしない", async () => {
+    settings.mockResolvedValue({ prizeLotteryBgms: [] });
+    await expect(useLotteryBgm("prizeLotteryBgms").playRandom()).resolves.toBeUndefined();
+    settings.mockResolvedValue(null);
+    await expect(useLotteryBgm("prizeLotteryBgms").playRandom()).resolves.toBeUndefined();
+    expect(audio.load).not.toHaveBeenCalled();
+    expect(audio.play).not.toHaveBeenCalled();
+  });
+
+  it("読み込みに失敗しても演出を止めない", async () => {
+    settings.mockResolvedValue({ prizeLotteryBgms: ["a.mp3"] });
+    blobOf.mockRejectedValue(new Error("boom"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(useLotteryBgm("prizeLotteryBgms").playRandom()).resolves.toBeUndefined();
+  });
+
+  it("fadeOut は 1.5秒のフェードアウトを頼む", async () => {
+    await useLotteryBgm("memberLotteryBgms").fadeOut();
+    expect(audio.fadeOut).toHaveBeenCalledWith(LOTTERY_BGM_FADE_MS);
+    expect(LOTTERY_BGM_FADE_MS).toBe(1500);
+  });
+});

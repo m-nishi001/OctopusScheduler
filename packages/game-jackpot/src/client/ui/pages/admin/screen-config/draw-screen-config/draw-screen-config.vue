@@ -6,28 +6,47 @@
 
 
                 <div class="config-item">
-                    <label>メンバー抽選のBGM:</label>
+                    <label>メンバー抽選のBGM(3つまで):</label>
                     <div v-for="(bgm, index) in localConfig.memberLotteryBgms" :key="index" class="bgm-item">
                         <MediaPicker :label="`BGM${index + 1}`" kind="audio" :model-value="bgm"
-                            @update:model-value="setMemberBgm(index, $event)"
+                            @update:model-value="setBgm('memberLotteryBgms', index, $event)"
                             :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(bgm)"
                             @pick="draft.pick" />
-                        <button @click="removeMemberBgm(index)" class="remove-btn">削除</button>
+                        <button @click="removeBgm('memberLotteryBgms', index)" class="remove-btn">削除</button>
                     </div>
-                    <button @click="addMemberBgm" class="add-btn">BGM追加</button>
+                    <button v-if="localConfig.memberLotteryBgms.length < MAX_LOTTERY_BGMS" @click="addBgm('memberLotteryBgms')" class="add-btn">BGM追加</button>
+                    <div class="hint">抽選のたびに、設定した中から1曲をランダムに選び、停止まで流してフェードアウトします。未設定なら無音です。</div>
                 </div>
 
+                <div class="config-item">
+                    <label>メンバー抽選が止まるまでの時間(秒)</label>
+                    <input type="number" v-model.number="memberStopSec" class="admin-input"
+                        :min="MIN_STOP_SEC" :max="MAX_STOP_SEC" step="0.5" data-testid="member-stop-sec" />
+                    <div class="hint">
+                        停止ボタンを押してから、当選者が止まるまでの長さ。{{ MIN_STOP_SEC }}〜{{ MAX_STOP_SEC }}秒(0.5秒刻み)、初期値は{{ DEFAULT_MEMBER_STOP_SEC }}秒です。
+                    </div>
+                </div>
 
-                <!-- Per-prize BGM settings removed (handled per-prize elsewhere) -->
-
+                <div class="config-item">
+                    <label>景品抽選のBGM(3つまで):</label>
+                    <div v-for="(bgm, index) in localConfig.prizeLotteryBgms" :key="index" class="bgm-item">
+                        <MediaPicker :label="`BGM${index + 1}`" kind="audio" :model-value="bgm"
+                            @update:model-value="setBgm('prizeLotteryBgms', index, $event)"
+                            :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(bgm)"
+                            @pick="draft.pick" />
+                        <button @click="removeBgm('prizeLotteryBgms', index)" class="remove-btn">削除</button>
+                    </div>
+                    <button v-if="localConfig.prizeLotteryBgms.length < MAX_LOTTERY_BGMS" @click="addBgm('prizeLotteryBgms')" class="add-btn" data-testid="add-prize-bgm">BGM追加</button>
+                    <div class="hint">抽選のたびに、設定した中から1曲をランダムに選び、停止まで流してフェードアウトします。未設定なら無音です。</div>
+                </div>
 
                 <div class="config-item">
                     <label>景品抽選が止まるまでの時間(秒)</label>
                     <input type="number" v-model.number="prizeStopSec" class="admin-input"
-                        :min="MIN_PRIZE_STOP_SEC" :max="MAX_PRIZE_STOP_SEC" step="0.5" data-testid="prize-stop-sec" />
+                        :min="MIN_STOP_SEC" :max="MAX_STOP_SEC" step="0.5" data-testid="prize-stop-sec" />
                     <div class="hint">
                         停止ボタンを押してから、最後の景品が止まるまでの長さ。スロット・ルーレット共通。確変の演出は変わりません。
-                        {{ MIN_PRIZE_STOP_SEC }}〜{{ MAX_PRIZE_STOP_SEC }}秒(0.5秒刻み)、初期値は{{ DEFAULT_PRIZE_STOP_SEC }}秒です。
+                        {{ MIN_STOP_SEC }}〜{{ MAX_STOP_SEC }}秒(0.5秒刻み)、初期値は{{ DEFAULT_PRIZE_STOP_SEC }}秒です。
                     </div>
                 </div>
 
@@ -114,7 +133,10 @@ import { JackpotRepository } from '@model/jackpot-repository';
 import { countKakuhenPrizes } from '@model/prize/prize-kakuhen';
 import type { KakuhenMode } from '@model/draw/kakuhen-plan';
 import { parseParticipantStop, DEFAULT_PARTICIPANT_STOP } from '@model/draw/participant-stop';
-import { clampPrizeStopSec, parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC } from '@model/draw/prize-stop-sec';
+import { clampMemberStopSec, clampPrizeStopSec, parseMemberStopSec, parsePrizeStopSec, DEFAULT_MEMBER_STOP_SEC, DEFAULT_PRIZE_STOP_SEC, MIN_STOP_SEC, MAX_STOP_SEC } from '@model/draw/stop-sec';
+
+/** 抽選BGMに設定できる曲数。 */
+const MAX_LOTTERY_BGMS = 3;
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const draft = useMediaDraft();
@@ -143,7 +165,9 @@ const closeTestDialog = () => {
 /** サーバーの値(読み込み・同期で更新)に、利用者が触った項目だけを重ねて持つ。入力欄は読み込み前から操作できる。 */
 interface DrawConfigForm {
     memberLotteryBgms: string[];
+    prizeLotteryBgms: string[];
     kakuhenMode: KakuhenMode;
+    memberStopSec: number | string;
     prizeStopSec: number | string;
     participantStop: boolean;
     /** 確変にする回の入力欄の文字（カンマ区切り）。保存時に回の一覧にする。 */
@@ -155,7 +179,9 @@ const fetchConfig = async (): Promise<DrawConfigForm> => {
     const plan = parseKakuhenPlan(cfg);
     return {
         memberLotteryBgms: cfg?.memberLotteryBgms || [],
+        prizeLotteryBgms: cfg?.prizeLotteryBgms || [],
         kakuhenMode: plan.mode,
+        memberStopSec: parseMemberStopSec(cfg),
         prizeStopSec: parsePrizeStopSec(cfg),
         participantStop: parseParticipantStop(cfg),
         kakuhenTimingsText: plan.fixedTimings.join(', '),
@@ -164,7 +190,9 @@ const fetchConfig = async (): Promise<DrawConfigForm> => {
 
 const form = useFormDraft<DrawConfigForm>({
     memberLotteryBgms: [],
+    prizeLotteryBgms: [],
     kakuhenMode: 'auto',
+    memberStopSec: DEFAULT_MEMBER_STOP_SEC,
     prizeStopSec: DEFAULT_PRIZE_STOP_SEC,
     participantStop: DEFAULT_PARTICIPANT_STOP,
     kakuhenTimingsText: '',
@@ -172,11 +200,12 @@ const form = useFormDraft<DrawConfigForm>({
 const localConfig = form.view;
 const hasUnsavedChanges = form.dirty;
 
+const memberStopSec = computed({ get: () => localConfig.value.memberStopSec, set: (v) => form.set('memberStopSec', v) });
 const prizeStopSec = computed({ get: () => localConfig.value.prizeStopSec, set: (v) => form.set('prizeStopSec', v) });
 const participantStop = computed({ get: () => localConfig.value.participantStop, set: (v) => form.set('participantStop', v) });
 const kakuhenMode = computed({ get: () => localConfig.value.kakuhenMode, set: (v) => form.set('kakuhenMode', v) });
 const kakuhenTimingsText = computed({ get: () => localConfig.value.kakuhenTimingsText, set: (v) => form.set('kakuhenTimingsText', v) });
-draft.track(() => localConfig.value.memberLotteryBgms);
+draft.track(() => [...localConfig.value.memberLotteryBgms, ...localConfig.value.prizeLotteryBgms]);
 
 /** 確変対応ありの景品の数。確変の回数はこれに合わせる。 */
 const kakuhenPrizeCount = ref(0);
@@ -226,12 +255,14 @@ const handleSaveClick = async () => {
         await form.save(async (cfg) => {
             const payload = {
                 memberLotteryBgms: cfg.memberLotteryBgms,
+                prizeLotteryBgms: cfg.prizeLotteryBgms,
                 kakuhenMode: cfg.kakuhenMode,
                 kakuhenFixedTimings: parseTimingsText(cfg.kakuhenTimingsText),
+                memberStopSec: clampMemberStopSec(cfg.memberStopSec),
                 prizeStopSec: clampPrizeStopSec(cfg.prizeStopSec),
                 participantStop: cfg.participantStop,
             };
-            await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor(payload.memberLotteryBgms));
+            await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor([...payload.memberLotteryBgms, ...payload.prizeLotteryBgms]));
         });
         await draft.reload();
         saveStatus.value = '保存しました';
@@ -256,16 +287,18 @@ const handleCancelDiscard = () => {
     pendingRoute.value = null;
 };
 
-const addMemberBgm = () => {
-    form.edit('memberLotteryBgms', (list) => { list.push(""); });
+type BgmListKey = 'memberLotteryBgms' | 'prizeLotteryBgms';
+
+const addBgm = (key: BgmListKey) => {
+    form.edit(key, (list) => { list.push(""); });
 };
 
-const setMemberBgm = (index: number, name: string) => {
-    form.edit('memberLotteryBgms', (list) => { list[index] = name; });
+const setBgm = (key: BgmListKey, index: number, name: string) => {
+    form.edit(key, (list) => { list[index] = name; });
 };
 
-const removeMemberBgm = (index: number) => {
-    form.edit('memberLotteryBgms', (list) => { list.splice(index, 1); });
+const removeBgm = (key: BgmListKey, index: number) => {
+    form.edit(key, (list) => { list.splice(index, 1); });
 };
 
 // Per-prize music/animation helpers removed
