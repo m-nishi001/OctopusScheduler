@@ -15,7 +15,7 @@
                         <button @click="removeBgm('memberLotteryBgms', index)" class="remove-btn">削除</button>
                     </div>
                     <button v-if="localConfig.memberLotteryBgms.length < MAX_LOTTERY_BGMS" @click="addBgm('memberLotteryBgms')" class="add-btn">BGM追加</button>
-                    <div class="hint">抽選のたびに、設定した中から1曲をランダムに選び、停止まで流してフェードアウトします。未設定なら無音です。</div>
+                    <div class="hint">抽選のたびに、設定した中から1曲をランダムに選んで1回流し、停止が始まるとフェードアウトします。未設定なら無音です。</div>
                 </div>
 
                 <div class="config-item">
@@ -28,6 +28,19 @@
                 </div>
 
                 <div class="config-item">
+                    <label>メンバー結果のBGM(3つまで):</label>
+                    <div v-for="(bgm, index) in localConfig.memberResultBgms" :key="index" class="bgm-item">
+                        <MediaPicker :label="`BGM${index + 1}`" kind="audio" :model-value="bgm"
+                            @update:model-value="setBgm('memberResultBgms', index, $event)"
+                            :options="draft.optionsOf('audio')" :preview-url="draft.urlOf(bgm)"
+                            @pick="draft.pick" />
+                        <button @click="removeBgm('memberResultBgms', index)" class="remove-btn">削除</button>
+                    </div>
+                    <button v-if="localConfig.memberResultBgms.length < MAX_LOTTERY_BGMS" @click="addBgm('memberResultBgms')" class="add-btn" data-testid="add-member-result-bgm">BGM追加</button>
+                    <div class="hint">当選者を発表するダイアログが開くたびに、設定した中から1曲をランダムに選んで1回流し、閉じると止めます。未設定なら無音です。</div>
+                </div>
+
+                <div class="config-item">
                     <label>景品抽選のBGM(3つまで):</label>
                     <div v-for="(bgm, index) in localConfig.prizeLotteryBgms" :key="index" class="bgm-item">
                         <MediaPicker :label="`BGM${index + 1}`" kind="audio" :model-value="bgm"
@@ -37,7 +50,7 @@
                         <button @click="removeBgm('prizeLotteryBgms', index)" class="remove-btn">削除</button>
                     </div>
                     <button v-if="localConfig.prizeLotteryBgms.length < MAX_LOTTERY_BGMS" @click="addBgm('prizeLotteryBgms')" class="add-btn" data-testid="add-prize-bgm">BGM追加</button>
-                    <div class="hint">抽選のたびに、設定した中から1曲をランダムに選び、停止まで流してフェードアウトします。未設定なら無音です。</div>
+                    <div class="hint">抽選のたびに、設定した中から1曲をランダムに選んで1回流し、停止が始まるとすぐ止めます。未設定なら無音です。</div>
                 </div>
 
                 <div class="config-item">
@@ -165,6 +178,7 @@ const closeTestDialog = () => {
 /** サーバーの値(読み込み・同期で更新)に、利用者が触った項目だけを重ねて持つ。入力欄は読み込み前から操作できる。 */
 interface DrawConfigForm {
     memberLotteryBgms: string[];
+    memberResultBgms: string[];
     prizeLotteryBgms: string[];
     kakuhenMode: KakuhenMode;
     memberStopSec: number | string;
@@ -179,6 +193,7 @@ const fetchConfig = async (): Promise<DrawConfigForm> => {
     const plan = parseKakuhenPlan(cfg);
     return {
         memberLotteryBgms: cfg?.memberLotteryBgms || [],
+        memberResultBgms: cfg?.memberResultBgms || [],
         prizeLotteryBgms: cfg?.prizeLotteryBgms || [],
         kakuhenMode: plan.mode,
         memberStopSec: parseMemberStopSec(cfg),
@@ -190,6 +205,7 @@ const fetchConfig = async (): Promise<DrawConfigForm> => {
 
 const form = useFormDraft<DrawConfigForm>({
     memberLotteryBgms: [],
+    memberResultBgms: [],
     prizeLotteryBgms: [],
     kakuhenMode: 'auto',
     memberStopSec: DEFAULT_MEMBER_STOP_SEC,
@@ -205,7 +221,7 @@ const prizeStopSec = computed({ get: () => localConfig.value.prizeStopSec, set: 
 const participantStop = computed({ get: () => localConfig.value.participantStop, set: (v) => form.set('participantStop', v) });
 const kakuhenMode = computed({ get: () => localConfig.value.kakuhenMode, set: (v) => form.set('kakuhenMode', v) });
 const kakuhenTimingsText = computed({ get: () => localConfig.value.kakuhenTimingsText, set: (v) => form.set('kakuhenTimingsText', v) });
-draft.track(() => [...localConfig.value.memberLotteryBgms, ...localConfig.value.prizeLotteryBgms]);
+draft.track(() => [...localConfig.value.memberLotteryBgms, ...localConfig.value.memberResultBgms, ...localConfig.value.prizeLotteryBgms]);
 
 /** 確変対応ありの景品の数。確変の回数はこれに合わせる。 */
 const kakuhenPrizeCount = ref(0);
@@ -255,6 +271,7 @@ const handleSaveClick = async () => {
         await form.save(async (cfg) => {
             const payload = {
                 memberLotteryBgms: cfg.memberLotteryBgms,
+                memberResultBgms: cfg.memberResultBgms,
                 prizeLotteryBgms: cfg.prizeLotteryBgms,
                 kakuhenMode: cfg.kakuhenMode,
                 kakuhenFixedTimings: parseTimingsText(cfg.kakuhenTimingsText),
@@ -262,7 +279,7 @@ const handleSaveClick = async () => {
                 prizeStopSec: clampPrizeStopSec(cfg.prizeStopSec),
                 participantStop: cfg.participantStop,
             };
-            await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor([...payload.memberLotteryBgms, ...payload.prizeLotteryBgms]));
+            await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload, draft.filesFor([...payload.memberLotteryBgms, ...payload.memberResultBgms, ...payload.prizeLotteryBgms]));
         });
         await draft.reload();
         saveStatus.value = '保存しました';
@@ -287,7 +304,7 @@ const handleCancelDiscard = () => {
     pendingRoute.value = null;
 };
 
-type BgmListKey = 'memberLotteryBgms' | 'prizeLotteryBgms';
+type BgmListKey = 'memberLotteryBgms' | 'memberResultBgms' | 'prizeLotteryBgms';
 
 const addBgm = (key: BgmListKey) => {
     form.edit(key, (list) => { list.push(""); });

@@ -43,7 +43,7 @@ describe("画面設定の書き出し・取込", () => {
           items: [{ kind: "テキスト", text: "ようこそ", effect: "フェード", seconds: 2.5, se: "se.wav" }, { kind: "画像", image: "pic.png", effect: "静止", seconds: 1 }],
         }),
         setting("demo", "demo-screen-settings", { enabled: true, rounds: 2, bgm: "o.mp3" }),
-        setting("main", "main-screen-settings", { memberLotteryBgms: ["o.mp3", "se.wav"], prizeLotteryBgms: ["o.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [2, 5], memberStopSec: 6, prizeStopSec: 8, participantStop: false }),
+        setting("main", "main-screen-settings", { memberLotteryBgms: ["o.mp3", "se.wav"], memberResultBgms: ["o.mp3"], prizeLotteryBgms: ["o.mp3"], kakuhenMode: "fixed", kakuhenFixedTimings: [2, 5], memberStopSec: 6, prizeStopSec: 8, participantStop: false }),
         setting("result", "result-screen-settings", { resultBgm: "se.wav" }),
       ],
       new Map([["o.mp3", file("o.mp3", "BGM")], ["se.wav", file("se.wav", "SE", "audio/wav")], ["pic.png", file("pic.png", "IMG", "image/png")]])

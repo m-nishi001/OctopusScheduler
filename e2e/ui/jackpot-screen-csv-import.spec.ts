@@ -16,14 +16,14 @@ const stamp = Date.now();
 const BGM = `scr-csv-${stamp}.wav`;
 const SE = `scr-csv-se-${stamp}.wav`;
 const PIC = `scr-csv-${stamp}.png`;
-const SCREENS_HEADER = "画面,BGM,メンバー抽選BGM,景品抽選BGM,デモ抽選,デモ回数,メンバー停止秒,景品停止秒,参加者の停止,確変の決め方,確変の回";
+const SCREENS_HEADER = "画面,BGM,メンバー抽選BGM,メンバー結果BGM,景品抽選BGM,デモ抽選,デモ回数,メンバー停止秒,景品停止秒,参加者の停止,確変の決め方,確変の回";
 const PAGES_HEADER = "画面,種類,文字,画像,効果,秒数,行数,効果音,名前";
 const SCREEN_ROWS = [
-  `オープニング,${BGM},,,,,,,,,`,
-  `説明,,,,,,,,,,`,
-  `デモ抽選,${BGM},,,なし,2,,,,,`,
-  `本抽選,,${BGM};${SE},${SE},,,5,6,不可,回を指定,"3, 7"`,
-  `最終結果,${SE},,,,,,,,,`,
+  `オープニング,${BGM},,,,,,,,,,`,
+  `説明,,,,,,,,,,,`,
+  `デモ抽選,${BGM},,,,なし,2,,,,,`,
+  `本抽選,,${BGM};${SE},${BGM},${SE},,,5,6,不可,回を指定,"3, 7"`,
+  `最終結果,${SE},,,,,,,,,,`,
 ];
 const PAGE_ROWS = [
   `オープニング,テキスト,ようこそ,,フェード,2,,${SE},あいさつ`,
@@ -100,6 +100,9 @@ test.describe("ジャックポット画面設定の screens.zip(screens.csv + pa
     await expect(page.getByTestId("kakuhen-timings")).toHaveValue("3, 7");
     await expect(page.getByTestId("member-stop-sec")).toHaveValue("5");
     await expect(page.getByTestId("prize-stop-sec")).toHaveValue("6");
+    // BGM 欄: メンバー抽選(BGM・SE)・メンバー結果(BGM)・景品抽選(SE)
+    await expect(page.getByTestId("media-name").filter({ hasText: BGM })).toHaveCount(2);
+    await expect(page.getByTestId("media-name").filter({ hasText: SE })).toHaveCount(2);
     await expect(page.getByTestId("participant-stop-checkbox")).not.toBeChecked();
 
     // 書き出し: screens.zip に screens.csv と pages.csv と media/
@@ -115,7 +118,7 @@ test.describe("ジャックポット画面設定の screens.zip(screens.csv + pa
     const exportedPages = strFromU8(files["pages.csv"]);
     expect(exportedScreens.startsWith(`${SCREENS_HEADER}\r\n`)).toBe(true);
     expect(exportedPages.startsWith(`${PAGES_HEADER}\r\n`)).toBe(true);
-    expect(exportedScreens).toContain(`本抽選,,${BGM};${SE},${SE},,,5,6,不可,回を指定,"3, 7"\r\n`);
+    expect(exportedScreens).toContain(`本抽選,,${BGM};${SE},${BGM},${SE},,,5,6,不可,回を指定,"3, 7"\r\n`);
     expect(exportedScreens).toContain("デモ抽選,");
     expect(exportedPages).toContain(`オープニング,テキスト,ようこそ,,フェード,2,,${SE},あいさつ\r\n`);
 
@@ -129,7 +132,7 @@ test.describe("ジャックポット画面設定の screens.zip(screens.csv + pa
 
     // エラーの行: 素材が無い / 画面が違う / 使わない列 / TRUE を使った / 説明に効果
     const bad = buildScreensZip(
-      screensCsv(`最終結果,nothing-${stamp}.wav,,,,,,,,,`, "ホーム,,,,,,,,,,", "オープニング,,,,,2,,,,,", "デモ抽選,,,,TRUE,,,,,,", "本抽選,,,,,,,,不可,回を指定,"),
+      screensCsv(`最終結果,nothing-${stamp}.wav,,,,,,,,,,`, "ホーム,,,,,,,,,,,", "オープニング,,,,,,2,,,,,", "デモ抽選,,,,,TRUE,,,,,,", "本抽選,,,,,,,,,不可,回を指定,"),
       pagesCsv("説明,テキスト,x,,静止,,,,", `オープニング,画像,,${PIC},行送り,,,,`)
     );
     await pick(page, bad);
@@ -151,7 +154,7 @@ test.describe("ジャックポット画面設定の screens.zip(screens.csv + pa
     await page.getByRole("button", { name: "閉じる" }).click();
 
     // 後始末: 取り込んだ画面を空の設定に戻す(ファイルに出てくる画面を置き換える)
-    await pick(page, buildScreensZip(screensCsv("オープニング,,,,,,,,,,", "説明,,,,,,,,,,", "デモ抽選,,,,,,,,,,", "本抽選,,,,,,,,,おまかせ,", "最終結果,,,,,,,,,,", "エンディング,,,,,,,,,,"), pagesCsv()));
+    await pick(page, buildScreensZip(screensCsv("オープニング,,,,,,,,,,,", "説明,,,,,,,,,,,", "デモ抽選,,,,,,,,,,,", "本抽選,,,,,,,,,,おまかせ,", "最終結果,,,,,,,,,,,", "エンディング,,,,,,,,,,,"), pagesCsv()));
     await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
     await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
     await page.getByTestId("table-import-close").click();

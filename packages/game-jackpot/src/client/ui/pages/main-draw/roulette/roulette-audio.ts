@@ -17,13 +17,13 @@ function sharedAudio(): ReturnType<typeof useAudio> {
 export function useRouletteAudio() {
   const audio = sharedAudio();
 
-  /** 前の曲を止めて、渡された曲をループで鳴らす。曲が無ければ何もしない。失敗しても演出は止めない。 */
+  /** 前の曲を止めて、渡された曲を1回だけ鳴らす。曲が無ければ何もしない。失敗しても演出は止めない。 */
   const startBgm = async (bgm?: Blob | null): Promise<void> => {
     if (!bgm) return;
     try {
       await audio.stop();
       await audio.load(bgm);
-      await audio.play({ isRepeat: true });
+      await audio.play();
     } catch (err) {
       console.warn("[RouletteAudio] failed to start BGM", err);
     }
@@ -32,6 +32,7 @@ export function useRouletteAudio() {
   return {
     startBgm,
     stopBgmAudio: () => audio.stop(),
+    fadeOutBgm: (ms: number) => audio.fadeOut(ms),
     bgmAutoplayBlocked: audio.autoplayBlocked,
     tryResumeBgm: () => audio.tryResume(),
     isBgmPlaying: audio.isPlaying,

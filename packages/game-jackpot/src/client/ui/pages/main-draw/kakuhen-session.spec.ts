@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { KakuhenSession } from "./kakuhen-session";
 import { DrawStateError } from "./draw-context";
 import { createTestContext } from "./draw-context.test-helper";
-import { playBgm, stopBgm } from "./bgm";
+import { playWinningBgm } from "./bgm";
 
-vi.mock("./bgm", () => ({ playBgm: vi.fn().mockResolvedValue(undefined), stopBgm: vi.fn().mockResolvedValue(undefined), preloadBgm: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./bgm", () => ({ playWinningBgm: vi.fn().mockResolvedValue(undefined), preloadBgm: vi.fn().mockResolvedValue(undefined) }));
 
 const prizeRes = { winnerPrizeId: "p1", dummyWinnerPrizeId: null, dummyPrizeIds: [], drawId: "d1" };
 
@@ -174,10 +174,10 @@ describe("KakuhenSession", () => {
       const { session } = withDummy();
       await settle(session.startDummyDraw());
       await settle(session.stopDummyDraw());
-      expect(playBgm).toHaveBeenLastCalledWith("dummy.mp3", expect.anything());
+      expect(playWinningBgm).toHaveBeenLastCalledWith("dummy.mp3", expect.any(Number), expect.anything());
 
       await settle(session.stopFinalDraw());
-      expect(playBgm).toHaveBeenLastCalledWith("win.mp3", expect.anything());
+      expect(playWinningBgm).toHaveBeenLastCalledWith("win.mp3", 5, expect.anything());
     });
 
     it("最終は本物のセクター(1つしかない)に止まり、本物の景品を見せる", async () => {
@@ -197,41 +197,37 @@ describe("KakuhenSession", () => {
   });
 
   describe("景品抽選BGMと当選BGM", () => {
-    it("ダミー開始で景品抽選BGMを流し、ダミー停止で ♪ダミー当選 → フェードアウトの順。♪ダミー当選は結果を見せたあとに止める", async () => {
+    it("ダミー開始で景品抽選BGMを流し、ダミー停止で 景品抽選BGMを即止め → ♪ダミー当選の順", async () => {
       const { ctx, session } = setup();
       const order: string[] = [];
       ctx.prizeLotteryBgm.playRandom.mockImplementation(async () => void order.push("lottery:play"));
-      ctx.prizeLotteryBgm.fadeOut.mockImplementation(async () => void order.push("lottery:fadeOut"));
-      (playBgm as any).mockImplementation(async () => void order.push("win:play"));
-      (stopBgm as any).mockImplementation(async () => void order.push("win:stop"));
+      ctx.prizeLotteryBgm.stop.mockImplementation(async () => void order.push("lottery:stop"));
+      (playWinningBgm as any).mockImplementation(async () => void order.push("win:play"));
 
       await settle(session.startDummyDraw());
       await settle(session.stopDummyDraw());
-      expect(order).toEqual(["lottery:play", "win:play", "lottery:fadeOut"]);
-
-      await settle(session.showDummyPrizeDialog());
-      expect(order).toEqual(["lottery:play", "win:play", "lottery:fadeOut", "win:stop"]);
+      expect(order).toEqual(["lottery:play", "lottery:stop", "win:play"]);
     });
 
-    it("本抽選は、開始でもう一度景品抽選BGMを流し、停止で ♪当選 → フェードアウト。当選BGMはここでは止めない", async () => {
+    it("本抽選は、開始でもう一度景品抽選BGMを流し、停止で 景品抽選BGMを即止め → ♪当選(停止秒つき)", async () => {
       const { ctx, session } = setup({ items: [{ id: "p1__k2" }] });
       await settle(session.startDummyDraw());
       ctx.prizeLotteryBgm.playRandom.mockClear();
-      (stopBgm as any).mockClear();
+      ctx.prizeLotteryBgm.stop.mockClear();
 
       await settle(session.startFinalDraw());
       expect(ctx.prizeLotteryBgm.playRandom).toHaveBeenCalledTimes(1);
 
       await settle(session.stopFinalDraw());
-      expect(ctx.prizeLotteryBgm.fadeOut).toHaveBeenCalledTimes(1);
-      expect(stopBgm).not.toHaveBeenCalled();
+      expect(ctx.prizeLotteryBgm.stop).toHaveBeenCalledTimes(1);
+      expect(ctx.prizeLotteryBgm.fadeOut).not.toHaveBeenCalled();
     });
   });
 
-  it("景品抽選BGMの再生・フェードアウトが永久に解決しなくても、確変の進行は最後まで進む(退行)", async () => {
+  it("景品抽選BGMの再生・停止が永久に解決しなくても、確変の進行は最後まで進む(退行)", async () => {
     const { ctx, session } = setup({ items: [{ id: "p1__k2" }] });
     ctx.prizeLotteryBgm.playRandom.mockImplementation(() => new Promise(() => {}));
-    ctx.prizeLotteryBgm.fadeOut.mockImplementation(() => new Promise(() => {}));
+    ctx.prizeLotteryBgm.stop.mockImplementation(() => new Promise(() => {}));
     await settle(session.startDummyDraw());
     await settle(session.stopDummyDraw());
     await settle(session.showDummyPrizeDialog());

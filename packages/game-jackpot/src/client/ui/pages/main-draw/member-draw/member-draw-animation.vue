@@ -68,6 +68,8 @@ export default {
         // メンバー抽選中のBGM再生はアニメーション本体と独立した関心事のため
         // composableに分離している。
         const memberBgm = useLotteryBgm('memberLotteryBgms');
+        // 結果ダイアログを開いている間だけ流すBGM(開いたら再生、閉じたらすぐ止める)
+        const resultBgm = useLotteryBgm('memberResultBgms');
 
         const displayMembers = ref<MemberDto[]>([]);
 
@@ -450,9 +452,11 @@ export default {
         // フォーカス管理・overflow制御はMemberWinnerDialog側に移した。ここでは
         // 外部向けの既存イベント契約(winner-dialog-shown/closed)だけを維持する。
         const onWinnerDialogShown = () => {
+            void resultBgm.playRandom();
             try { emit('winner-dialog-shown'); } catch (e) { /* ignore */ }
         };
         const onWinnerDialogClosed = () => {
+            void resultBgm.stop();
             try { emit('winner-dialog-closed'); } catch (e) { /* ignore */ }
         };
 

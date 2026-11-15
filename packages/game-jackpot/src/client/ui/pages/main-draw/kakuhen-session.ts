@@ -1,6 +1,6 @@
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
 import { delay, pause, step, type Step } from "./action-queue";
-import { playBgm, preloadBgm, stopBgm } from "./bgm";
+import { playWinningBgm, preloadBgm } from "./bgm";
 import { DrawStateError, type DrawContext } from "./draw-context";
 import { KAKUHEN_TIMINGS } from "./kakuhen-timings";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
@@ -95,9 +95,10 @@ export class KakuhenSession {
   async stopDummyDraw(): Promise<void> {
     const anim = this.ctx.prizeAnim.value;
     if (!anim?.stopSpin) return;
-    await playBgm(this.dummy?.bgm1, this.ctx);
-    void this.ctx.prizeLotteryBgm.fadeOut();
-    await anim.stopSpin(KAKUHEN_TIMINGS.DUMMY_SPIN_DOWN_DURATION_MS / 1000, this.dummy?.id || null, 1);
+    const sec = KAKUHEN_TIMINGS.DUMMY_SPIN_DOWN_DURATION_MS / 1000;
+    void this.ctx.prizeLotteryBgm.stop();
+    await playWinningBgm(this.dummy?.bgm1, sec, this.ctx);
+    await anim.stopSpin(sec, this.dummy?.id || null, 1);
   }
 
   async showMessage(): Promise<void> {
@@ -125,8 +126,6 @@ export class KakuhenSession {
     }
     ctx.showPrizeWinningDialog.value = true;
     await sleep(KAKUHEN_TIMINGS.DUMMY_PRIZE_DIALOG_DISPLAY_MS);
-    // ♪ダミー当選は、結果を見せている間(「だが」の前まで)流す
-    await stopBgm();
   }
 
   closeDummyPrizeDialog(): void {
@@ -160,11 +159,11 @@ export class KakuhenSession {
     if (!final) throw new DrawStateError("確変の本抽選の景品がありません(ダミー抽選が完了していません)");
     const anim = ctx.prizeAnim.value;
 
-    await playBgm(final.bgm2, ctx);
-    void ctx.prizeLotteryBgm.fadeOut();
+    const durationSec = KAKUHEN_TIMINGS.FINAL_SPIN_DOWN_DURATION_MS / 1000;
+    const items = anim?.stopSpin ? await this.syncAnimationItems() : [];
+    void ctx.prizeLotteryBgm.stop();
+    await playWinningBgm(final.bgm2, durationSec, ctx);
     if (anim?.stopSpin) {
-      const items = await this.syncAnimationItems();
-      const durationSec = KAKUHEN_TIMINGS.FINAL_SPIN_DOWN_DURATION_MS / 1000;
       if (items.length > 0 && !items.some((it) => it.id === final.id)) {
         // 本物のセクターが見つからないときは、最後のセクターに止める
         console.warn("[Kakuhen] final prize not found in animation items; stopping on the last item");

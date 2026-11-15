@@ -28,4 +28,16 @@ describe("メンバー抽選の停止", () => {
     expect(bgm.stop).not.toHaveBeenCalled();
     wrapper.unmount();
   });
+
+  it("結果ダイアログが開いたら結果BGMを流し、閉じたらすぐ止める", async () => {
+    const wrapper = mount(MemberDrawAnimation, { props: { members: [], externalDialog: true } });
+    const vm = wrapper.vm as unknown as { onWinnerDialogShown(): void; onWinnerDialogClosed(): void };
+
+    vm.onWinnerDialogShown();
+    expect(bgm.playRandom).toHaveBeenCalledTimes(1);
+    expect(bgm.stop).not.toHaveBeenCalled();
+    vm.onWinnerDialogClosed();
+    expect(bgm.stop).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
 });

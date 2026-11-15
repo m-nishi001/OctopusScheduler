@@ -60,6 +60,15 @@ export const RouletteBgmManager = {
     }
   },
 
+  /** 当選BGMをフェードアウトして止める。鳴っていなくても例外にはならない。 */
+  async fadeOut(ms: number) {
+    try {
+      await useRouletteAudio().fadeOutBgm(ms);
+    } catch (e) {
+      console.warn("[RouletteBgmManager] failed to fade out bgm", e);
+    }
+  },
+
   clear(name: string | null) {
     if (!name) return;
     cache.delete(name);
