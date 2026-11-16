@@ -396,9 +396,12 @@ export default {
         // 開始の準備(当選者を表示に入れる)が終わるまでを表す。stopDraw はこれを待ってから止める
         // (開始の準備中に止めると、止めたあとにリールが回り出し、二度と止まらなかった)。
         let starting: Promise<void> = Promise.resolve();
+        // メンバー結果BGMが空か。開始で先に調べておき、停止では待たない(停止の開始を遅らせない)。
+        let holdBgm: Promise<boolean> = Promise.resolve(false);
 
         const startDraw = (winnerId?: string | null) => {
             plannedWinnerId = winnerId ?? null;
+            holdBgm = resultBgmEmpty();
             // Ensure winner is part of the displayed set before starting animation
             starting = (async () => {
                 try {
@@ -419,7 +422,7 @@ export default {
             try {
                 // 結果BGMがあれば、停止が始まったらメンバー抽選BGMをフェードアウトする(止まるのを待たない)。
                 // 結果BGMが空なら、止まるまで流して、止まったらフェードアウトする(結果の表示中は無音)
-                const hold = await resultBgmEmpty();
+                const hold = await holdBgm;
                 if (!hold) void memberBgm.fadeOut();
                 id = await stopAt(plannedWinnerId || null, sec);
                 if (hold) void memberBgm.fadeOut();
