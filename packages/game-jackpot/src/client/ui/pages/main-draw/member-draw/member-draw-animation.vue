@@ -34,7 +34,8 @@ import type { MemberDto } from '@control/member/dto/member-dto';
 import { MemberPhotoCache } from '@octopus/accounts';
 import type { DrawMemberResponse } from '@control/draw/dto/draw-member-response';
 import MemberWinnerDialog from './member-winner-dialog.vue';
-import { useLotteryBgm } from '../use-lottery-bgm';
+import { shouldHoldLotteryBgm, useLotteryBgm } from '../use-lottery-bgm';
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { buildMemberStopSteps, pickMemberStopPattern, requiredLeadPx, scaleStopSteps } from './member-stop-patterns';
 
 // Public ref interface for parent components that call methods on this component
@@ -70,6 +71,16 @@ export default {
         const memberBgm = useLotteryBgm('memberLotteryBgms');
         // 結果ダイアログを開いている間だけ流すBGM(開いたら再生、閉じたらすぐ止める)
         const resultBgm = useLotteryBgm('memberResultBgms');
+
+        /** メンバー結果BGMが空か(設定を読めないときは、今までどおり停止開始でフェードアウトする)。 */
+        const resultBgmEmpty = async (): Promise<boolean> => {
+            try {
+                const cfg = await container.resolve(ScreenSettingsService).fetchScreenSetting('main', 'main-screen-settings');
+                return shouldHoldLotteryBgm(cfg?.memberResultBgms);
+            } catch {
+                return false;
+            }
+        };
 
         const displayMembers = ref<MemberDto[]>([]);
 
@@ -406,9 +417,12 @@ export default {
             await starting;
             let id: string | null;
             try {
-                // 停止が始まったら、メンバー抽選BGMはフェードアウトする(止まるのを待たない)
-                void memberBgm.fadeOut();
+                // 結果BGMがあれば、停止が始まったらメンバー抽選BGMをフェードアウトする(止まるのを待たない)。
+                // 結果BGMが空なら、止まるまで流して、止まったらフェードアウトする(結果の表示中は無音)
+                const hold = await resultBgmEmpty();
+                if (!hold) void memberBgm.fadeOut();
                 id = await stopAt(plannedWinnerId || null, sec);
+                if (hold) void memberBgm.fadeOut();
             } finally {
                 plannedWinnerId = null;
             }

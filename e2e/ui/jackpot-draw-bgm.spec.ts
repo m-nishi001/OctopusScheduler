@@ -6,7 +6,7 @@ import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, o
 /**
  * 抽選BGM(メンバー抽選BGM・メンバー結果BGM・景品抽選BGM・当選BGM)と、停止秒数(メンバー・景品で別々)。
  * - どれも1回だけ流す(ループしない)。未設定なら何も鳴らさない。
- * - メンバー抽選BGMは停止が始まったらフェードアウト(音量が下がって止まり、音量は元に戻る)、メンバー結果BGMは結果ダイアログを閉じたら即停止、景品抽選BGMは停止が始まったら即停止。
+ * - メンバー抽選BGMは停止が始まったらフェードアウト(音量が下がって止まり、音量は元に戻る)、メンバー結果BGMは結果ダイアログを閉じたら即停止、景品抽選BGMは、当選BGMがあれば停止が始まったら即停止(当選BGMが空なら、止まるまで流して止まったらフェードアウト)。
  * - 当選BGMは、リールが止まる瞬間に無音になるようフェードする。
  * - メンバー抽選と景品抽選で、停止から止まるまでの長さを別々に設定できる。
  * 音は再生のイベント(<audio> の play / pause / volume)とコンソールのログで確かめる。音源はテストの中で生成する(公開リポジトリのため)。
@@ -154,7 +154,7 @@ function fadeOf(log: Awaited<ReturnType<typeof audioLog>>, id: number) {
 }
 
 for (const kind of ["roulette", "slot"] as const) {
-  test(`@motion 抽選BGM(${kind}): 設定した曲を1回だけ流し(ループしない)、メンバー抽選BGMはフェードアウト・結果BGMは閉じたら即停止・景品抽選BGMは停止開始で即停止`, async ({ browser, request }) => {
+  test(`@motion 抽選BGM(${kind}): 設定した曲を1回だけ流し(ループしない)、メンバー抽選BGMはフェードアウト・結果BGMは閉じたら即停止・景品抽選BGMは(当選BGMが空なので)止まってからフェードアウト`, async ({ browser, request }) => {
     test.setTimeout(300_000);
     const { admin, host, guest, logs, pageErrors, consoleErrors } = await scene(browser, request, `抽選BGM-${kind}`, async (page) => {
       await seedJackpot(page, { prizes: prizesOf(kind) });
@@ -173,20 +173,19 @@ for (const kind of ["roulette", "slot"] as const) {
     await nextButton(admin.page).click();
     await expect.poll(() => logs.join("\n")).toContain("memberLotteryBgms fadeOut");
 
-    // 景品抽選: 開始で流れ、停止開始で即止まる(結果ダイアログを閉じるところまでに、メンバー結果BGMも流れて止まる)
+    // 景品抽選: 開始で流れる。この景品は当選BGMが空なので、停止開始では止めず、止まってからフェードアウトする(結果ダイアログを閉じるところまでに、メンバー結果BGMも流れて止まる)
     await advanceUntilStop(admin.page, "景品");
     await expect.poll(() => logs.join("\n")).toContain(`prizeLotteryBgms play ${PRIZE_BGM}`);
     // 回っているのを見てから止める(状態を待つ。回り始める前の「止める」は効かない)
     const reel = host.page.locator(`.${kind}-container`);
     await expect(reel.and(host.page.locator(".spinning")), "景品抽選が回っている").toBeVisible();
-    const stopClickedAt = await host.page.evaluate(() => performance.now());
     await nextButton(admin.page).click();
     // 止まる演出が終わる(回転が止まる)のを待ち、そのあと結果が出る。失敗したら、画面で起きたエラーを添える
     await expect(reel.and(host.page.locator(".spinning")), `止まる演出が終わらない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeHidden({ timeout: 30_000 });
     await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeVisible({ timeout: 60_000 });
 
-    // 順序: メンバー抽選(再生 → フェード)→ メンバー結果(再生)→ 景品抽選(再生)。ループ指定の曲は1つも無い。景品抽選BGMは、フェードでなく即停止
-    expect(logs.map((l) => l.replace("[LotteryBgm] ", "").replace(/ \S+\.wav$/, ""))).toEqual(["memberLotteryBgms play", "memberLotteryBgms fadeOut", "memberResultBgms play", "prizeLotteryBgms play"]);
+    // 順序: メンバー抽選(再生 → フェード)→ メンバー結果(再生)→ 景品抽選(再生)。ループ指定の曲は1つも無い。景品抽選BGMは、当選BGMが空なので止まってからフェードアウト
+    expect(logs.map((l) => l.replace("[LotteryBgm] ", "").replace(/ \S+\.wav$/, ""))).toEqual(["memberLotteryBgms play", "memberLotteryBgms fadeOut", "memberResultBgms play", "prizeLotteryBgms play", "prizeLotteryBgms fadeOut"]);
     expect(logs.join("\n")).toContain(`memberResultBgms play ${RESULT_BGM}`);
 
     await expect.poll(async () => (await audioLog(host.page)).filter((x) => x.e === "pause").length, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
@@ -203,18 +202,55 @@ for (const kind of ["roulette", "slot"] as const) {
     expect(f.zeroAt! - f.startAt!).toBeLessThan(3000);
     expect(f.pauseAt, "フェードが終わってから止まる").toBeGreaterThanOrEqual(f.zeroAt!);
     expect(f.restored, "止まったあとは音量が元に戻る").toBe(1);
-    // メンバー結果BGM・景品抽選BGM: フェードせず、すぐ止まる
-    for (const [name, id] of [["メンバー結果BGM", result], ["景品抽選BGM", prize]] as const) {
-      const mine = log.filter((x) => x.id === id);
-      expect(mine.some((x) => x.e === "pause"), `${name}: 止まる`).toBe(true);
-      expect(mine.filter((x) => x.e === "volume" && (x.v ?? 1) < 1), `${name}: 音量を下げない(即停止)`).toEqual([]);
-    }
-    const prizePause = log.find((x) => x.id === prize && x.e === "pause")!;
-    expect(prizePause.t - stopClickedAt, "景品抽選BGMは、停止ボタンを押してすぐ止まる(止まる演出が終わるのを待たない)").toBeLessThan(3000);
+    // メンバー結果BGM: フェードせず、すぐ止まる
+    const resultLog = log.filter((x) => x.id === result);
+    expect(resultLog.some((x) => x.e === "pause"), "メンバー結果BGM: 止まる").toBe(true);
+    expect(resultLog.filter((x) => x.e === "volume" && (x.v ?? 1) < 1), "メンバー結果BGM: 音量を下げない(即停止)").toEqual([]);
+    // 景品抽選BGM: 当選BGMが空なので、止まってからフェードアウトして止まる
+    const pf = fadeOf(log, prize);
+    expect(pf.zeroAt, "景品抽選BGM: 音量が 0 まで下がる").toBeDefined();
+    expect(pf.pauseAt, "景品抽選BGM: フェードが終わってから止まる").toBeGreaterThanOrEqual(pf.zeroAt!);
     expect(pageErrors, "ホスト画面で例外が出た").toEqual([]);
     for (const d of [admin, host, guest]) await d.context.close();
   });
 }
+
+test("@motion 結果BGMが空なら、メンバー抽選BGM・景品抽選BGMは、止まるまで流れ続けて、止まってからフェードアウトする", async ({ browser, request }) => {
+  test.setTimeout(300_000);
+  const STOP_SEC = 5;
+  const { admin, host, guest, pageErrors } = await scene(browser, request, "抽選BGM-結果空", async (page) => {
+    await seedJackpot(page, { prizes: prizesOf("roulette") });
+    await page.goto("/#/execute/jackpot-admin/screens/opening");
+    await page.reload();
+    await expect(page.getByTestId("table-export")).toBeVisible();
+    await page.getByTestId("table-import-open").click();
+    await page.getByTestId("table-import-table").setInputFiles(zipOf(`本抽選,,${MEMBER_BGM},,${PRIZE_BGM},,,${STOP_SEC},${STOP_SEC},,なし,`));
+    await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
+    await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
+  });
+  /** 停止ボタンを押した時刻(ホストの performance.now)を返し、止まる演出が終わるまで待つ。 */
+  const stopAt = async () => {
+    const at = await host.page.evaluate(() => performance.now());
+    await stopAndMeasure(admin.page);
+    return at;
+  };
+  await advanceUntilStop(admin.page, "メンバー");
+  const memberStop = await stopAt();
+  await advanceUntilStop(admin.page, "景品");
+  await expect(host.page.locator(".roulette-container.spinning"), "景品抽選が回っている").toBeVisible();
+  const prizeStop = await stopAt();
+  await expect.poll(async () => (await audioLog(host.page)).filter((x) => x.e === "pause").length, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+  const log = await audioLog(host.page);
+  const [member, prize] = [...new Set(log.filter((x) => x.e === "play").map((x) => x.id))];
+  for (const [name, id, stoppedFrom] of [["メンバー抽選BGM", member, memberStop], ["景品抽選BGM", prize, prizeStop]] as const) {
+    const f = fadeOf(log, id);
+    expect(f.startAt, `${name}: 止まるまで音量を下げない(停止ボタンの直後に消えない)`).toBeGreaterThan(stoppedFrom + (STOP_SEC - 2) * 1000);
+    expect(f.zeroAt, `${name}: 止まってから無音になる`).toBeDefined();
+    expect(f.pauseAt, `${name}: 無音になってから止まる`).toBeGreaterThanOrEqual(f.zeroAt!);
+  }
+  expect(pageErrors).toEqual([]);
+  for (const d of [admin, host, guest]) await d.context.close();
+});
 
 test("@motion 当選BGMは1回だけ流れ、リールが止まる瞬間に無音になる(停止秒に合わせたフェード)", async ({ browser, request }) => {
   test.setTimeout(300_000);

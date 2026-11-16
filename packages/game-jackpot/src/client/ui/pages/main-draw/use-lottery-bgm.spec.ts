@@ -7,7 +7,7 @@ import { ScreenSettingsService } from "@control/screen-config/screen-settings-se
 const audio = vi.hoisted(() => ({ load: vi.fn(), play: vi.fn(), stop: vi.fn(), fadeOut: vi.fn() }));
 vi.mock("@octopus/composables/use-audio", () => ({ useAudio: () => audio }));
 
-import { LOTTERY_BGM_FADE_MS, LOTTERY_BGM_START_WAIT_MS, pickLotteryBgm, useLotteryBgm } from "./use-lottery-bgm";
+import { LOTTERY_BGM_FADE_MS, LOTTERY_BGM_START_WAIT_MS, pickLotteryBgm, shouldHoldLotteryBgm, useLotteryBgm } from "./use-lottery-bgm";
 
 describe("pickLotteryBgm(0〜3件から1つを選ぶ)", () => {
   it("0件・未設定・空の名前だけなら null(無音)", () => {
@@ -20,6 +20,21 @@ describe("pickLotteryBgm(0〜3件から1つを選ぶ)", () => {
     expect(pickLotteryBgm(["a.mp3"])).toBe("a.mp3");
     const names = ["a.mp3", "", "b.mp3", "c.mp3"];
     expect([0, 0.34, 0.67, 0.999].map((r) => pickLotteryBgm(names, () => r))).toEqual(["a.mp3", "b.mp3", "c.mp3", "c.mp3"]);
+  });
+});
+
+describe("shouldHoldLotteryBgm(結果BGMが空なら、抽選BGMを止まるまで流す)", () => {
+  it("未設定・0件・空の名前だけなら true", () => {
+    expect(shouldHoldLotteryBgm(undefined)).toBe(true);
+    expect(shouldHoldLotteryBgm(null)).toBe(true);
+    expect(shouldHoldLotteryBgm([])).toBe(true);
+    expect(shouldHoldLotteryBgm(["", "  "])).toBe(true);
+    expect(shouldHoldLotteryBgm("")).toBe(true);
+  });
+
+  it("1曲でもあれば false(文字列でも配列でも)", () => {
+    expect(shouldHoldLotteryBgm("a.mp3")).toBe(false);
+    expect(shouldHoldLotteryBgm(["", "a.mp3"])).toBe(false);
   });
 });
 

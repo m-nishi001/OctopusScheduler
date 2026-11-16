@@ -33,6 +33,14 @@ export function pickLotteryBgm(names: readonly (string | null | undefined)[] | n
 }
 
 /**
+ * 結果のBGM(メンバー結果BGM・景品の当選BGM)が空なら true。
+ * true のときは、抽選BGMを停止の開始で止めず、リールやルーレットが止まるまで流し続けて、止まったらフェードアウトする(結果の表示中は無音)。
+ */
+export function shouldHoldLotteryBgm(resultBgms: string | readonly (string | null | undefined)[] | null | undefined): boolean {
+  return pickLotteryBgm(typeof resultBgms === 'string' ? [resultBgms] : resultBgms) === null;
+}
+
+/**
  * 抽選中に流すBGM(`main-screen-settings` の `key` に並べた曲から、抽選のたびにランダムに1曲)の
  * 読み込み・再生・フェードアウトを担う。景品の当選BGM(roulette-audio の singleton)とは別の
  * `useAudio()` を持つので、2曲が同時に鳴る。再生に失敗しても演出は止めない。
