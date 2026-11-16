@@ -5,6 +5,7 @@ import { DrawStateError, type DrawContext } from "./draw-context";
 import { KAKUHEN_TIMINGS } from "./kakuhen-timings";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
 import type { RoulettePrizeDto } from "./roulette/roulette-prize-preparer";
+import { shouldHoldLotteryBgm } from "./use-lottery-bgm";
 import { waitForWindowEvent } from "./wait-for-window-event";
 
 const sleep = (ms: number) => delay(ms / 1000);
@@ -96,9 +97,11 @@ export class KakuhenSession {
     const anim = this.ctx.prizeAnim.value;
     if (!anim?.stopSpin) return;
     const sec = KAKUHEN_TIMINGS.DUMMY_SPIN_DOWN_DURATION_MS / 1000;
-    void this.ctx.prizeLotteryBgm.stop();
+    const hold = shouldHoldLotteryBgm(this.dummy?.bgm1);
+    if (!hold) void this.ctx.prizeLotteryBgm.stop();
     await playWinningBgm(this.dummy?.bgm1, sec, this.ctx);
     await anim.stopSpin(sec, this.dummy?.id || null, 1);
+    if (hold) void this.ctx.prizeLotteryBgm.fadeOut();
   }
 
   async showMessage(): Promise<void> {
@@ -161,7 +164,8 @@ export class KakuhenSession {
 
     const durationSec = KAKUHEN_TIMINGS.FINAL_SPIN_DOWN_DURATION_MS / 1000;
     const items = anim?.stopSpin ? await this.syncAnimationItems() : [];
-    void ctx.prizeLotteryBgm.stop();
+    const hold = shouldHoldLotteryBgm(final.bgm2);
+    if (!hold) void ctx.prizeLotteryBgm.stop();
     await playWinningBgm(final.bgm2, durationSec, ctx);
     if (anim?.stopSpin) {
       if (items.length > 0 && !items.some((it) => it.id === final.id)) {
@@ -172,6 +176,7 @@ export class KakuhenSession {
         await anim.stopSpin(durationSec, final.id, 1);
       }
     }
+    if (hold) void ctx.prizeLotteryBgm.fadeOut();
 
     await this.restoreOriginalPrizes(final);
   }

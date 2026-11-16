@@ -8,8 +8,8 @@ vi.mock("./bgm", () => ({ playWinningBgm: vi.fn().mockResolvedValue(undefined), 
 
 const prizeRes = { winnerPrizeId: "p1", dummyWinnerPrizeId: null, dummyPrizeIds: [], drawId: "d1" };
 
-function setup(overrides: { items?: Array<{ id: string }> } = {}) {
-  const winner = { id: "p1", name: "p1", order: 1, image: "img1", image2: "img2", winningImage1: "win1", winningImage2: "win2" };
+function setup(overrides: { items?: Array<{ id: string }>; bgm1?: string; bgm2?: string } = {}) {
+  const winner = { id: "p1", name: "p1", order: 1, bgm1: overrides.bgm1 ?? "w1.mp3", bgm2: overrides.bgm2 ?? "w2.mp3", image: "img1", image2: "img2", winningImage1: "win1", winningImage2: "win2" };
   const ctx = createTestContext();
   ctx.prizes.value = [winner, { id: "p2", name: "p2", order: 2 }];
   ctx.prizeRes.value = prizeRes as any;
@@ -221,6 +221,31 @@ describe("KakuhenSession", () => {
       await settle(session.stopFinalDraw());
       expect(ctx.prizeLotteryBgm.stop).toHaveBeenCalledTimes(1);
       expect(ctx.prizeLotteryBgm.fadeOut).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("結果BGMが空なら、景品抽選BGMは止まるまで続く", () => {
+    it("ダミー: ♪ダミー当選が空なら、即止めず、止まってからフェードアウトする", async () => {
+      const { ctx, session } = setup({ bgm1: "" });
+      const order: string[] = [];
+      ctx.prizeLotteryBgm.stop.mockImplementation(async () => void order.push("lottery:stop"));
+      ctx.prizeLotteryBgm.fadeOut.mockImplementation(async () => void order.push("lottery:fadeOut"));
+      ctx.prizeAnim.value.stopSpin.mockImplementation(async () => void order.push("stopSpin"));
+      await settle(session.startDummyDraw());
+      await settle(session.stopDummyDraw());
+      expect(order).toEqual(["stopSpin", "lottery:fadeOut"]);
+    });
+
+    it("本抽選: ♪当選(bgm2)が空なら、即止めず、止まってからフェードアウトする", async () => {
+      const { ctx, session } = setup({ items: [{ id: "p1__k2" }], bgm2: "" });
+      const order: string[] = [];
+      ctx.prizeLotteryBgm.stop.mockImplementation(async () => void order.push("lottery:stop"));
+      ctx.prizeLotteryBgm.fadeOut.mockImplementation(async () => void order.push("lottery:fadeOut"));
+      ctx.prizeAnim.value.stopSpin.mockImplementation(async () => void order.push("stopSpin"));
+      await settle(session.startDummyDraw());
+      await settle(session.startFinalDraw());
+      await settle(session.stopFinalDraw());
+      expect(order).toEqual(["stopSpin", "lottery:fadeOut"]);
     });
   });
 

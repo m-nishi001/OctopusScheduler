@@ -99,7 +99,7 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
 
   it("通常サイクルを Enter ごとに進めると、画面の状態が期待どおりに変わる", async () => {
     const ctx = createTestContext({ prizeStopSec: 6 });
-    ctx.selectedPrize.value = { id: "p1", bgm1: null };
+    ctx.selectedPrize.value = { id: "p1", bgm1: "win.mp3" };
     const { advance, queue } = run(ctx);
 
     await advance(); // メンバー抽選の画面へ
@@ -121,7 +121,7 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
     expect(ctx.prizeAnim.value.stopSpin).toHaveBeenCalledWith(6, "p1", 1); // 管理画面で決めた、止まるまでの秒数
     expect(ctx.showPrizeWinningDialog.value).toBe(true);
     expect(ctx.prizeLotteryBgm.stop).toHaveBeenCalledTimes(1); // 景品抽選BGMは停止開始で即止める
-    expect(playWinningBgm).toHaveBeenCalledWith(null, 6, ctx); // 当選BGMは停止秒に合わせて消える
+    expect(playWinningBgm).toHaveBeenCalledWith("win.mp3", 6, ctx); // 当選BGMは停止秒に合わせて消える
 
     await advance(); // ダイアログを閉じて、残数を確認する
     expect(ctx.showPrizeWinningDialog.value).toBe(false);
@@ -148,6 +148,28 @@ describe("景品抽選BGM(通常)", () => {
 
     expect(order).toEqual(["lottery:play", "lottery:stop", "win:play", "stopSpin"]);
     expect(playWinningBgm).toHaveBeenCalledWith("win.mp3", 4, ctx);
+  });
+
+  it("当選BGMが空なら、景品抽選BGMは即止めず、ルーレットが止まってからフェードアウトする", async () => {
+    const ctx = createTestContext();
+    ctx.selectedPrize.value = { id: "p1", bgm1: "" };
+    const order: string[] = [];
+    ctx.prizeLotteryBgm.stop.mockImplementation(async () => void order.push("lottery:stop"));
+    ctx.prizeLotteryBgm.fadeOut.mockImplementation(async () => void order.push("lottery:fadeOut"));
+    ctx.prizeAnim.value.stopSpin.mockImplementation(async () => void order.push("stopSpin"));
+    const [start, , stop] = normalPrizeSteps(ctx);
+    await start.run();
+    await stop.run();
+    expect(order).toEqual(["stopSpin", "lottery:fadeOut"]);
+  });
+
+  it("当選BGMがあれば、止めるときにフェードアウトはしない(即止めるだけ)", async () => {
+    const ctx = createTestContext();
+    ctx.selectedPrize.value = { id: "p1", bgm1: "win.mp3" };
+    const [start, , stop] = normalPrizeSteps(ctx);
+    await start.run();
+    await stop.run();
+    expect(ctx.prizeLotteryBgm.fadeOut).not.toHaveBeenCalled();
   });
 
   it("景品抽選BGMが未設定(何も鳴らさない)でも、今までどおり進む", async () => {
