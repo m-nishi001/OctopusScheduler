@@ -210,8 +210,8 @@ for (const kind of ["roulette", "slot"] as const) {
     expect(resultLog.filter((x) => x.e === "volume" && (x.v ?? 1) < 1), "メンバー結果BGM: 音量を下げない(即停止)").toEqual([]);
     // 景品抽選BGM: 当選BGMが空なので、止まってからフェードアウトして止まる
     const pf = fadeOf(log, prize);
-    expect(pf.zeroAt, "景品抽選BGM: 音量が 0 まで下がる").toBeDefined();
-    expect(pf.pauseAt, "景品抽選BGM: フェードが終わってから止まる").toBeGreaterThanOrEqual(pf.zeroAt!);
+    expect(pf.startAt, "景品抽選BGM: 音量が下がり始める").toBeDefined();
+    expect(pf.pauseAt, "景品抽選BGM: フェードを始めてから止まる").toBeGreaterThanOrEqual(pf.startAt!);
     expect(pageErrors, "ホスト画面で例外が出た").toEqual([]);
     for (const d of [admin, host, guest]) await d.context.close();
   });
@@ -249,8 +249,8 @@ test("@motion 結果BGMが空なら、メンバー抽選BGM・景品抽選BGMは
   for (const [name, id, stoppedFrom] of [["メンバー抽選BGM", member, memberStop], ["景品抽選BGM", prize, prizeStop]] as const) {
     const f = fadeOf(log, id);
     expect(f.startAt, `${name}: 止まるまで音量を下げない(停止ボタンの直後に消えない)`).toBeGreaterThan(stoppedFrom + (STOP_SEC - 2) * 1000);
-    expect(f.zeroAt, `${name}: 止まってから無音になる`).toBeDefined();
-    expect(f.pauseAt, `${name}: 無音になってから止まる`).toBeGreaterThanOrEqual(f.zeroAt!);
+    expect(Math.min(...f.volumes), `${name}: 止まってから音量が下がる`).toBeLessThan(1);
+    expect(f.pauseAt, `${name}: フェードを始めてから止まる`).toBeGreaterThanOrEqual(f.startAt!);
   }
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host, guest]) await d.context.close();
