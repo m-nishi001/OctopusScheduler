@@ -189,6 +189,8 @@ for (const kind of ["roulette", "slot"] as const) {
     expect(logs.join("\n")).toContain(`memberResultBgms play ${RESULT_BGM}`);
 
     await expect.poll(async () => (await audioLog(host.page)).filter((x) => x.e === "pause").length, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+    const prizeId = [...new Set((await audioLog(host.page)).filter((x) => x.e === "play").map((x) => x.id))][2];
+    await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), prizeId); return f.startAt !== undefined && f.pauseAt !== undefined; }, { timeout: 15_000 }).toBe(true);
     const log = await audioLog(host.page);
     const plays = log.filter((x) => x.e === "play");
     expect(plays.filter((x) => x.loop), "どの曲もループしない").toEqual([]);
@@ -239,9 +241,11 @@ test("@motion 結果BGMが空なら、メンバー抽選BGM・景品抽選BGMは
   await advanceUntilStop(admin.page, "景品");
   await expect(host.page.locator(".roulette-container.spinning"), "景品抽選が回っている").toBeVisible();
   const prizeStop = await stopAt();
-  await expect.poll(async () => (await audioLog(host.page)).filter((x) => x.e === "pause").length, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+  const ids = [...new Set((await audioLog(host.page)).filter((x) => x.e === "play").map((x) => x.id))];
+  const [member, prize] = ids;
+  // フェードは時間で進む(待たない)ので、2曲とも止まる(pause)まで待つ
+  for (const id of [member, prize]) await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), id); return f.startAt !== undefined && f.pauseAt !== undefined; }, { timeout: 15_000 }).toBe(true);
   const log = await audioLog(host.page);
-  const [member, prize] = [...new Set(log.filter((x) => x.e === "play").map((x) => x.id))];
   for (const [name, id, stoppedFrom] of [["メンバー抽選BGM", member, memberStop], ["景品抽選BGM", prize, prizeStop]] as const) {
     const f = fadeOf(log, id);
     expect(f.startAt, `${name}: 止まるまで音量を下げない(停止ボタンの直後に消えない)`).toBeGreaterThan(stoppedFrom + (STOP_SEC - 2) * 1000);
