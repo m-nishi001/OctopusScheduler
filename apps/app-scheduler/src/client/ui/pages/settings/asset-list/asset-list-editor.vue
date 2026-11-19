@@ -79,6 +79,7 @@ import { AssetService } from '../../../../control/asset/asset-service';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { assetTableIo } from '../../../../control/asset-table/asset-table-io';
 import { MAX_BLOB_BYTES, MAX_BLOB_MB } from '@octopus/infrastructures/interfaces';
+import { eventBus } from '@octopus/client-common/events/event-bus';
 import { classifyMedia } from '../../../../model/media/media-kind';
 import { folderOf } from '../../../../model/media/media-catalog';
 
@@ -93,7 +94,15 @@ const importOpen = ref(false);
 /** サーバーに送れなかった素材(上限超過など)の id → 理由。一覧に印を付ける。 */
 const rejected = ref<Map<string, string>>(new Map());
 const refreshRejected = async () => { rejected.value = await assetService.rejectedEntries(); };
-let rejectedTimer: ReturnType<typeof setInterval> | null = null;
+/**
+ * バックグラウンド同期が1回終わるたびに、サーバーから取り込んだ素材を一覧に反映する(別の端末で入れた素材が、再読み込みなしで出る)。
+ * 一覧の素材の数と、中身が手元に揃った素材の数がずれているとき(同期の途中)だけ読み直す。送れなかった素材の印も、ここで更新する。
+ */
+const onSyncDone = async () => {
+    const entries = await assetService.readEntries();
+    if (entries.length !== assets.value.length) await fetchAssets();
+    await refreshRejected();
+};
 
 // CSV の書き出し・取込。取り込んだら一覧を読み直す。
 const assetIo = assetTableIo({
@@ -224,7 +233,7 @@ const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType
 const closePreview = () => { previewAsset.value = null; previewAssetType.value = null; };
 
 onBeforeUnmount(() => {
-    if (rejectedTimer) clearInterval(rejectedTimer);
+    eventBus.off('syncDone', onSyncDone);
     // revoke all created object URLs
     for (const url of objectUrlMap.values()) {
         try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
@@ -235,8 +244,7 @@ onBeforeUnmount(() => {
 onMounted(async () => {
     await fetchAssets();
     await refreshRejected();
-    // 送れなかった素材は、バックグラウンドの同期が断られてから分かる。一覧を開いている間だけ見に行く
-    rejectedTimer = setInterval(() => { void refreshRejected(); }, 5000);
+    eventBus.on('syncDone', onSyncDone);
 });
 
 function deriveAssetKind(asset: any): string {
