@@ -149,4 +149,34 @@ test.describe("アセットの CSV 取込・書き出し", () => {
     await expect.poll(async () => mine(await serverAssets(request)).length, { timeout: 60_000 }).toBe(0);
     await d.context.close();
   });
+  test("上限(30MB)を超える素材は、ファイル名と上限を示すエラーになって取り込めず、そのほかの素材は取り込めてサーバーに届く", async ({ browser, request }) => {
+    test.setTimeout(120_000);
+    const d = await newDevice(browser, { signedIn: true });
+    const { page } = d;
+    await openAssets(page);
+    const big = `big-${stamp}.mp3`;
+    const dir = mediaDir(TUNES.draw);
+    writeFileSync(join(dir, big), Buffer.alloc(31 * 1024 * 1024, 1));
+
+    // 大きすぎる素材を含めると、その行がエラー(「見つかりません」ではなく上限の説明)になり、全体は取り込めない
+    await pickCsv(page, table(csvOf(`${BGM},`, `${big},`)), dir);
+    await expect(page.getByTestId("table-import-counts")).toContainText("追加 1 / 更新 0 / 変更なし 0 / 削除 0 / エラー 1");
+    await expect(page.locator('[data-testid="table-import-row"][data-status="error"]')).toContainText(`素材「${big}」が上限(30.0MB)を超えています(31.0MB)`);
+    await expect(page.getByRole("dialog").getByRole("button", { name: "取り込む" })).toBeDisabled();
+    await page.getByRole("button", { name: "閉じる" }).click();
+
+    // 大きい素材を外せば、そのほかの素材は取り込めて、サーバーの一覧にも載る
+    await pickCsv(page, table(csvOf(`${BGM},`)), dir);
+    await expect(page.getByTestId("table-import-counts")).toContainText("追加 1 / 更新 0 / 変更なし 0 / 削除 0 / エラー 0");
+    await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
+    await expect(page.getByTestId("table-import-result")).toContainText("追加 1", { timeout: 60_000 });
+    await page.getByTestId("table-import-close").click();
+    await expect.poll(async () => mine(await serverAssets(request)).map((e) => e.name), { timeout: 60_000 }).toEqual([BGM]);
+    expect((await serverAssets(request)).some((e) => e.name === big)).toBe(false);
+
+    await page.getByRole("row").filter({ hasText: BGM }).getByRole("button", { name: "削除" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "削除", exact: true }).click();
+    await expect.poll(async () => mine(await serverAssets(request)).length, { timeout: 60_000 }).toBe(0);
+    await d.context.close();
+  });
 });

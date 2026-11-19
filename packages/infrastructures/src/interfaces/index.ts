@@ -10,3 +10,4 @@ export * from "./lock";
 export * from "./secret-provider";
 export * from "./concurrency-policy";
 export * from "./domain-error";
+export * from "./blob-limits";

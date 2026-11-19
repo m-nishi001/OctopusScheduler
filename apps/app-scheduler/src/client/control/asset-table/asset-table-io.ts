@@ -8,7 +8,8 @@ import { saveFile } from "@octopus/client-common/blob/save-file";
 import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import { hashBlob, mapPool } from "@octopus/sync-engine";
 import type { PoolOptions } from "@octopus/sync-engine";
-import { buildZip, exportTable, parseTable, planImport, readImportFiles, referencedMedia } from "@octopus/table-io";
+import { MAX_BLOB_BYTES } from "@octopus/infrastructures/interfaces";
+import { buildZip, exportTable, parseTable, planImport, explainOversized, flagOversizedRows, readImportFiles, referencedMedia } from "@octopus/table-io";
 import type { ImportMode } from "@octopus/table-io";
 import type { AssetRecordEntry } from "../../../server/scheduler-api-contract";
 import type { ImportedAsset } from "@model/asset/asset-repository";
@@ -81,9 +82,9 @@ export interface AssetImportInput {
 
 /** 選んだファイルを読み、計画を立てる(まだ何も書かない)。確定する関数 `apply` を抱えて返る。 */
 export async function previewAssetImport(input: AssetImportInput, deps: AssetTableIoDeps) {
-  const read = await readImportFiles(input.table, input.media);
+  const read = await readImportFiles(input.table, input.media, MAX_BLOB_BYTES);
   if (!read.ok) return read;
-  const { csv, files } = read.value;
+  const { csv, files, oversized } = read.value;
 
   const headers = assetAdapter().headers;
   const parsed = parseTable(csv, headers);
@@ -110,15 +111,18 @@ export async function previewAssetImport(input: AssetImportInput, deps: AssetTab
     input.mode,
     changed
   );
+  // 大きすぎる素材(すでに同名の素材があって、行自体は通る場合も)はエラーの行にする
+  const flagged = flagOversizedRows(plan.rows, parsed.rows, ["id"], oversized, MAX_BLOB_BYTES);
+  const blocked = !plan.ok || flagged.counts.error > 0;
   const protectedCount = input.mode === "replace" && plan.ok ? entries.filter((e) => usedByEvents(events).has(e.id) && !parsed.rows.some((r) => r.cells.id === e.name)).length : 0;
 
   return {
     ok: true as const,
-    rows: plan.rows,
-    counts: plan.counts,
+    rows: explainOversized(flagged.rows, oversized, MAX_BLOB_BYTES),
+    counts: flagged.counts,
     media: { added: [...changed].filter((n) => !hashOf.has(n)).length, replaced: [...changed].filter((n) => hashOf.has(n)).length },
     apply: async (onProgress: (message: string) => void) => {
-      if (!plan.ok) throw new Error("エラーの行があるため取り込めません");
+      if (blocked) throw new Error("エラーの行があるため取り込めません");
       onProgress("素材を保存しています");
       const files: ImportedAsset[] = [];
       const directories = new Map<string, string | undefined>();

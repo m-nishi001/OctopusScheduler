@@ -8,7 +8,8 @@ import { saveFile } from "@octopus/client-common/blob/save-file";
 import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import { hashBlob, mapPool } from "@octopus/sync-engine";
 import type { PoolOptions } from "@octopus/sync-engine";
-import { buildZipOfCsvs, decodeCsvBytes, diffMedia, normalizeHeader, parseCsv, parseTable, readImportFiles, stringifyTable } from "@octopus/table-io";
+import { MAX_BLOB_BYTES } from "@octopus/infrastructures/interfaces";
+import { buildZipOfCsvs, decodeCsvBytes, diffMedia, explainOversized, normalizeHeader, parseCsv, parseTable, readImportFiles, stringifyTable } from "@octopus/table-io";
 import type { ImportMode, ParsedTable } from "@octopus/table-io";
 import type { JackpotRecord, ScreenSettingRecord } from "../../../server/jackpot-api-contract";
 import { countKakuhenPrizes } from "../../model/prize/prize-kakuhen";
@@ -108,9 +109,9 @@ function readTables(csvs: ReadonlyMap<string, Uint8Array>): { ok: true; screens:
 
 /** 選んだファイルを読み、計画を立てる(まだ何も書かない)。確定する関数 `apply` を抱えて返る。 */
 export async function previewScreenImport(input: ScreenImportInput, deps: ScreenTableIoDeps) {
-  const read = await readImportFiles(input.table, input.media);
+  const read = await readImportFiles(input.table, input.media, MAX_BLOB_BYTES);
   if (!read.ok) return read;
-  const { csvs, files } = read.value;
+  const { csvs, files, oversized } = read.value;
 
   const parsed = readTables(csvs);
   if (!parsed.ok) return parsed;
@@ -129,7 +130,7 @@ export async function previewScreenImport(input: ScreenImportInput, deps: Screen
   const changedMedia = new Set([...diff.added, ...diff.replaced]);
 
   const plan = tablesToScreens(incomingTables, {
-    available: new Set([...Object.keys(record.media), ...files.keys()]),
+    available: new Set([...Object.keys(record.media), ...files.keys()].filter((name) => !oversized.has(name))),
     mimeOf: (name) => files.get(name)?.type || record.media[name]?.mime || "",
     current: record.screens,
     kakuhenPrizeCount: countKakuhenPrizes(record.prizes),
@@ -148,7 +149,7 @@ export async function previewScreenImport(input: ScreenImportInput, deps: Screen
     status.set(next.settingName, !current ? "add" : same ? "unchanged" : "update");
   }
 
-  const rows = [
+  const rows = explainOversized([
     ...screenRows.map((r, i) => {
       const error = plan.screenErrors[i];
       const label = `${SCREEN_CSV_NAME} ${r.cells.screen ?? ""}`;
@@ -163,7 +164,7 @@ export async function previewScreenImport(input: ScreenImportInput, deps: Screen
         ? { line: r.line, key: `p${i}`, label, status: "error" as const, message: error }
         : { line: r.line, key: `p${i}`, label, status: status.get(plan.pageTargets[i] ?? "") ?? ("unchanged" as const) };
     }),
-  ];
+  ], oversized, MAX_BLOB_BYTES);
   const counts = { add: 0, update: 0, unchanged: 0, delete: 0, error: 0 };
   for (const r of rows) counts[r.status]++;
   const ok = counts.error === 0;

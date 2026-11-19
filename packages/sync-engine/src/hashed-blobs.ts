@@ -9,6 +9,7 @@
  * メンバー写真(accounts の photo-upload / member-photo-cache)と同じ考え方を、汎用にしたもの。
  */
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { isPermanentBlobError } from "@octopus/infrastructures/interfaces";
 import type { SyncSnapshot, SyncTarget } from "./sync-target";
 import { mapPool } from "./pool/promise-pool";
 import type { PoolOptions } from "./pool/promise-pool";
@@ -98,15 +99,42 @@ export class HashedBlobStore implements HashedBlobLocal {
 
 const unique = (hashes: readonly string[]): string[] => [...new Set(hashes)];
 
+/**
+ * サーバーが受け付けなかったファイル(ハッシュ → 理由)の控え。上限超過など、何度送っても断られるものだけが入る。
+ * 控えにあるファイルは、次の同期から送り直さない(同じ断られ方を繰り返して、ほかのファイルの同期を止めないため)。
+ * 通信の失敗・認証切れ・サーバーの一時的な不調は入れない(それは次の同期で再試行する)。
+ */
+export class BlobRejectionLog {
+  private readonly entries = new Map<string, string>();
+
+  record(hash: string, reason: string): void {
+    this.entries.set(hash, reason);
+  }
+
+  has(hash: string): boolean {
+    return this.entries.has(hash);
+  }
+
+  reasonOf(hash: string): string | undefined {
+    return this.entries.get(hash);
+  }
+
+  /** 控えているすべて(ハッシュ → 理由)。 */
+  all(): ReadonlyMap<string, string> {
+    return this.entries;
+  }
+}
+
 /** サーバーに無いファイルだけを上げる(確認は1回)。手元に無いハッシュがあれば例外(一覧が先に進んでしまわないように)。 */
 export async function uploadMissingBlobs(
   local: HashedBlobLocal,
   remote: HashedBlobRemote,
   hashes: readonly string[],
-  options?: PoolOptions
-): Promise<{ uploaded: number; skipped: number }> {
-  const wanted = unique(hashes);
-  if (wanted.length === 0) return { uploaded: 0, skipped: 0 };
+  options?: PoolOptions,
+  rejections?: BlobRejectionLog
+): Promise<{ uploaded: number; skipped: number; rejected: string[] }> {
+  const wanted = unique(hashes).filter((h) => !rejections?.has(h));
+  if (wanted.length === 0) return { uploaded: 0, skipped: 0, rejected: [] };
   const existing = new Set(await remote.exists(wanted));
   const missing = wanted.filter((h) => !existing.has(h));
   // 小さいファイルから送る(画面の「アップロード済み」が先に増え、大きい動画が詰まっても小さいものは先に揃う)。
@@ -121,8 +149,22 @@ export async function uploadMissingBlobs(
     options
   );
   blobs.sort((a, b) => a.blob.size - b.blob.size);
-  await mapPool(blobs, ({ hash, blob }) => remote.put(hash, blob), options);
-  return { uploaded: missing.length, skipped: wanted.length - missing.length };
+  // 何度送っても断られるファイル(上限超過など)は、控えに残して先へ進む。ほかのファイルは止めない。通信の失敗などは、そのまま例外にする(次の同期で再試行)。
+  const rejected: string[] = [];
+  await mapPool(
+    blobs,
+    async ({ hash, blob }) => {
+      try {
+        await remote.put(hash, blob);
+      } catch (e) {
+        if (!rejections || !isPermanentBlobError(e)) throw e;
+        rejections.record(hash, e instanceof Error ? e.message : String(e));
+        rejected.push(hash);
+      }
+    },
+    options
+  );
+  return { uploaded: missing.length - rejected.length, skipped: wanted.length - missing.length, rejected };
 }
 
 /** 手元に無いファイルだけを取ってくる。サーバーにも無かったものは `missing` に返す(例外にはしない)。通信の失敗は例外。 */
@@ -156,6 +198,13 @@ export interface HashedBlobSync<T> {
   /** 一覧のデータが参照しているハッシュ。 */
   hashesOf(data: T): string[];
   pool?: PoolOptions;
+  /**
+   * サーバーが受け付けなかったファイルの控え。渡すと、断られたファイルは控えに残して、ほかのファイルと一覧の同期は進める。
+   * `without` も渡す必要がある(送る一覧から、断られたファイルを使う項目を外すため)。
+   */
+  rejections?: BlobRejectionLog;
+  /** 一覧から、指定したハッシュのファイルを使う項目を外したもの。断られたファイルを、サーバーの一覧に載せないために使う。 */
+  without?(data: T, hashes: ReadonlySet<string>): T;
 }
 
 /**
@@ -167,8 +216,11 @@ export function withHashedBlobs<T>(target: SyncTarget<T, T>, blobs: HashedBlobSy
   return {
     ...target,
     push: async (snapshot: SyncSnapshot<T>) => {
-      await uploadMissingBlobs(blobs.local, blobs.remote, blobs.hashesOf(snapshot.data), blobs.pool);
-      await target.push(snapshot);
+      const rejections = blobs.without ? blobs.rejections : undefined;
+      await uploadMissingBlobs(blobs.local, blobs.remote, blobs.hashesOf(snapshot.data), blobs.pool, rejections);
+      // 断られたファイルを使う項目は、サーバーの一覧に載せない(端末の一覧はそのまま。更新日時も同じなので、次の同期で取り込み直されて消えることも無い)
+      const refused = new Set(blobs.hashesOf(snapshot.data).filter((h) => rejections?.has(h)));
+      await target.push(refused.size > 0 ? { ...snapshot, data: blobs.without!(snapshot.data, refused) } : snapshot);
     },
     afterSync: async () => {
       const current = await target.getLocal();

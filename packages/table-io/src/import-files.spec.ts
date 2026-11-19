@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseTable } from "./csv";
-import { readImportFiles, referencedMedia } from "./import-files";
+import { explainOversized, flagOversizedRows, readImportFiles, referencedMedia } from "./import-files";
 import { buildZip } from "./zip";
 
 // jsdom の Blob / File には arrayBuffer が無いことがあるので、FileReader で補う。
@@ -45,5 +45,47 @@ describe("referencedMedia", () => {
     );
     if (!parsed.ok) throw new Error("parse");
     expect(referencedMedia(parsed, new Map([["a.png", 1], ["b.mp3", 2], ["unused.png", 3]])).sort()).toEqual(["a.png", "b.mp3"]);
+  });
+});
+
+describe("上限を超える素材", () => {
+  it("上限を超える素材は、取り込める素材(files)に入れず、oversized に名前とバイト数で返す(ZIP の中も、フォルダで選んだものも)", async () => {
+    const zip = buildZip("t.csv", "ID\n1\n", [["small.png", new Uint8Array(3)], ["big.mp3", new Uint8Array(11)]]);
+    const folderBig = new File([new Uint8Array(12)], "big2.mp3", { type: "audio/mpeg" });
+    const r = await readImportFiles(new File([zip as BlobPart], "t.zip"), [folderBig], 10);
+    if (!r.ok) throw new Error("read");
+    expect([...r.value.files.keys()]).toEqual(["small.png"]);
+    expect([...r.value.oversized]).toEqual([["big.mp3", 11], ["big2.mp3", 12]]);
+  });
+
+  it("上限を渡さなければ、すべて取り込める素材", async () => {
+    const r = await readImportFiles(new File(["ID\n1\n"], "a.csv"), [new File([new Uint8Array(50)], "x.mp3")]);
+    if (!r.ok) throw new Error("read");
+    expect(r.value.oversized.size).toBe(0);
+    expect(r.value.files.has("x.mp3")).toBe(true);
+  });
+
+  it("explainOversized: 大きすぎる素材を指す行のエラーだけを、ファイル名と上限のある文にする", () => {
+    const mb = 1024 * 1024;
+    const rows = [
+      { status: "error", message: "ファイル「big.mp3」が見つかりません(CSV と一緒に…)" },
+      { status: "error", message: "抽選画像「other.png」が見つかりません" },
+      { status: "add" },
+    ];
+    const out = explainOversized(rows, new Map([["big.mp3", 45.6 * mb]]), 30 * mb);
+    expect(out[0].message).toBe("素材「big.mp3」が上限(30.0MB)を超えています(45.6MB)。圧縮するか分けてください");
+    expect(out[1]).toBe(rows[1]);
+    expect(out[2]).toBe(rows[2]);
+    expect(explainOversized(rows, new Map(), mb)).toEqual(rows);
+  });
+
+  it("flagOversizedRows: 大きすぎる素材を指す列のある行だけをエラーにして、件数を数え直す", () => {
+    const mb = 1024 * 1024;
+    const rows = [{ line: 2, status: "unchanged" }, { line: 3, status: "add" }, { line: null, status: "delete" }];
+    const parsed = [{ line: 2, cells: { id: "big.mp3" } }, { line: 3, cells: { id: "ok.mp3" } }];
+    const out = flagOversizedRows(rows, parsed, ["id"], new Map([["big.mp3", 31 * mb]]), 30 * mb);
+    expect(out.rows.map((r) => r.status)).toEqual(["error", "add", "delete"]);
+    expect((out.rows[0] as { message?: string }).message).toBe("素材「big.mp3」が上限(30.0MB)を超えています(31.0MB)。圧縮するか分けてください");
+    expect(out.counts).toEqual({ add: 1, update: 0, unchanged: 0, delete: 1, error: 1 });
   });
 });

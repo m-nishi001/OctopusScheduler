@@ -7,7 +7,8 @@ import { saveFile } from "@octopus/client-common/blob/save-file";
 import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import { hashBlob, mapPool } from "@octopus/sync-engine";
 import type { PoolOptions } from "@octopus/sync-engine";
-import { buildZip, diffMedia, exportTable, parseTable, planImport, readImportFiles, referencedMedia } from "@octopus/table-io";
+import { MAX_BLOB_BYTES } from "@octopus/infrastructures/interfaces";
+import { buildZip, diffMedia, exportTable, parseTable, planImport, explainOversized, readImportFiles, referencedMedia } from "@octopus/table-io";
 import type { ImportMode } from "@octopus/table-io";
 import type { QuizRecord } from "../../../server/quiz-api-contract";
 import type { ImportedFile } from "../../model/quiz-repository";
@@ -62,9 +63,9 @@ export interface QuizImportInput {
 
 /** 選んだファイルを読み、計画を立てる(まだ何も書かない)。確定する関数 `apply` を抱えて返る。 */
 export async function previewQuizImport(input: QuizImportInput, deps: QuizTableIoDeps) {
-  const read = await readImportFiles(input.table, input.media);
+  const read = await readImportFiles(input.table, input.media, MAX_BLOB_BYTES);
   if (!read.ok) return read;
-  const { csv, files } = read.value;
+  const { csv, files, oversized } = read.value;
 
   const parsed = parseTable(csv, quizHeadersFromNames);
   if (!parsed.ok) return parsed;
@@ -82,13 +83,13 @@ export async function previewQuizImport(input: QuizImportInput, deps: QuizTableI
 
   const adapter = quizAdapter({
     optionCount: Math.max(headerOptionCount(parsed.headers), maxOptionNo(record.quizzes)),
-    available: new Set([...Object.keys(record.media), ...files.keys()]),
+    available: new Set([...Object.keys(record.media), ...files.keys()].filter((name) => !oversized.has(name))),
   });
   const plan = planImport(record.quizzes, parsed.rows, adapter, input.mode, changed);
 
   return {
     ok: true as const,
-    rows: plan.rows,
+    rows: explainOversized(plan.rows, oversized, MAX_BLOB_BYTES),
     counts: plan.counts,
     media: { added: diff.added.length, replaced: diff.replaced.length },
     apply: async (onProgress: (message: string) => void) => {

@@ -78,6 +78,7 @@ import { container } from 'tsyringe';
 import { AssetService } from '../../../../control/asset/asset-service';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { assetTableIo } from '../../../../control/asset-table/asset-table-io';
+import { MAX_BLOB_BYTES, MAX_BLOB_MB } from '@octopus/infrastructures/interfaces';
 import { classifyMedia } from '../../../../model/media/media-kind';
 import { folderOf } from '../../../../model/media/media-catalog';
 
@@ -89,6 +90,10 @@ const objectUrlMap = new Map<string, string>();
 const selectedFiles = ref<File[]>([]);
 const selectedAssets = ref<string[]>([]);
 const importOpen = ref(false);
+/** サーバーに送れなかった素材(上限超過など)の id → 理由。一覧に印を付ける。 */
+const rejected = ref<Map<string, string>>(new Map());
+const refreshRejected = async () => { rejected.value = await assetService.rejectedEntries(); };
+let rejectedTimer: ReturnType<typeof setInterval> | null = null;
 
 // CSV の書き出し・取込。取り込んだら一覧を読み直す。
 const assetIo = assetTableIo({
@@ -113,7 +118,7 @@ const rows = computed(() =>
         name: asset.name,
         kind: deriveAssetKind(asset),
         folder: folderOf(asset.directoryId),
-        sizeLabel: `${(asset.size / 1024 / 1024).toFixed(2)} MB`,
+        sizeLabel: `${(asset.size / 1024 / 1024).toFixed(2)} MB${rejected.value.has(asset.id) ? ` ・ サーバーに送れません(${MAX_BLOB_MB}MB の上限を超えています。圧縮してください)` : ''}`,
         asset,
     }))
 );
@@ -152,6 +157,10 @@ const fetchAssets = async () => {
 const onFileChange = (e: Event) => { const files = (e.target as HTMLInputElement).files; if (files) selectedFiles.value = Array.from(files); };
 
 const addAssets = async () => {
+    // 上限を超えるファイルは、送っても必ず断られる。追加せず、理由を知らせる
+    const tooLarge = selectedFiles.value.filter((f) => f.size > MAX_BLOB_BYTES);
+    for (const f of tooLarge) toast.error(`「${f.name}」は ${(f.size / 1024 / 1024).toFixed(1)}MB で、上限(${MAX_BLOB_MB}MB)を超えているため追加できません。圧縮してください`);
+    selectedFiles.value = selectedFiles.value.filter((f) => f.size <= MAX_BLOB_BYTES);
     if (!selectedFiles.value.length) return;
     uploading.value = true;
     const assetPairs = selectedFiles.value.map((file) => {
@@ -215,6 +224,7 @@ const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType
 const closePreview = () => { previewAsset.value = null; previewAssetType.value = null; };
 
 onBeforeUnmount(() => {
+    if (rejectedTimer) clearInterval(rejectedTimer);
     // revoke all created object URLs
     for (const url of objectUrlMap.values()) {
         try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
@@ -222,7 +232,12 @@ onBeforeUnmount(() => {
     objectUrlMap.clear();
 });
 
-onMounted(async () => { await fetchAssets(); });
+onMounted(async () => {
+    await fetchAssets();
+    await refreshRejected();
+    // 送れなかった素材は、バックグラウンドの同期が断られてから分かる。一覧を開いている間だけ見に行く
+    rejectedTimer = setInterval(() => { void refreshRejected(); }, 5000);
+});
 
 function deriveAssetKind(asset: any): string {
     return classifyMedia(asset.blob?.type, asset.name);

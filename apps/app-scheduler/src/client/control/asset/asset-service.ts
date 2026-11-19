@@ -29,6 +29,11 @@ export class AssetService {
     return ids;
   }
 
+  /** サーバーに送れなかった素材(上限超過など)の、素材の `id` → 理由。同期が済むまでは空。 */
+  rejectedEntries(): Promise<Map<string, string>> {
+    return this.assetRepository.rejectedEntries();
+  }
+
   readEntries(): Promise<AssetRecordEntry[]> {
     return this.assetRepository.readEntries();
   }

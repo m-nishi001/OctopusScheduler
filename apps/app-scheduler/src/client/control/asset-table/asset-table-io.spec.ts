@@ -162,3 +162,25 @@ describe("素材の取込", () => {
     expect(result.details[0]).toContain("1 件");
   });
 });
+
+describe("上限(30MB)を超える素材の取込", () => {
+  it("上限を超える素材を指す行は、「見つかりません」ではなく、ファイル名と上限を示すエラーになり、取り込めない。ほかの行は問題なく、1行ずつ数えられる", async () => {
+    const env = await setup([]);
+    const big = new File([new Uint8Array(31 * 1024 * 1024)], "big.mp3", { type: "audio/mpeg" });
+    const p = await preview(env, `${HEADER}ok.wav,\r\nbig.mp3,\r\n`, [file("ok.wav", "WAV", "audio/wav"), big]);
+    expect(p.counts).toMatchObject({ add: 1, error: 1 });
+    const error = p.rows.find((r) => r.status === "error")!;
+    expect(error.message).toBe("素材「big.mp3」が上限(30.0MB)を超えています(31.0MB)。圧縮するか分けてください");
+    await expect(p.apply(() => undefined)).rejects.toThrow("エラーの行があるため取り込めません");
+    expect(env.entries()).toEqual([]);
+  });
+
+  it("すでに同名の素材がある場合も、上限を超える新しい中身は「変更なし」にならず、エラーになる", async () => {
+    const env = await setup([["big.mp3", "OLD", "audio/mpeg"]]);
+    const big = new File([new Uint8Array(31 * 1024 * 1024)], "big.mp3", { type: "audio/mpeg" });
+    const p = await preview(env, `${HEADER}big.mp3,\r\n`, [big]);
+    expect(p.counts).toMatchObject({ unchanged: 0, error: 1 });
+    expect(p.rows[0].message).toContain("上限(30.0MB)を超えています");
+    await expect(p.apply(() => undefined)).rejects.toThrow("エラーの行があるため取り込めません");
+  });
+});

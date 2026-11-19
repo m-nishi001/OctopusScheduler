@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CloudflareApiClient } from "../cloudflare-api-client";
 import { RateLimitedError } from "../../interfaces/api-client";
 import type { BlobRoute } from "../../interfaces/api-client";
+import { BlobRejectedError, isPermanentBlobError } from "../../interfaces/blob-limits";
 import { setSessionToken } from "@octopus/client-common/auth/session-token-store";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -74,6 +75,17 @@ describe("CloudflareApiClient のファイル送受信(バイナリ)", () => {
     const flaky = stubFetch(new Response("oops", { status: 503 }), new Response(null, { status: 204 }));
     await new CloudflareApiClient().putBlob(route, HASH, new Blob(["x"]), noWait);
     expect(flaky).toHaveBeenCalledTimes(2);
+  });
+
+  it("413(ファイルが大きすぎる)は、何度送っても同じなので再試行せず、BlobRejectedError(status 413)で投げる", async () => {
+    const fetchMock = stubFetch(new Response("Blob is too large (max 31457280 bytes)", { status: 413 }));
+    const error = await new CloudflareApiClient().putBlob(route, HASH, new Blob(["x"]), noWait).catch((e) => e);
+    expect(error).toBeInstanceOf(BlobRejectedError);
+    expect((error as BlobRejectedError).status).toBe(413);
+    expect(isPermanentBlobError(error)).toBe(true);
+    expect(isPermanentBlobError(new Error("HTTP 503: oops"))).toBe(false);
+    expect(isPermanentBlobError(new Error("Blob is too large (max 31457280 bytes)"))).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("429 は Retry-After を持つ RateLimitedError にして、再試行せずに投げる", async () => {

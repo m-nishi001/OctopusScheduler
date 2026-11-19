@@ -8,6 +8,7 @@
 import { injectable } from "tsyringe";
 import { getSessionToken } from "@octopus/client-common/auth/session-token-store";
 import { RateLimitedError } from "../interfaces/api-client";
+import { BlobRejectedError } from "../interfaces/blob-limits";
 import type { ApiCallOptions, ApiResponse, BlobRoute, IApiClient } from "../interfaces/api-client";
 import { wrapWithAuth } from "../interfaces/auth-envelope";
 
@@ -115,10 +116,12 @@ export class CloudflareApiClient implements IApiClient {
           );
         }
         const message = `HTTP ${res.status}: ${await res.text().catch(() => "")}`;
+        // 413: ファイルが大きすぎる。同じファイルは何度送っても断られる(呼び出し側も再試行しない)
+        if (res.status === 413) throw new BlobRejectedError(message, res.status);
         if (res.status < 500) throw new NonRetryableError(message);
         throw new Error(message);
       } catch (error) {
-        if (error instanceof RateLimitedError || error instanceof NonRetryableError || attempt > retries) {
+        if (error instanceof RateLimitedError || error instanceof NonRetryableError || error instanceof BlobRejectedError || attempt > retries) {
           if ((error as Error).name === "AbortError") {
             throw new Error(`Cloudflare のファイル ${hash} の送受信が ${timeout}ms でタイムアウトしました。`);
           }

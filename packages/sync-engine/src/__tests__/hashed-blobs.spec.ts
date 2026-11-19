@@ -4,7 +4,9 @@ import { FixedConcurrencyPolicy } from "@octopus/infrastructures/testing";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { BlobRecordStore } from "../blob-record-store";
 import { blobRecordSyncTarget, textBlobRecordRemote } from "../blob-record-sync-target";
+import { BlobRejectedError } from "@octopus/infrastructures/interfaces";
 import {
+  BlobRejectionLog,
   downloadMissingBlobs,
   hashBlob,
   HashedBlobStore,
@@ -60,7 +62,7 @@ describe("uploadMissingBlobs / downloadMissingBlobs", () => {
     for (const h of ["h1", "h2", "h3"]) await local.put(h, blobOf(h));
     server.files.set("h2", blobOf("h2"));
     const result = await uploadMissingBlobs(local, remote, ["h1", "h2", "h3", "h1"]);
-    expect(result).toEqual({ uploaded: 2, skipped: 1 });
+    expect(result).toEqual({ uploaded: 2, skipped: 1, rejected: [] });
     expect(server.existsCalls).toBe(1);
     expect(server.puts.sort()).toEqual(["h1", "h3"]);
   });
@@ -195,6 +197,91 @@ describe("withHashedBlobs(上げる → 一覧 → 取ってくる)", () => {
     await store.update(() => [{ id: "1", hash: "h1" }]);
     const result = (await runner.run([target(server)])).results[0];
     expect(result).toMatchObject({ result: "failed", action: "push" });
+    expect(server.server.text).toBeNull();
+  });
+});
+
+describe("サーバーが受け付けないファイル(上限超過など)があっても、ほかのファイルと一覧の同期は止まらない", () => {
+  let store: BlobRecordStore<Item[]>;
+  let blobs: HashedBlobStore;
+  let runner: SyncRunner;
+
+  beforeEach(async () => {
+    await new LocalStorageService("test-db2", "List").clear();
+    await new LocalStorageService("test-db2", "ListBlobs").clear();
+    store = new BlobRecordStore<Item[]>("test-db2", "List");
+    blobs = new HashedBlobStore("test-db2", "ListBlobs");
+    runner = new SyncRunner(new FixedConcurrencyPolicy(5));
+  });
+
+  /** `big` のハッシュのファイルだけ 413 で断るサーバー。 */
+  function serverRejecting(bigHash: string, status: "413" | "503" = "413") {
+    const s = makeServer();
+    const put = s.remote.put;
+    s.remote.put = async (hash, blob) => {
+      if (hash === bigHash) throw status === "413" ? new BlobRejectedError("HTTP 413: Blob is too large", 413) : new Error("HTTP 503: oops");
+      return put(hash, blob);
+    };
+    return s;
+  }
+
+  function targetWith(server: ReturnType<typeof makeServer>, rejections: BlobRejectionLog) {
+    const record = blobRecordSyncTarget("list", store, textBlobRecordRemote<Item[]>({ read: async () => server.server.text, write: async (t) => void (server.server.text = t) }));
+    return withHashedBlobs(record, {
+      local: blobs,
+      remote: server.remote,
+      hashesOf,
+      rejections,
+      without: (items, hashes) => items.filter((i) => !hashes.has(i.hash)),
+    });
+  }
+
+  it("断られたファイルだけを控えて、ほかのファイルは上がり、サーバーの一覧には断られていない項目だけが載る。次の同期で送り直さない", async () => {
+    const [ok1, ok2, big] = await Promise.all(["a", "b", "BIG"].map((t) => hashBlob(blobOf(t))));
+    for (const [h, t] of [[ok1, "a"], [ok2, "b"], [big, "BIG"]] as const) await blobs.put(h, blobOf(t));
+    await store.update(() => [{ id: "1", hash: ok1 }, { id: "2", hash: big }, { id: "3", hash: ok2 }]);
+    const server = serverRejecting(big);
+    const rejections = new BlobRejectionLog();
+
+    const first = (await runner.run([targetWith(server, rejections)])).results[0];
+    expect(first.result).toBe("pushed");
+    expect([...server.server.files.keys()].sort()).toEqual([ok1, ok2].sort());
+    expect(JSON.parse(server.server.text!).data.map((i: Item) => i.id)).toEqual(["1", "3"]);
+    expect(rejections.has(big)).toBe(true);
+    expect(rejections.reasonOf(big)).toContain("too large");
+    // この端末の一覧は、そのまま(断られた項目も残る)
+    expect((await store.read())!.data.map((i) => i.id)).toEqual(["1", "2", "3"]);
+
+    // 次の同期: 一覧は同じなので何もせず、断られたファイルを送り直さない
+    const putsBefore = server.server.puts.length;
+    const second = (await runner.run([targetWith(server, rejections)])).results[0];
+    expect(second.result).toBe("skipped");
+    expect(server.server.puts.length).toBe(putsBefore);
+    expect((await store.read())!.data.map((i) => i.id)).toEqual(["1", "2", "3"]);
+  });
+
+  it("一時的な失敗(503 など)は控えず、その対象は失敗になる(次の同期でやり直す)", async () => {
+    const [ok, flaky] = await Promise.all(["a", "F"].map((t) => hashBlob(blobOf(t))));
+    await blobs.put(ok, blobOf("a"));
+    await blobs.put(flaky, blobOf("F"));
+    await store.update(() => [{ id: "1", hash: ok }, { id: "2", hash: flaky }]);
+    const server = serverRejecting(flaky, "503");
+    const rejections = new BlobRejectionLog();
+    const result = (await runner.run([targetWith(server, rejections)])).results[0];
+    expect(result.result).toBe("failed");
+    expect(rejections.has(flaky)).toBe(false);
+    expect(server.server.text).toBeNull();
+  });
+
+  it("断られた控えが無い(rejections を渡さない)ときは、これまでどおり、断られたら失敗になり一覧は送らない", async () => {
+    const [ok, big] = await Promise.all(["a", "BIG"].map((t) => hashBlob(blobOf(t))));
+    await blobs.put(ok, blobOf("a"));
+    await blobs.put(big, blobOf("BIG"));
+    await store.update(() => [{ id: "1", hash: ok }, { id: "2", hash: big }]);
+    const server = serverRejecting(big);
+    const record = blobRecordSyncTarget("list", store, textBlobRecordRemote<Item[]>({ read: async () => server.server.text, write: async (t) => void (server.server.text = t) }));
+    const result = (await runner.run([withHashedBlobs(record, { local: blobs, remote: server.remote, hashesOf })])).results[0];
+    expect(result.result).toBe("failed");
     expect(server.server.text).toBeNull();
   });
 });
