@@ -12,10 +12,12 @@ export interface ImportFiles {
   csvs: Map<string, Uint8Array>;
   /** 取り込める素材(ファイル名 → 中身)。フォルダで選んだものは、ZIP の中の同名のものより優先する。 */
   files: Map<string, Blob>;
+  /** 1つのファイルの上限(`maxBytes`)を超えていて、取り込めない素材(ファイル名 → バイト数)。`files` には入れない。 */
+  oversized: Map<string, number>;
 }
 
 /** 選ばれたファイルを読む。ZIP が壊れている・CSV が無いときはエラー文を返す。 */
-export async function readImportFiles(table: File, media: readonly File[]): Promise<{ ok: true; value: ImportFiles } | { ok: false; errors: string[] }> {
+export async function readImportFiles(table: File, media: readonly File[], maxBytes: number = Infinity): Promise<{ ok: true; value: ImportFiles } | { ok: false; errors: string[] }> {
   const files = new Map<string, Blob>();
   let csv: Uint8Array;
   const csvs = new Map<string, Uint8Array>();
@@ -35,7 +37,15 @@ export async function readImportFiles(table: File, media: readonly File[]): Prom
     csvs.set(table.name, csv);
   }
   for (const f of media) files.set(f.name, f.type ? f : f.slice(0, f.size, mimeOfName(f.name)));
-  return { ok: true, value: { csv, csvs, files } };
+  // 上限を超える素材は、送っても必ず断られる。取り込める素材には入れず、どの行が使おうとしたかを後で説明する
+  const oversized = new Map<string, number>();
+  for (const [name, blob] of files) {
+    if (blob.size > maxBytes) {
+      oversized.set(name, blob.size);
+      files.delete(name);
+    }
+  }
+  return { ok: true, value: { csv, csvs, files, oversized } };
 }
 
 /** CSV の素材の列が指していて、選ばれたファイルにもある素材の名前(重複なし)。 */
@@ -49,4 +59,26 @@ export function referencedMedia(parsed: Extract<ParsedTable, { ok: true }>, file
     }
   }
   return [...names];
+}
+
+/**
+ * 取り込めない大きさの素材を使おうとした行のエラーを、「見つかりません」ではなく、ファイル名と上限を示す文に置き換える
+ * (素材を探したが無かった、と読み違えないため)。行のメッセージに素材のファイル名が「」で入っているものが対象。
+ */
+export function explainOversized<R extends { status: string; message?: string }>(
+  rows: readonly R[],
+  oversized: ReadonlyMap<string, number>,
+  maxBytes: number
+): R[] {
+  if (oversized.size === 0) return [...rows];
+  const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+  return rows.map((row) => {
+    if (row.status !== "error" || !row.message) return row;
+    for (const [name, size] of oversized) {
+      if (row.message.includes(`「${name}」`)) {
+        return { ...row, message: `素材「${name}」が上限(${mb(maxBytes)}MB)を超えています(${mb(size)}MB)。圧縮するか分けてください` };
+      }
+    }
+    return row;
+  });
 }

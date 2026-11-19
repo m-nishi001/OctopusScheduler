@@ -9,6 +9,7 @@
  * - 一覧が参照するファイルが無いまま書くことは無い(ロックの中で確かめ、足りなければ書かずに断る)。
  *   別の端末の一覧の保存で消えたファイルを、確認のあとに指してしまう場合の安全弁。
  */
+import { MAX_BLOB_BYTES } from "../interfaces/blob-limits";
 import { DomainError } from "../interfaces/domain-error";
 import type { IKeyValueStorage } from "../interfaces/key-value-storage";
 import type { ILock } from "../interfaces/lock";
@@ -18,8 +19,8 @@ import { StorageKind, storageNamespace, storagePath, type StorageModuleName } fr
 
 /** ハッシュの形(SHA-256 の先頭32桁・16進の小文字)。クライアントの `hashBlob` と同じ。 */
 export const BLOB_HASH_PATTERN = /^[0-9a-f]{32}$/;
-/** 1つのファイルの上限(デコード後のバイト数)。 */
-export const MAX_BLOB_BYTES = 30 * 1024 * 1024;
+/** 1つのファイルの上限(デコード後のバイト数)。クライアントと共有する定義は interfaces/blob-limits.ts。 */
+export { MAX_BLOB_BYTES };
 /** `existsBlobs` で一度に確かめられる件数。 */
 export const MAX_BLOBS_PER_EXISTS = 500;
 

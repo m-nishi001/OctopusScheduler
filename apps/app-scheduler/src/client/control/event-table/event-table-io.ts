@@ -8,7 +8,8 @@ import { saveFile } from "@octopus/client-common/blob/save-file";
 import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import { hashBlob, mapPool } from "@octopus/sync-engine";
 import type { PoolOptions } from "@octopus/sync-engine";
-import { buildZip, exportTable, parseTable, planImport, readImportFiles, referencedMedia } from "@octopus/table-io";
+import { MAX_BLOB_BYTES } from "@octopus/infrastructures/interfaces";
+import { buildZip, exportTable, parseTable, planImport, explainOversized, readImportFiles, referencedMedia } from "@octopus/table-io";
 import type { ImportMode } from "@octopus/table-io";
 import type { AssetRecordEntry } from "../../../server/scheduler-api-contract";
 import type { ImportedAsset } from "@model/asset/asset-repository";
@@ -77,9 +78,9 @@ export interface EventImportInput {
 
 /** 選んだファイルを読み、計画を立てる(まだ何も書かない)。確定する関数 `apply` を抱えて返る。 */
 export async function previewEventImport(input: EventImportInput, deps: EventTableIoDeps) {
-  const read = await readImportFiles(input.table, input.media);
+  const read = await readImportFiles(input.table, input.media, MAX_BLOB_BYTES);
   if (!read.ok) return read;
-  const { csv, files } = read.value;
+  const { csv, files, oversized } = read.value;
 
   const parsed = parseTable(csv, eventAdapter(eventAssets([])).headers);
   if (!parsed.ok) return parsed;
@@ -117,7 +118,7 @@ export async function previewEventImport(input: EventImportInput, deps: EventTab
 
   return {
     ok: true as const,
-    rows: plan.rows,
+    rows: explainOversized(plan.rows, oversized, MAX_BLOB_BYTES),
     counts: plan.counts,
     media,
     apply: async (onProgress: (message: string) => void) => {

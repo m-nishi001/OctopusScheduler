@@ -3,6 +3,7 @@ import { injectable, inject } from "tsyringe";
 import {
   BLOB_HASH_PATTERN,
   BlobRecordStore,
+  BlobRejectionLog,
   HashedBlobStore,
   blobRecordSyncTarget,
   hashBlob,
@@ -39,6 +40,8 @@ const RECORD_SYNC_KIND = "asset";
 export class AssetRepository {
   private readonly list = new BlobRecordStore<AssetRecordEntry[]>("octopus-scheduler", "Asset");
   private readonly blobs = new HashedBlobStore("octopus-scheduler-asset-blobs", "Blobs");
+  /** サーバーが受け付けなかった素材の中身(ハッシュ → 理由)。上限超過など、何度送っても断られるもの。 */
+  private readonly rejections = new BlobRejectionLog();
   private legacyCleared: Promise<void> | null = null;
 
   constructor(
@@ -99,6 +102,16 @@ export class AssetRepository {
   async readEntries(): Promise<AssetRecordEntry[]> {
     await this.clearLegacy();
     return (await this.list.read())?.data ?? [];
+  }
+
+  /** サーバーに送れなかった素材(上限超過など)の、素材の `id` → 理由。この端末にはあるが、サーバーと他の端末には無い。 */
+  async rejectedEntries(): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    for (const e of await this.readEntries()) {
+      const reason = this.rejections.reasonOf(e.hash);
+      if (reason) out.set(e.id, reason);
+    }
+    return out;
   }
 
   /** 素材の中身をハッシュで読む。端末に無ければ null。 */
@@ -232,6 +245,9 @@ export class AssetRepository {
         local: this.blobs,
         remote: this.blobRemote(),
         hashesOf: (data) => assetRecordHashes(data).filter((h) => BLOB_HASH_PATTERN.test(h)),
+        // 断られた素材(上限超過など)は、サーバーの一覧に載せない。ほかの素材の同期は止めない
+        rejections: this.rejections,
+        without: (data, hashes) => data.filter((e) => !hashes.has(e.hash)),
       }) as SyncTarget,
     ];
   }
