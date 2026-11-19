@@ -130,7 +130,7 @@ export async function previewScreenImport(input: ScreenImportInput, deps: Screen
   const changedMedia = new Set([...diff.added, ...diff.replaced]);
 
   const plan = tablesToScreens(incomingTables, {
-    available: new Set([...Object.keys(record.media), ...files.keys()]),
+    available: new Set([...Object.keys(record.media), ...files.keys()].filter((name) => !oversized.has(name))),
     mimeOf: (name) => files.get(name)?.type || record.media[name]?.mime || "",
     current: record.screens,
     kakuhenPrizeCount: countKakuhenPrizes(record.prizes),

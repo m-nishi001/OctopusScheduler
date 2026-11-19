@@ -174,4 +174,13 @@ describe("上限(30MB)を超える素材の取込", () => {
     await expect(p.apply(() => undefined)).rejects.toThrow("エラーの行があるため取り込めません");
     expect(env.entries()).toEqual([]);
   });
+
+  it("すでに同名の素材がある場合も、上限を超える新しい中身は「変更なし」にならず、エラーになる", async () => {
+    const env = await setup([["big.mp3", "OLD", "audio/mpeg"]]);
+    const big = new File([new Uint8Array(31 * 1024 * 1024)], "big.mp3", { type: "audio/mpeg" });
+    const p = await preview(env, `${HEADER}big.mp3,\r\n`, [big]);
+    expect(p.counts).toMatchObject({ unchanged: 0, error: 1 });
+    expect(p.rows[0].message).toContain("上限(30.0MB)を超えています");
+    await expect(p.apply(() => undefined)).rejects.toThrow("エラーの行があるため取り込めません");
+  });
 });

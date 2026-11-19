@@ -9,7 +9,7 @@ import type { FileToSave } from "@octopus/client-common/blob/save-file";
 import { hashBlob, mapPool } from "@octopus/sync-engine";
 import type { PoolOptions } from "@octopus/sync-engine";
 import { MAX_BLOB_BYTES } from "@octopus/infrastructures/interfaces";
-import { buildZip, exportTable, parseTable, planImport, explainOversized, readImportFiles, referencedMedia } from "@octopus/table-io";
+import { buildZip, exportTable, parseTable, planImport, explainOversized, flagOversizedRows, readImportFiles, referencedMedia } from "@octopus/table-io";
 import type { ImportMode } from "@octopus/table-io";
 import type { AssetRecordEntry } from "../../../server/scheduler-api-contract";
 import type { ImportedAsset } from "@model/asset/asset-repository";
@@ -116,13 +116,18 @@ export async function previewEventImport(input: EventImportInput, deps: EventTab
   const imports = plan.ok ? candidates.filter((c) => usedIds.has(c.asset.id)) : candidates;
   const media = { added: imports.filter((c) => !c.replaced).length, replaced: imports.filter((c) => c.replaced).length };
 
+  // 大きすぎる素材を指す行は、エラーの行にする(すでに同名の素材があって、行自体は通る場合も)
+  const mediaKeys = eventAdapter(eventAssets([])).headers.filter((h) => h.media).map((h) => h.key);
+  const flagged = flagOversizedRows(plan.rows, parsed.rows, mediaKeys, oversized, MAX_BLOB_BYTES);
+  const blocked = !plan.ok || flagged.counts.error > 0;
+
   return {
     ok: true as const,
-    rows: explainOversized(plan.rows, oversized, MAX_BLOB_BYTES),
-    counts: plan.counts,
+    rows: explainOversized(flagged.rows, oversized, MAX_BLOB_BYTES),
+    counts: flagged.counts,
     media,
     apply: async (onProgress: (message: string) => void) => {
-      if (!plan.ok) throw new Error("エラーの行があるため取り込めません");
+      if (blocked) throw new Error("エラーの行があるため取り込めません");
       onProgress("素材を保存しています");
       await deps.assets.applyImport(imports.map((c) => c.asset));
       onProgress("イベントを更新しています");

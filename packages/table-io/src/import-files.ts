@@ -71,14 +71,43 @@ export function explainOversized<R extends { status: string; message?: string }>
   maxBytes: number
 ): R[] {
   if (oversized.size === 0) return [...rows];
-  const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
   return rows.map((row) => {
     if (row.status !== "error" || !row.message) return row;
     for (const [name, size] of oversized) {
       if (row.message.includes(`「${name}」`)) {
-        return { ...row, message: `素材「${name}」が上限(${mb(maxBytes)}MB)を超えています(${mb(size)}MB)。圧縮するか分けてください` };
+        return { ...row, message: oversizedMessage(name, size, maxBytes) };
       }
     }
     return row;
   });
+}
+
+const MB = 1024 * 1024;
+const oversizedMessage = (name: string, size: number, maxBytes: number) => `素材「${name}」が上限(${(maxBytes / MB).toFixed(1)}MB)を超えています(${(size / MB).toFixed(1)}MB)。圧縮するか分けてください`;
+
+/**
+ * 取り込めない大きさの素材を CSV の列(`keys`)が指している行を、エラーにする(すでに同名の素材があって、行自体は問題なく通ってしまう場合も、
+ * 新しい中身が取り込まれないまま「変更なし」と出さないため)。件数(counts)も数え直して返す。
+ */
+export function flagOversizedRows<R extends { line: number | null; status: string; message?: string }>(
+  rows: readonly R[],
+  parsedRows: readonly { line: number; cells: Record<string, string | undefined> }[],
+  keys: readonly string[],
+  oversized: ReadonlyMap<string, number>,
+  maxBytes: number
+): { rows: R[]; counts: Record<"add" | "update" | "unchanged" | "delete" | "error", number> } {
+  const namesByLine = new Map<number, string[]>();
+  for (const { line, cells } of parsedRows) {
+    namesByLine.set(
+      line,
+      keys.map((k) => mediaFileName(cells[k] ?? "")).filter((n) => oversized.has(n))
+    );
+  }
+  const out = rows.map((row) => {
+    const hit = row.line === null ? undefined : namesByLine.get(row.line)?.[0];
+    return hit && row.status !== "error" ? { ...row, status: "error", message: oversizedMessage(hit, oversized.get(hit)!, maxBytes) } : row;
+  });
+  const counts = { add: 0, update: 0, unchanged: 0, delete: 0, error: 0 };
+  for (const r of out) counts[r.status as keyof typeof counts]++;
+  return { rows: out, counts };
 }

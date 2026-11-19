@@ -80,7 +80,7 @@ export async function previewPrizeImport(input: PrizeImportInput, deps: PrizeTab
   // 差し替える(または新しく入る)素材を参照している行は、文字列が同じでも更新になる。
   const changed = new Set([...diff.added, ...diff.replaced]);
 
-  const adapter = prizeAdapter({ available: new Set([...Object.keys(record.media), ...files.keys()]) });
+  const adapter = prizeAdapter({ available: new Set([...Object.keys(record.media), ...files.keys()].filter((name) => !oversized.has(name))) });
   const plan = planImport(record.prizes, parsed.rows, adapter, input.mode, changed);
 
   return {

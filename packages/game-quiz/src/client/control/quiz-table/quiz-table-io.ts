@@ -83,7 +83,7 @@ export async function previewQuizImport(input: QuizImportInput, deps: QuizTableI
 
   const adapter = quizAdapter({
     optionCount: Math.max(headerOptionCount(parsed.headers), maxOptionNo(record.quizzes)),
-    available: new Set([...Object.keys(record.media), ...files.keys()]),
+    available: new Set([...Object.keys(record.media), ...files.keys()].filter((name) => !oversized.has(name))),
   });
   const plan = planImport(record.quizzes, parsed.rows, adapter, input.mode, changed);
 
