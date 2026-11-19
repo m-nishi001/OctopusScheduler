@@ -4,7 +4,7 @@ import { PrizeDrawService } from "../../model/draw/prize-draw-service";
 import type { DrawMemberRequest } from "./dto/draw-member-request";
 import type { DrawMemberResponse } from "./dto/draw-member-response";
 import type { DrawPrizeResponse } from "./dto/draw-prize-response";
-import type { Prize } from "../../model/prize/prize";
+import { isDrawablePrize, type Prize } from "../../model/prize/prize";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 import { toDrawProgress, type DrawProgress } from "./dto/draw-progress";
 import type { Member } from "../../model/member/member";
@@ -270,7 +270,9 @@ export class DrawApplicationService {
     // 当選景品にダミーの指定があり、その景品が存在して当選景品自身でなければそれを使う。なければランダム
     const designatedId = prizes.find((p) => p.id === winnerPrizeId)?.kakuhenDummyPrizeId;
     const designated = designatedId && designatedId !== winnerPrizeId ? prizes.find((p) => p.id === designatedId) : undefined;
-    const dummyCandidates = this.prizeDrawService.getDrawablePrizes(prizes, results, reservedPrizeIds).filter((p) => p.id !== winnerPrizeId);
+    // 当選対象でない景品(当たらない)は、ダミー当選にいつでも使える
+    const drawableIds = new Set(this.prizeDrawService.getDrawablePrizes(prizes, results, reservedPrizeIds).map((p) => p.id));
+    const dummyCandidates = prizes.filter((p) => p.id !== winnerPrizeId && (!isDrawablePrize(p) || drawableIds.has(p.id)));
     const dummyWinnerPrize =
       designated ??
       this.prizeDrawService.pickRandomPrizeFrom(dummyCandidates.length > 0 ? dummyCandidates : prizes.filter((p) => p.id !== winnerPrizeId));

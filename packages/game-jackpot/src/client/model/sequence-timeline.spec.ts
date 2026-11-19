@@ -103,3 +103,11 @@ describe("sequence-timeline: 効果ごとの動き", () => {
     expect(sampleTimeline(t, 99).y).toBe(sampleTimeline(t, 10).y);
   });
 });
+
+describe("sequence-timeline: 画像を画面いっぱいに出すとき", () => {
+  it("流れる: 内容の高さが画面の高さと同じでも、画面の下の外から上の外まで流れる(動きは壊れない)", () => {
+    const t = buildTimeline(item({ kind: "画像", effect: "流れる", seconds: 10 }), { viewportHeight: 1000, contentHeight: 1000, lineHeight: 50 });
+    expect(sampleTimeline(t, 0).y).toBe(1000);
+    expect(sampleTimeline(t, 10).y).toBe(-1000);
+  });
+});

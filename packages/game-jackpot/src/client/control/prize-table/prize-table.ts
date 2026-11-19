@@ -2,11 +2,12 @@
  * 景品の表(CSV)への対応。汎用の判断(差分・往復・エラー)は `@octopus/table-io` に任せ、ここは列と検証だけを持つ。
  *
  * - 取り込む対象はレコードの景品そのもの({@link Prize})。画像・音声はファイル名(素材の名前)で持つ。
- * - 列: `ID, 名前*, 景品ランク, アニメーション(ルーレット|スロット), 確変対応(あり|なし), 抽選画像, 当選画像, 当選BGM, 確変_抽選画像, 確変_当選画像, 確変_当選BGM, 確変_ダミー当選景品ID`。
+ * - 列: `ID, 名前*, 景品ランク, アニメーション(ルーレット|スロット), 確変対応(あり|なし), 当選対象(する|しない), 抽選画像, 当選画像, 当選BGM, 確変_抽選画像, 確変_当選画像, 確変_当選BGM, 確変_ダミー当選景品ID`。
  *   内部の項目との対応: 抽選画像=image、当選画像=winningImage1、当選BGM=bgm1、確変_抽選画像=image2、確変_当選画像=winningImage2、確変_当選BGM=bgm2。
  * - 景品ランクは1〜5(標準3、5=豪華でレア)。古い書き出しの「当選確率の重み」列は意味が違うので読まずに無視する(ランクは既定の3になる)。
  * - 確変対応は あり/なし(それ以外の書き方はエラー)。ありの景品だけが確変ターンのフェイク演出に使われ、確変_ の3列が有効になる。
  *   列が無い・空のセルは、いまのまま(新規は未設定。2枚目の素材があればありとして扱う)。
+ * - 当選対象は する/しない(それ以外の書き方はエラー)。しない景品は絶対に当たらない(ダミー当選・演出の埋め草には使える)。列が無い・空のセルは「する」。
  * - 確変_ダミー当選景品ID は、確変の回にダミー当選として見せる景品の ID(任意)。空のセルはいまのまま、`-` で外す。
  *   存在しない ID・自分自身の指定は抽選時に無視され、ダミーはランダムになる。
  * - 空のセル = いまのまま(新規なら未設定)。素材のセルは `-` で外す。
@@ -17,6 +18,7 @@ import { resolveMediaCell } from "@octopus/table-io";
 import type { Header, ImportMode, ImportPlan, Row, TableAdapter } from "@octopus/table-io";
 import type { Prize } from "../../../server/jackpot-api-contract";
 import { MAX_PRIZE_RANK, MIN_PRIZE_RANK } from "../../model/prize/prize-rank";
+import { isDrawablePrize } from "../../model/prize/prize";
 import { isKakuhenPrize } from "../../model/prize/prize-kakuhen";
 
 export const PRIZE_CSV_NAME = "prizes.csv";
@@ -28,6 +30,10 @@ const DEFAULT_ANIMATION = "roulette";
 /** 確変対応のセルの書き方(あり/なしだけ)。 */
 const KAKUHEN_ON = "あり";
 const KAKUHEN_OFF = "なし";
+
+/** 当選対象のセルの書き方(する/しない)。列が無い・空のセルは「する」。 */
+const DRAWABLE_ON = "する";
+const DRAWABLE_OFF = "しない";
 
 /** 値を外すセルの書き方。 */
 const CLEAR_CELL = "-";
@@ -48,6 +54,7 @@ export const PRIZE_HEADERS: readonly Header[] = [
   { key: "rank", label: "景品ランク" },
   { key: "animation", label: "アニメーション" },
   { key: "kakuhen", label: "確変対応" },
+  { key: "drawable", label: "当選対象" },
   ...MEDIA_COLUMNS.map(([key, label]): Header => ({ key, label, media: true })),
   { key: "kakuhenDummyPrizeId", label: "確変_ダミー当選景品ID" },
 ];
@@ -84,6 +91,7 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
       rank: p.rank === undefined ? "" : String(p.rank),
       animation: ANIMATION_LABELS[p.animation ?? DEFAULT_ANIMATION] ?? p.animation ?? "",
       kakuhen: isKakuhenPrize(p) ? KAKUHEN_ON : KAKUHEN_OFF,
+      drawable: isDrawablePrize(p) ? DRAWABLE_ON : DRAWABLE_OFF,
       ...Object.fromEntries(MEDIA_COLUMNS.map(([key]) => [key, p[key] ?? ""])),
       kakuhenDummyPrizeId: p.kakuhenDummyPrizeId ?? "",
     }),
@@ -112,13 +120,21 @@ export function prizeAdapter({ available, newId = () => crypto.randomUUID() }: P
         else return "確変対応は「あり」か「なし」で入力してください";
       }
 
+      // 当選対象: 列が無い・空のセルは「する」
+      let drawable = true;
+      if (row.drawable) {
+        const v = row.drawable.trim();
+        if (v === DRAWABLE_OFF) drawable = false;
+        else if (v !== DRAWABLE_ON) return "当選対象は「する」か「しない」で入力してください";
+      }
+
       let kakuhenDummyPrizeId = existing?.kakuhenDummyPrizeId;
       if (row.kakuhenDummyPrizeId) {
         const v = row.kakuhenDummyPrizeId.trim();
         kakuhenDummyPrizeId = v === CLEAR_CELL ? undefined : v;
       }
 
-      const prize: Prize = { id: row.id, name: row.name, rank, animation, order: existing?.order ?? 0 };
+      const prize: Prize = { id: row.id, name: row.name, rank, animation, drawable, order: existing?.order ?? 0 };
       if (kakuhen !== undefined) prize.kakuhen = kakuhen;
       if (kakuhenDummyPrizeId) prize.kakuhenDummyPrizeId = kakuhenDummyPrizeId;
       for (const [key, label] of MEDIA_COLUMNS) {

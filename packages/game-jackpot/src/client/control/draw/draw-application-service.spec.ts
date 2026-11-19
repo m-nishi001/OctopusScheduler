@@ -325,3 +325,64 @@ describe("確変の決め方「なし」", () => {
   });
 });
 
+
+describe("当選対象(drawable)", () => {
+  type TestPrize = (typeof prizeList)[number] & { drawable?: boolean; kakuhenDummyPrizeId?: string };
+  const prizesWithDecoys: TestPrize[] = [
+    { id: "a", name: "A", rank: 3, order: 1, kakuhen: true, kakuhenDummyPrizeId: "b" },
+    { id: "b", name: "B", rank: 3, order: 2, kakuhen: true, kakuhenDummyPrizeId: "a" },
+    { id: "n1", name: "N1", rank: 5, order: 3, kakuhen: true, drawable: false },
+    { id: "n2", name: "N2", rank: 3, order: 4, kakuhen: false, drawable: false },
+    { id: "c", name: "C", rank: 3, order: 5, kakuhen: false },
+  ];
+
+  async function drawAll(prizes: TestPrize[], plan?: { mode: "fixed"; fixedTimings: number[] }) {
+    const t = setup({ prizes: prizes as never });
+    await t.service.initializeStateIfNeeded(prizes as never, plan);
+    const won: string[] = [];
+    const dummies: (string | null)[] = [];
+    for (let i = 0; i < 10; i++) {
+      const next = await t.service.drawNext(REQUEST);
+      if (next.kind !== "drawn") break;
+      won.push(next.outcome.result.wonPrize!.id);
+      dummies.push(next.outcome.prizeRes.dummyWinnerPrizeId ?? null);
+      await t.store.reveal(next.outcome.result.drawId);
+    }
+    return { won, dummies, t };
+  }
+
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+
+  it("当選対象でない景品は、確変でも通常でも、何度やっても当たらない。取り置きにも入らない", async () => {
+    for (let i = 0; i < 40; i++) {
+      const { won, t } = await drawAll(prizesWithDecoys);
+      expect(won.filter((id) => id.startsWith("n"))).toEqual([]);
+      expect([...won].sort()).toEqual(["a", "b", "c"]);
+      expect((await t.store.plan())?.reservedPrizeIds.sort()).toEqual(["a", "b"]);
+    }
+  });
+
+  it("A と B を互いのダミーにして、両方とも確変・当選対象なら、両方とも当たり得る", async () => {
+    const winnersByTurn: Record<string, Set<string>> = {};
+    for (let i = 0; i < 60; i++) {
+      const { won } = await drawAll(prizesWithDecoys.filter((p) => p.id !== "n1" && p.id !== "n2" && p.id !== "c"), { mode: "fixed", fixedTimings: [1, 2] });
+      (winnersByTurn["first"] ??= new Set()).add(won[0]);
+    }
+    expect([...winnersByTurn["first"]].sort()).toEqual(["a", "b"]);
+  });
+
+  it("確変の回のダミー当選には、当選対象でない景品も指定・抽選できる", async () => {
+    const prizes: TestPrize[] = [
+      { id: "a", name: "A", rank: 3, order: 1, kakuhen: true, kakuhenDummyPrizeId: "n1" },
+      { id: "n1", name: "N1", rank: 3, order: 2, kakuhen: false, drawable: false },
+    ];
+    const { won, dummies } = await drawAll(prizes, { mode: "fixed", fixedTimings: [1] });
+    expect(won).toEqual(["a"]);
+    expect(dummies).toEqual(["n1"]);
+    const noDesignation = prizes.map((p) => ({ ...p, kakuhenDummyPrizeId: undefined }));
+    const r = await drawAll(noDesignation, { mode: "fixed", fixedTimings: [1] });
+    expect(r.dummies).toEqual(["n1"]);
+  });
+});

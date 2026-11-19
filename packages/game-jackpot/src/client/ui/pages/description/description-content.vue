@@ -1,11 +1,11 @@
 <template>
 	<MainLayout :fullScreen="true">
-		<div class="description-screen" data-testid="description-screen">
+		<div class="description-screen" data-testid="description-screen" :style="screenStyle">
 			<Loader v-if="!ready" label="読み込み中..." />
 			<template v-else>
 				<!-- 1ページずつ。画像は画面いっぱいに比率を保って、テキストは中央に大きく出す -->
 				<transition name="page" mode="out-in">
-					<div v-if="page" :key="index" class="page" data-testid="description-page" :data-index="index">
+					<div v-if="page" :key="index" class="page" :class="{ 'is-image': page.kind === '画像' }" data-testid="description-page" :data-index="index">
 						<img v-if="page.kind === '画像' && page.imageUrl" :src="page.imageUrl" class="page-image" data-testid="description-image" alt="" />
 						<div v-else-if="page.kind === 'テキスト'" class="page-text" data-testid="description-text">{{ page.text }}</div>
 					</div>
@@ -24,6 +24,7 @@ import { container } from 'tsyringe';
 import { useRouter } from 'vue-router';
 import MainLayout from '../common/main-layout.vue';
 import Loader from '../common/loader.vue';
+import { loadEdgeColor } from '../../composables/load-edge-color';
 import { useScreenMedia } from '../../composables/use-screen-media';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { useJackpotHost } from '../../composables/use-jackpot-host';
@@ -64,6 +65,15 @@ export default {
 		const index = ref(0);
 		const page = computed(() => pages.value[index.value] ?? null);
 
+		// 画像のページは、外側を画像の縁の色にする。求められない・画像でないときは既存の暗い背景のまま
+		const edge = ref<string | null>(null);
+		const screenStyle = computed(() => (edge.value ? { background: edge.value } : {}));
+		watch(page, async (p) => {
+			const url = p?.kind === '画像' ? p.imageUrl : undefined;
+			const color = url ? await loadEdgeColor(url) : null;
+			if (page.value === p) edge.value = color;
+		}, { immediate: true });
+
 		const leave = () => {
 			const next = nextScreen('description', { demoDraw: demoDraw.value ?? true, entry: false });
 			if (next) void router.push(session.to(SCREEN_PATH[next]));
@@ -91,7 +101,7 @@ export default {
 		onMounted(() => window.addEventListener('keydown', handleKey));
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
 
-		return { ready, pages, total, index, page };
+		return { ready, pages, total, index, page, screenStyle };
 	},
 };
 </script>
@@ -120,9 +130,14 @@ export default {
 	box-sizing: border-box;
 }
 
+/* 画像のページは、余白なしで画面いっぱいに比率を保って出す */
+.page.is-image {
+	padding: 0;
+}
+
 .page-image {
-	max-width: 100%;
-	max-height: 100%;
+	width: 100%;
+	height: 100%;
 	object-fit: contain;
 }
 

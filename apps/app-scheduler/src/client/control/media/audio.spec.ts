@@ -14,7 +14,7 @@ function setup() {
   let n = 0;
   const audio = {
     loadFromBlob: vi.fn(async (_blob: Blob) => `inst-${++n}`),
-    play: vi.fn(async (_id: string) => undefined),
+    play: vi.fn(async (_id: string, _fadeMs?: number, _loop?: boolean) => undefined),
     stop: vi.fn(async (_id: string, _fadeMs?: number) => undefined),
     disposeInstance: vi.fn((_id: string) => undefined),
   };
@@ -29,7 +29,13 @@ describe("AudioControl", () => {
     const { control, audio, source } = setup();
     await control.play("a");
     expect(source.ensure).toHaveBeenCalledWith("a");
-    expect(audio.play).toHaveBeenCalledWith("inst-1");
+    expect(audio.play).toHaveBeenCalledWith("inst-1", 0, false);
+  });
+
+  it("loop を指定すると、繰り返し再生で鳴らす", async () => {
+    const { control, audio } = setup();
+    await control.play("a", true);
+    expect(audio.play).toHaveBeenCalledWith("inst-1", 0, true);
   });
 
   it("曲を指定した停止は、その曲だけをフェードアウトして止め、片づける", async () => {
@@ -99,7 +105,7 @@ describe("AudioControl", () => {
     await control.play("a");
     expect(audio.stop).toHaveBeenCalledWith("inst-1", 0);
     expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
-    expect(audio.play).toHaveBeenLastCalledWith("inst-2");
+    expect(audio.play).toHaveBeenLastCalledWith("inst-2", 0, false);
   });
 
   it("止めるのに失敗しても片づけて、例外にしない", async () => {

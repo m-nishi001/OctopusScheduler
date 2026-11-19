@@ -1,6 +1,6 @@
 import { WeightedSelector } from "./weighted-selector";
 import { injectable, inject } from "tsyringe";
-import type { Prize } from "../prize/prize";
+import { isDrawablePrize, type Prize } from "../prize/prize";
 import { prizeRankToWeight } from "../prize/prize-rank";
 import type { Member } from "../member/member";
 import { MathRandomProvider } from "../common/math-random-provider";
@@ -30,17 +30,18 @@ export class PrizeDrawService {
   /**
    * 通常抽選で引いてよい景品。当選済みに加えて、確変のために取り置いた景品も除く。
    * 取り置いた景品を通常抽選で引くと、後の確変抽選で同じ景品が重複して当選してしまう。
+   * 当選対象でない景品(`drawable=false`)も除く。
    */
   getDrawablePrizes(prizes: Prize[], results: WonPrizes, reservedPrizeIds: readonly string[] = []): Prize[] {
     const held = PrizeDrawService.wonIds(results);
     for (const id of reservedPrizeIds) held.add(id);
-    return prizes.filter((p) => !held.has(p.id));
+    return prizes.filter((p) => isDrawablePrize(p) && !held.has(p.id));
   }
 
-  /** 取り置いた景品のうち、まだ当選していないもの(確変で当てる景品の候補)。 */
+  /** 取り置いた景品のうち、まだ当選していないもの(確変で当てる景品の候補)。当選対象でない景品は含めない。 */
   getUnusedReservedPrizes(prizes: Prize[], results: WonPrizes, reservedPrizeIds: readonly string[]): Prize[] {
     const won = PrizeDrawService.wonIds(results);
-    return prizes.filter((p) => reservedPrizeIds.includes(p.id) && !won.has(p.id));
+    return prizes.filter((p) => isDrawablePrize(p) && reservedPrizeIds.includes(p.id) && !won.has(p.id));
   }
 
   /** 候補から1つを選ぶ。空なら例外。 */
@@ -50,12 +51,12 @@ export class PrizeDrawService {
   }
 
   /**
-   * 当選していない景品(取り置きの景品も含む)。景品の残りの数え方はこれ1つ。
+   * 当選していない景品(取り置きの景品も含む)。景品の残りの数え方はこれ1つ。当選対象でない景品(当たらない)は残りに数えない。
    * 確定済みの抽選は必ず当選者がいるので、結果に出てくる景品がそのまま「当選済み」。
    */
   getRemainingPrizes(prizes: Prize[], results: WonPrizes): Prize[] {
     const won = PrizeDrawService.wonIds(results);
-    return prizes.filter((p) => !won.has(p.id));
+    return prizes.filter((p) => isDrawablePrize(p) && !won.has(p.id));
   }
 
   pickRandomPrizeFrom(prizes: Prize[]): Prize | null {
@@ -98,7 +99,7 @@ export class PrizeDrawService {
   }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } | null {
     const { prizes, assignedPrizeIds } = opts;
 
-    const available = prizes.filter((p) => !assignedPrizeIds.includes(p.id));
+    const available = prizes.filter((p) => isDrawablePrize(p) && !assignedPrizeIds.includes(p.id));
     if (available.length === 0) return null;
 
     const picked = this.weightedSelector.selectWeighted(available, (p) => prizeRankToWeight(p.rank));

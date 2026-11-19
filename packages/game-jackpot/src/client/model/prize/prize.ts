@@ -2,6 +2,9 @@ import type { Prize } from "../../../server/jackpot-api-contract";
 
 export type { Prize };
 
+/** 当選対象か。`drawable` が false の景品だけが対象外(未設定は対象)。 */
+export const isDrawablePrize = (p: Pick<Prize, "drawable">): boolean => p.drawable !== false;
+
 /** 景品のうち、画面で編集する項目(`id` と `order` は景品が持ち続けるので含めない)。 */
 export type PrizeFields = Omit<Prize, "id" | "order">;
 

@@ -18,6 +18,24 @@ describe("PrizeDrawService", () => {
     expect(svc.getUnusedReservedPrizes(prizes as any, [{ wonPrize: { id: "b" } }], ["b", "c"]).map((p) => p.id)).toEqual(["c"]);
   });
 
+  it("当選対象でない景品(drawable=false)は、通常抽選の候補・取り置きの候補・残りの数え方のどれにも入らない", () => {
+    const svc = new PrizeDrawService(null as any, new MockRandom([0]) as any);
+    const prizes = [{ id: "a" }, { id: "n", drawable: false }, { id: "t", drawable: true }];
+    expect(svc.getDrawablePrizes(prizes as any, []).map((p) => p.id)).toEqual(["a", "t"]);
+    expect(svc.getUnusedReservedPrizes(prizes as any, [], ["a", "n"]).map((p) => p.id)).toEqual(["a"]);
+    expect(svc.getRemainingPrizes(prizes as any, []).map((p) => p.id)).toEqual(["a", "t"]);
+  });
+
+  it("drawPrize は、当選対象でない景品を、どんな乱数でも選ばない", () => {
+    const prizes = [{ id: "n1", drawable: false, rank: 3 }, { id: "a", rank: 3 }, { id: "n2", drawable: false, rank: 5 }];
+    for (let i = 0; i < 100; i++) {
+      const rand = { next: () => i / 100, nextInt: (m: number) => Math.floor((i / 100) * m) };
+      const svc = new PrizeDrawService(new WeightedSelector(rand as any), rand as any);
+      const r = svc.drawPrize({ prizes: prizes as any, assignedPrizeIds: [], member: {} as any, dummyCount: 2 });
+      expect(r?.winnerPrizeId).toBe("a");
+    }
+  });
+
   /**
    * 次の抽選が確変かは、「確定済みの件数 + 1」回目が確変の回に含まれるかで決まる(取り置きの行の数には依存しない)。
    */

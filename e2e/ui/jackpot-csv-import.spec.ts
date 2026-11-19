@@ -125,8 +125,8 @@ test.describe("景品の CSV 取込・書き出し", () => {
     const csvFile = await csvDownload;
     expect(csvFile.suggestedFilename()).toBe("prizes.csv");
     const csvText = readFileSync(await csvFile.path(), "utf-8");
-    expect(csvText.startsWith("﻿ID,名前,景品ランク,アニメーション,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM")).toBe(true);
-    expect(csvText).toContain(`${idOf(1)},${nameOf(1)},4,スロット,なし,${SHARED_IMAGE},`);
+    expect(csvText.startsWith("﻿ID,名前,景品ランク,アニメーション,確変対応,当選対象,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM")).toBe(true);
+    expect(csvText).toContain(`${idOf(1)},${nameOf(1)},4,スロット,なし,する,${SHARED_IMAGE},`);
 
     await admin.page.getByTestId("table-export-media").check();
     const zipDownload = admin.page.waitForEvent("download");

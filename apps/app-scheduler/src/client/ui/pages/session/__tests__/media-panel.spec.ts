@@ -41,6 +41,19 @@ describe("media-panel: 音楽", () => {
     expect(wrapper.text()).not.toContain("photo.png");
   });
 
+  it("「ループ」にチェックを入れて再生すると、loop 付きの指示を送る。外せば付けない", async () => {
+    const { wrapper, issue } = mountPanel();
+    await flushPromises();
+    await find(wrapper, "media-loop").setValue(true);
+    await find(wrapper, "media-play-song1").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", loop: true });
+    await find(wrapper, "media-loop").setValue(false);
+    await find(wrapper, "media-play-song1").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1" });
+  });
+
   it("再生・停止・すべて停止で、media の指示を送る", async () => {
     const { wrapper, issue } = mountPanel();
     await flushPromises();
