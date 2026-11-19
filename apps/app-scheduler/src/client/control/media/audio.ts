@@ -19,7 +19,8 @@ export class AudioControl {
     @inject(AudioServiceToken) private readonly audio: AudioPlayer
   ) {}
 
-  async play(id: string): Promise<void> {
+  /** 曲を鳴らす。`loop` なら、止めるまで繰り返す。 */
+  async play(id: string, loop = false): Promise<void> {
     const mine = (this.seq.get(id) ?? 0) + 1;
     this.seq.set(id, mine);
     const blob = await this.source.ensure(id);
@@ -31,7 +32,7 @@ export class AudioControl {
     }
     await this.stopInstance(id, 0);
     this.playing.set(id, instance);
-    await this.audio.play(instance);
+    await this.audio.play(instance, 0, loop);
   }
 
   /** 曲を指定するとその曲だけ、省略するとすべて止める。`fadeSec` 秒かけてフェードアウトする。 */

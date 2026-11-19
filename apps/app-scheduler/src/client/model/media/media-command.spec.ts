@@ -9,6 +9,13 @@ describe("parseMediaCommand: play", () => {
     expect(parseMediaCommand("play", { assetId: "abc-123_X", extra: 1 })).toEqual({ type: "play", assetId: "abc-123_X" });
   });
 
+  it("loop は真偽値だけ通す(省略もよい)", () => {
+    expect(parseMediaCommand("play", { assetId: "a", loop: true })).toEqual({ type: "play", assetId: "a", loop: true });
+    expect(parseMediaCommand("play", { assetId: "a", loop: false })).toEqual({ type: "play", assetId: "a", loop: false });
+    expect(parseMediaCommand("play", { assetId: "a", loop: "true" })).toBeNull();
+    expect(parseMediaCommand("play", { assetId: "a", loop: 1 })).toBeNull();
+  });
+
   it.each([[undefined], [null], [{}], [{ assetId: "" }], [{ assetId: "a b" }], [{ assetId: "a/b" }], [{ assetId: "あ" }], [{ assetId: 3 }], [{ assetId: "a".repeat(65) }], ["a"], [[]]])(
     "assetId が正しくない(%j)と通さない",
     (payload) => {

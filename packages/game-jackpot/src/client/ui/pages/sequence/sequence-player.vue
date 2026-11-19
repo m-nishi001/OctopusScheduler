@@ -1,6 +1,6 @@
 <template>
-    <div class="seq-container" data-testid="sequence">
-        <div v-if="current" :key="currentIndex" class="seq-item" data-testid="seq-item" :data-index="currentIndex"
+    <div class="seq-container" data-testid="sequence" :style="containerStyle">
+        <div v-if="current" :key="currentIndex" class="seq-item" :class="{ 'is-image': current.kind === '画像' }" data-testid="seq-item" :data-index="currentIndex"
             :data-effect="current.effect" :data-page="page" :data-pages="pages">
             <!-- 行送りは「lines 行ぶんの窓」の中で本文を上へずらす。ほかは本文そのものを中央に置いて動かす -->
             <div class="seq-window" :class="{ 'is-lines': current.effect === '行送り' && current.kind === 'テキスト' }"
@@ -20,6 +20,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, type PropType } from '
 import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import type { SequenceItem, SequenceSettings } from '@model/screen-config/sequence-setting';
+import { loadEdgeColor } from '../../composables/load-edge-color';
 import { buildTimeline, pageAt, sampleTimeline, type Timeline } from '@model/sequence-timeline';
 
 /** 行送りの1行の高さ(em)。窓の高さ(lines × この値)と、本文の line-height を同じ値にして、行の境目で送る。 */
@@ -53,6 +54,8 @@ export default {
         const session = useJackpotSession();
         const bodyEl = ref<HTMLElement | null>(null);
         const currentIndex = ref(-1);
+        /** 画像のページの外側の色(画像の縁の色)。求められない・画像でないときは null(既存の暗い背景のまま)。 */
+        const edge = ref<string | null>(null);
         const y = ref(0);
         const opacity = ref(0);
         const page = ref(0);
@@ -63,6 +66,7 @@ export default {
 
         const isLines = computed(() => current.value?.effect === '行送り' && current.value.kind === 'テキスト');
         const windowStyle = computed(() => (isLines.value ? { height: `${(current.value?.lines ?? 3) * LINE_HEIGHT_EM}em` } : {}));
+        const containerStyle = computed(() => (edge.value ? { background: edge.value } : {}));
         const bodyStyle = computed(() => ({ transform: `translateY(${y.value}px)`, opacity: opacity.value }));
 
         const playSe = (item: SequenceItem) => {
@@ -87,6 +91,8 @@ export default {
             y.value = 0;
             page.value = 0;
             pages.value = 1;
+            edge.value = item.kind === '画像' && item.imageUrl ? await loadEdgeColor(item.imageUrl) : null;
+            if (cancelled) return;
             currentIndex.value = index;
             await nextTick();
             await waitForImage(bodyEl.value);
@@ -134,7 +140,7 @@ export default {
             cancelled = true;
         });
 
-        return { bodyEl, current, currentIndex, page, pages, windowStyle, bodyStyle };
+        return { bodyEl, containerStyle, current, currentIndex, page, pages, windowStyle, bodyStyle };
     },
 };
 </script>
@@ -162,6 +168,12 @@ export default {
     justify-content: center;
 }
 
+/* 画像のページは画面いっぱい(外側の色は画像の縁の色) */
+.seq-item.is-image {
+    width: 100%;
+    height: 100%;
+}
+
 .seq-window {
     width: 100%;
 }
@@ -185,7 +197,7 @@ export default {
 /* 画像は、比率を保ったまま画面いっぱいに出す(小さい画像も大きく映す) */
 .seq-image {
     width: 100%;
-    height: 80vh;
+    height: 100vh;
     object-fit: contain;
     display: block;
     margin: 0 auto;

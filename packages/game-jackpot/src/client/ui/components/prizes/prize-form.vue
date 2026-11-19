@@ -15,6 +15,16 @@
         </div>
       </div>
 
+      <div class="drawable-field" data-testid="drawable-field">
+        <label class="kakuhen-check">
+          <input type="checkbox" v-model="formData.drawable" data-testid="drawable-checkbox" />
+          <span>当選対象</span>
+        </label>
+        <p class="kakuhen-hint">
+          OFFにすると、この景品は絶対に当たりません。ダミー当選や演出の埋め草としては使えます。
+        </p>
+      </div>
+
       <div class="kakuhen-field" data-testid="kakuhen-field">
         <label class="kakuhen-check">
           <input type="checkbox" v-model="formData.kakuhen" data-testid="kakuhen-checkbox" />
@@ -55,7 +65,7 @@ import FieldNumberStepper from '../../../ui/pages/admin/prizes/components/field-
 import FieldSelect from '../../../ui/pages/admin/prizes/components/field-select.vue';
 import MediaPicker from '../media-picker.vue';
 import { useMediaDraft } from '@ui/composables/use-media-draft';
-import type { Prize, PrizeFields } from '@model/prize/prize';
+import { isDrawablePrize, type Prize, type PrizeFields } from '@model/prize/prize';
 import { isKakuhenPrize } from '@model/prize/prize-kakuhen';
 import { DEFAULT_PRIZE_RANK, MAX_PRIZE_RANK, MIN_PRIZE_RANK, prizeRankToWeight } from '@model/prize/prize-rank';
 
@@ -93,13 +103,14 @@ const animationOptions = [
   { value: 'slot', label: 'スロット' },
 ];
 
-type FormData = { name: string; rank: number; animation: string; kakuhen: boolean; kakuhenDummyPrizeId: string } & Record<MediaField, string>;
+type FormData = { name: string; rank: number; animation: string; kakuhen: boolean; drawable: boolean; kakuhenDummyPrizeId: string } & Record<MediaField, string>;
 
 const emptyFormData = (): FormData => ({
   name: '',
   rank: DEFAULT_PRIZE_RANK,
   animation: 'roulette',
   kakuhen: false,
+  drawable: true,
   kakuhenDummyPrizeId: '',
   image: '',
   image2: '',
@@ -148,6 +159,7 @@ function loadPrize(prize: Prize) {
     rank: prize.rank ?? DEFAULT_PRIZE_RANK,
     animation: prize.animation || 'roulette',
     kakuhen: isKakuhenPrize(prize),
+    drawable: isDrawablePrize(prize),
     kakuhenDummyPrizeId: prize.kakuhenDummyPrizeId || '',
     ...Object.fromEntries(MEDIA_FIELDS.map((f) => [f, prize[f] || ''])),
   };
@@ -155,10 +167,10 @@ function loadPrize(prize: Prize) {
 
 function submit() {
   if (!isValid.value) return;
-  const { name, rank, animation, kakuhen, kakuhenDummyPrizeId } = formData.value;
+  const { name, rank, animation, kakuhen, drawable, kakuhenDummyPrizeId } = formData.value;
   const media = Object.fromEntries(MEDIA_FIELDS.map((f) => [f, formData.value[f] || undefined]));
   emit('submit', {
-    fields: { name, rank, animation, kakuhen, kakuhenDummyPrizeId: kakuhenDummyPrizeId || undefined, ...media },
+    fields: { name, rank, animation, kakuhen, drawable, kakuhenDummyPrizeId: kakuhenDummyPrizeId || undefined, ...media },
     files: draft.filesFor(MEDIA_FIELDS.map((f) => formData.value[f])),
   });
 }
@@ -181,8 +193,8 @@ function cancel() {
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  /* 5 rows: basic-fields / animation (handled inside basic) / images / winning images / bgm */
-  grid-template-rows: auto auto auto auto auto;
+  /* 6 rows: basic-fields / drawable / kakuhen / animation (handled inside basic) / images / winning images / bgm */
+  grid-template-rows: auto auto auto auto auto auto;
   gap: 20px;
   padding: 20px;
   min-width: 0;
@@ -190,9 +202,14 @@ function cancel() {
 }
 
 /* 確変対応のチェックと、それに連動する2枚目の欄(確変_抽選画像・確変_当選画像・確変_当選BGM)。連動する欄は点線の枠でまとめる */
-.kakuhen-field {
+.drawable-field {
   grid-column: 1 / -1;
   grid-row: 2;
+}
+
+.kakuhen-field {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 
 .kakuhen-check {
@@ -262,27 +279,27 @@ function cancel() {
 
 .image1-preview {
   grid-column: 1;
-  grid-row: 3;
+  grid-row: 4;
 }
 
 .image2-section {
   grid-column: 2;
-  grid-row: 3;
+  grid-row: 4;
 }
 
 .winning-image1-section {
   grid-column: 1;
-  grid-row: 4;
+  grid-row: 5;
 }
 
 .winning-image2-section {
   grid-column: 2;
-  grid-row: 4;
+  grid-row: 5;
 }
 
 .bgm-actions {
   grid-column: 1 / -1;
-  grid-row: 5;
+  grid-row: 6;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -330,7 +347,7 @@ function cancel() {
 @media (max-width: 768px) {
   .form-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(5, auto);
+    grid-template-rows: repeat(6, auto);
   }
 
   .basic-fields {

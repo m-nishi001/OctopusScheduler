@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 function fakeControls() {
-  const audio = { play: vi.fn(async (_id: string) => undefined), stop: vi.fn(async (_id?: string, _fadeSec?: number) => undefined) };
+  const audio = { play: vi.fn(async (_id: string, _loop?: boolean) => undefined), stop: vi.fn(async (_id?: string, _fadeSec?: number) => undefined) };
   const screen = { show: vi.fn(async (_spec: unknown) => undefined), clear: vi.fn(async () => undefined) };
   return { audio, screen, controls: (): MediaControls => ({ audio, screen: screen as unknown as MediaControls["screen"] }) };
 }
@@ -50,6 +50,15 @@ const command = (over: Partial<Command>): Command => ({
 });
 
 describe("registerMediaCommands(ホスト)", () => {
+  it("play に loop が付いていれば、ループ再生として音楽に渡す。loop が真偽値でなければ捨てる", async () => {
+    const f = fakeControls();
+    const { admin } = await scene(f.controls);
+    await admin.conn.issue("media", "play", { assetId: "song1", loop: true });
+    await admin.conn.issue("media", "play", { assetId: "song2", loop: "yes" });
+    await settle(5000);
+    expect(f.audio.play.mock.calls).toEqual([["song1", true]]);
+  });
+
   it("管理端末の4種類の指示を、音楽・スクリーンの単体機能に渡す", async () => {
     const f = fakeControls();
     const { admin } = await scene(f.controls);
@@ -59,7 +68,7 @@ describe("registerMediaCommands(ホスト)", () => {
     await admin.conn.issue("media", "show", { spec: { kind: "image", id: "img1" } });
     await admin.conn.issue("media", "clear", {});
     await settle(5000);
-    expect(f.audio.play).toHaveBeenCalledWith("song1");
+    expect(f.audio.play).toHaveBeenCalledWith("song1", false);
     expect(f.audio.stop.mock.calls).toEqual([["song1", 2], [undefined, undefined]]);
     expect(f.screen.show).toHaveBeenCalledWith({ kind: "image", id: "img1" });
     expect(f.screen.clear).toHaveBeenCalledOnce();
@@ -88,7 +97,7 @@ describe("registerMediaCommands(ホスト)", () => {
     expect(f.audio.play).not.toHaveBeenCalled();
     expect(f.screen.clear).not.toHaveBeenCalled();
     await agent.router.dispatch(command({ issuerRole: "admin" }));
-    expect(f.audio.play).toHaveBeenCalledWith("a1");
+    expect(f.audio.play).toHaveBeenCalledWith("a1", false);
   });
 
   it("素材の取得を待たない。遅い表示の最中でも、あとの「消す」が処理される", async () => {
@@ -118,7 +127,7 @@ describe("registerMediaCommands(ホスト)", () => {
     await admin.conn.issue("media", "play", { assetId: "song9" });
     await settle(5000);
     expect(source.ensure).toHaveBeenCalledWith("song9");
-    expect(fakeAudio.play).toHaveBeenCalledWith("i1");
+    expect(fakeAudio.play).toHaveBeenCalledWith("i1", 0, false);
   });
 
   it("再生・表示できなかったら(素材が取れないなど)、その素材の ID で onFailure を呼ぶ。止める指示や成功では呼ばない", async () => {

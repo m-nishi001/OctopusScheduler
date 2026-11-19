@@ -16,7 +16,7 @@ const defaultControls = (): MediaControls => ({
 
 /**
  * ホストが `media` 名前空間の指示を受けて、音楽とスクリーンを動かす。
- *   - `media.play { assetId }` / `media.stop { assetId?, fadeSec? }` : 音楽
+ *   - `media.play { assetId, loop? }` / `media.stop { assetId?, fadeSec? }` : 音楽
  *   - `media.show { spec }` / `media.clear` : スクリーン
  * 信頼境界はホスト側。参加者(client)からの指示は捨て、検証に通らないペイロードは警告を出して捨てる。
  * 素材の取得を待たない(待つと、あとに来た「消す」「止める」が取得の完了まで処理されないため)。
@@ -39,7 +39,7 @@ export function registerMediaCommands(
     const task = (() => {
       switch (parsed.type) {
         case "play":
-          return audio.play(parsed.assetId);
+          return audio.play(parsed.assetId, parsed.loop ?? false);
         case "stop":
           return audio.stop(parsed.assetId, parsed.fadeSec);
         case "show":

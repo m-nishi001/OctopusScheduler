@@ -19,7 +19,7 @@ export function normalizePrizeKakuhen<T extends KakuhenFields>(p: T): T {
   return typeof p.kakuhen === "boolean" ? p : { ...p, kakuhen: isKakuhenPrize(p) };
 }
 
-/** 確変対応ONの景品の数(確変ターンの数になる)。 */
-export function countKakuhenPrizes(prizes: readonly KakuhenFields[]): number {
-  return prizes.filter(isKakuhenPrize).length;
+/** 確変対応ONで、当選対象の景品の数(確変ターンの数になる)。当選対象でない景品は取り置かない。 */
+export function countKakuhenPrizes(prizes: readonly (KakuhenFields & Pick<Prize, "drawable">)[]): number {
+  return prizes.filter((p) => isKakuhenPrize(p) && p.drawable !== false).length;
 }

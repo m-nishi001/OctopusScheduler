@@ -6,7 +6,7 @@ export const MEDIA_NS = "media";
 
 /** 指示は4種類だけ。ペイロードは、関数の引数をそのまま送る。 */
 export type MediaCommand =
-  | { type: "play"; assetId: string }
+  | { type: "play"; assetId: string; loop?: boolean }
   | { type: "stop"; assetId?: string; fadeSec?: number }
   | { type: "show"; spec: ScreenSpec }
   | { type: "clear" };
@@ -53,7 +53,12 @@ export function parseMediaCommand(type: string, payload: unknown): MediaCommand 
   if (!isRecord(body)) return null;
   switch (type) {
     case "play":
-      return isAssetId(body.assetId) ? { type, assetId: body.assetId } : null;
+    {
+      const { assetId, loop } = body;
+      if (!isAssetId(assetId)) return null;
+      if (loop !== undefined && typeof loop !== "boolean") return null;
+      return { type, assetId, ...(loop !== undefined ? { loop } : {}) };
+    }
     case "stop": {
       const { assetId, fadeSec } = body;
       if (assetId !== undefined && !isAssetId(assetId)) return null;

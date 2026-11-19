@@ -19,6 +19,10 @@
         <!-- 音楽 -->
         <div v-if="tab === 'audio'" class="media__body" data-testid="media-audio">
             <p v-if="!loading && !loadError && songs.length === 0" class="media__sub">音楽の素材がありません。設定の「アセット」で登録してください。</p>
+            <label class="media__check">
+                <input v-model="loop" type="checkbox" data-testid="media-loop" />
+                <span>ループ(停止するまで繰り返す)</span>
+            </label>
             <ul class="media__list">
                 <li v-for="song in songs" :key="song.id" class="media__row" data-testid="media-song">
                     <span class="media__name">{{ song.name }}</span>
@@ -119,6 +123,8 @@ const playbackError = computed(() => {
 const loading = ref(false);
 const loadError = ref(false);
 
+/** 「再生」をループにするか。止めるのは、これまでどおり「停止」。 */
+const loop = ref(false);
 const folderChoice = ref('');
 const folderInput = ref('');
 const intervalSec = ref(5);
@@ -177,7 +183,7 @@ watch(() => slice.value?.rev, (rev, previous) => {
     if (rev !== previous) void load();
 });
 
-const playSong = (id: string) => send(`play:${id}`, 'play', { assetId: id });
+const playSong = (id: string) => send(`play:${id}`, 'play', { assetId: id, ...(loop.value ? { loop: true } : {}) });
 const stopSong = (id: string) => send(`stop:${id}`, 'stop', { assetId: id, fadeSec: 1 });
 const stopAll = () => send('stop-all', 'stop', { fadeSec: 1 });
 const showItem = (item: CatalogItem) => send(`show:${item.id}`, 'show', { spec: { kind: item.kind === 'video' ? 'video' : 'image', id: item.id } });
@@ -206,5 +212,6 @@ onMounted(load);
 .media__field { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; min-width: 0; }
 .media__inline .media__field { flex: 1 1 8em; }
 .media__field select, .media__field input { font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-bg, #23252b); color: inherit; border: 1px solid var(--ui-border, #3a4048); min-width: 0; width: 100%; box-sizing: border-box; }
+.media__check { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
 .media__inline { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>

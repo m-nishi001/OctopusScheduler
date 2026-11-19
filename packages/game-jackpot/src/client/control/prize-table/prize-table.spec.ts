@@ -55,6 +55,16 @@ describe("prizeAdapter", () => {
     expect(p.upserts).toEqual([]);
   });
 
+  it("当選対象の列: 無い・空は「する」、「しない」は false、書き出しも往復する。ほかの書き方はエラー", () => {
+    expect(plan([], "名前\nA\n").upserts[0].drawable).toBe(true);
+    expect(plan([], "名前,当選対象\nA,\nB,する\nC,しない\n").upserts.map((p) => p.drawable)).toEqual([true, true, false]);
+    expect(plan([], "名前,当選対象\nA,たぶん\n").rows[0]).toMatchObject({ status: "error", message: expect.stringContaining("当選対象") });
+    const csv = exportTable([prize("a", { drawable: false }), prize("b")], prizeAdapter());
+    expect(csv.split("\r\n")[0]).toContain("当選対象");
+    const p = plan([prize("a", { drawable: false }), prize("b", { order: 2 })], csv, "replace");
+    expect(p.counts).toMatchObject({ add: 0, update: 0, unchanged: 2 });
+  });
+
   it("景品ランクの列を読み書きする(1〜5)。書き出しの見出しは「景品ランク」", () => {
     const csv = exportTable([prize("a", { rank: 5 })], prizeAdapter());
     expect(csv.split("\r\n")[0]).toContain("景品ランク");
@@ -90,9 +100,9 @@ describe("prizeAdapter", () => {
     const withKakuhen = prize("k", { kakuhen: true, image: "i1.png", winningImage1: "w1.png", bgm1: "b1.mp3", image2: "i2.png", winningImage2: "w2.png", bgm2: "b2.mp3" });
     const plain = prize("p", { kakuhen: false, image: "pi.png", winningImage1: "pw.png", bgm1: "pb.mp3" });
     const lines = exportTable([withKakuhen, plain], prizeAdapter()).replace("\uFEFF", "").split("\r\n");
-    expect(lines[0]).toBe("ID,名前,景品ランク,アニメーション,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM,確変_ダミー当選景品ID");
-    expect(lines[1].split(",").slice(4)).toEqual(["あり", "i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3", ""]);
-    expect(lines[2].split(",").slice(4)).toEqual(["なし", "pi.png", "pw.png", "pb.mp3", "", "", "", ""]);
+    expect(lines[0]).toBe("ID,名前,景品ランク,アニメーション,確変対応,当選対象,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM,確変_ダミー当選景品ID");
+    expect(lines[1].split(",").slice(4)).toEqual(["あり", "する", "i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3", ""]);
+    expect(lines[2].split(",").slice(4)).toEqual(["なし", "する", "pi.png", "pw.png", "pb.mp3", "", "", "", ""]);
     const names = ["i1.png", "w1.png", "b1.mp3", "i2.png", "w2.png", "b2.mp3", "pi.png", "pw.png", "pb.mp3"];
     const csv = "ID,名前,確変対応,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM\n,K,あり,i1.png,w1.png,b1.mp3,i2.png,w2.png,b2.mp3\n,P,なし,pi.png,pw.png,pb.mp3,,,\n";
     const p = plan([], csv, "upsert", names);
