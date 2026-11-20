@@ -1,5 +1,6 @@
 import { delay, pause, step, type Step } from "./action-queue";
 import { playWinningBgm, preloadBgm } from "./bgm";
+import { SHOW_PRIZE_RESULT } from "@model/jackpot-host-state";
 import { requireSelectedPrize, type DrawContext } from "./draw-context";
 import { kakuhenPrizeSteps } from "./kakuhen-session";
 import { shouldHoldLotteryBgm } from "./use-lottery-bgm";
@@ -29,6 +30,20 @@ export function buildCycle(ctx: DrawContext, isKakuhen: boolean): Step[] {
     ...(isKakuhen ? kakuhenPrizeSteps(ctx) : normalPrizeSteps(ctx)),
     ...winningDialogSteps(ctx),
     ...remainingSteps(ctx),
+  ];
+}
+
+/**
+ * 当選者を飛ばして引き直したあとのステップ。メンバー抽選だけやり直し、景品は演出し直さずに結果(当選ダイアログ)だけ見せる
+ * (景品はもう決まっている。確変の演出もやり直さない)。`withRemaining`: 元のサイクルの「残数の確認」がまだだったときだけ付ける。
+ */
+export function buildSkipCycle(ctx: DrawContext, withRemaining: boolean): Step[] {
+  return [
+    ...memberSteps(ctx),
+    // 景品が画面に見えた印だけ(参加者のスマホに停止ボタンは出ない)。次の操作で当選ダイアログを出す
+    step(() => undefined, SHOW_PRIZE_RESULT),
+    ...winningDialogSteps(ctx),
+    ...(withRemaining ? remainingSteps(ctx) : []),
   ];
 }
 

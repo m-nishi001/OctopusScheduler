@@ -1,7 +1,7 @@
 import { createFakeHubApi, makeDevice, makeHub } from "@octopus/session-hub/testing";
 import type { Device, FaultInjector, TestHub } from "@octopus/session-hub/testing";
 import { MemoryDeviceStore, SessionAdminRepository } from "@octopus/session-hub";
-import { ENTRY_OPTIONS, entryRoundKey } from "@octopus/session-hub";
+import { ENTRY_OPTIONS, cancelCountOf, entryRoundKey } from "@octopus/session-hub";
 import type { ClientInput, JackpotDrawInput, JackpotPublished, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
 
 export { makeDevice, makeHub };
@@ -44,6 +44,18 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
       if (!event.entry) throw new Error("受付が始まっていません");
       await host.conn.closeRound(event.entry.key);
       const next = { ...event, entry: { ...event.entry, open: false } };
+      await setSlice("event", next);
+      return next;
+    },
+    /**
+     * ホストがエントリーを取り消す(回答の一覧から外し、本人のスマホに知らせる回数を増やして公開する。本番では event.removeEntrant が行う)。
+     * 当選済みのメンバーは、サーバーが拒否する(結果ファイルを見る)。
+     */
+    cancelEntry: async (event: PortalEvent, memberId: string): Promise<PortalEvent> => {
+      if (!event.entry) throw new Error("受付が始まっていません");
+      await host.conn.removeAnswer(event.entry.key, memberId);
+      const cancelled = { ...event.entry.cancelled, [memberId]: cancelCountOf(event.entry, memberId) + 1 };
+      const next = { ...event, entry: { ...event.entry, cancelled } };
       await setSlice("event", next);
       return next;
     },

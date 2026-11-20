@@ -172,3 +172,75 @@ describe("ログイン済みメンバーは1人1回（端末が違っても）",
     expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toMatchObject([{ memberId: "alice", no: 2 }]);
   });
 });
+
+describe("エントリーの取り消し(removeAnswer)", () => {
+  const remove = (hub: Awaited<ReturnType<typeof setup>>["hub"], who: { sessionId: string; deviceId: string; token: string }, memberId: string, key = KEY) =>
+    svc.removeAnswer(hub.deps, { ...who, key, memberId });
+
+  it("ホスト・管理が、そのメンバーの回答を外せる。回答数と回答の版が進み、一覧から消える。再エントリーすると戻る", async () => {
+    const { hub, host, admin, creds, portal, openEntry, enter, answers } = await setup();
+    await openEntry();
+    const alice = await portal("alice");
+    await enter(alice);
+    await enter(await portal("bob"));
+    const before = (await svc.getAnswers(hub.deps, { ...creds(host), key: KEY })).round;
+
+    expect(await remove(hub, creds(admin), "alice")).toEqual({ removed: true });
+    const after = await svc.getAnswers(hub.deps, { ...creds(host), key: KEY });
+    expect(after.answers.map((a) => a.memberId)).toEqual(["bob"]);
+    expect(after.round).toMatchObject({ answerCount: 1, answerRev: before.answerRev + 1 });
+
+    // 取り消された人は、受付中ならもう一度エントリーできる(新しい回答として末尾に入る)
+    expect((await enter(alice)).duplicate).toBe(false);
+    expect((await answers()).map((a) => a.memberId)).toEqual(["bob", "alice"]);
+  });
+
+  it("無い人の取り消しは何もせず removed=false(再送も成功)。回答の版は進まない", async () => {
+    const { hub, host, creds, openEntry, portal, enter } = await setup();
+    await openEntry();
+    await enter(await portal("alice"));
+    expect(await remove(hub, creds(host), "alice")).toEqual({ removed: true });
+    const rev = (await svc.getAnswers(hub.deps, { ...creds(host), key: KEY })).round.answerRev;
+    expect(await remove(hub, creds(host), "alice")).toEqual({ removed: false });
+    expect(await remove(hub, creds(host), "nobody")).toEqual({ removed: false });
+    expect((await svc.getAnswers(hub.deps, { ...creds(host), key: KEY })).round.answerRev).toBe(rev);
+  });
+
+  it("受付を締め切ったあとでも外せる(締め切った一覧を直せる)", async () => {
+    const { hub, host, admin, creds, openEntry, portal, enter, answers } = await setup();
+    await openEntry();
+    await enter(await portal("alice"));
+    await svc.closeRound(hub.deps, { ...creds(admin), key: KEY });
+    expect(await remove(hub, creds(host), "alice")).toEqual({ removed: true });
+    expect(await answers()).toEqual([]);
+  });
+
+  it("参加者は取り消せない(FORBIDDEN)。別のラウンド・ラウンドが無いときは ROUND_NOT_OPEN。memberId が空なら INVALID_ARGUMENT", async () => {
+    const { hub, host, creds, openEntry, portal, enter } = await setup();
+    expect(await code(remove(hub, creds(host), "alice"))).toBe("ROUND_NOT_OPEN");
+    await openEntry();
+    const alice = await portal("alice");
+    await enter(alice);
+    expect(await code(remove(hub, creds(alice), "alice"))).toBe("FORBIDDEN");
+    expect(await code(remove(hub, creds(host), "alice", "entry:other"))).toBe("ROUND_NOT_OPEN");
+    expect(await code(remove(hub, creds(host), ""))).toBe("INVALID_ARGUMENT");
+  });
+
+  it("かたまり(25件ずつ)をまたぐ一覧でも、順序と件数が保たれ、再エントリーも正しく積まれる(境界の前後)", async () => {
+    const { hub, host, creds, openEntry, portal, enter, answers } = await setup();
+    await openEntry();
+    const ids = Array.from({ length: 26 }, (_, i) => `m${String(i + 1).padStart(2, "0")}`);
+    for (const id of ids) await enter(await portal(id));
+    // 先頭のかたまりから外す(26 → 25: ちょうど1かたまりが満杯)
+    expect(await remove(hub, creds(host), "m03")).toEqual({ removed: true });
+    expect((await answers()).map((a) => a.memberId)).toEqual(ids.filter((id) => id !== "m03"));
+    // さらに満杯から1件増やす(25 → 26)と、2つ目のかたまりに積まれる
+    await enter(await portal("m03"));
+    expect((await answers()).map((a) => a.memberId)).toEqual([...ids.filter((id) => id !== "m03"), "m03"]);
+    // 末尾のかたまりから外す。順序が保たれる
+    expect(await remove(hub, creds(host), "m26")).toEqual({ removed: true });
+    const list = (await answers()).map((a) => a.memberId);
+    expect(list).toEqual([...ids.filter((id) => id !== "m03" && id !== "m26"), "m03"]);
+    expect((await svc.getAnswers(hub.deps, { ...creds(host), key: KEY })).round.answerCount).toBe(25);
+  });
+});

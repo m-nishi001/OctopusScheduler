@@ -76,6 +76,12 @@ export interface RevealJackpotDrawArgs {
   drawId: string;
 }
 
+/** いまの当選者を以降の抽選から外し、同じ景品の当選者を置き換える(未公開に戻す)。`skip` の形は JackpotSkipInput。矛盾があれば JACKPOT_CONFLICT。 */
+export interface SkipJackpotWinnerArgs {
+  sessionId: string;
+  skip: unknown;
+}
+
 /** 抽選の結果と予定を消す(クイズの結果は消さない)。 */
 export interface ResetJackpotArgs {
   sessionId: string;
@@ -219,6 +225,18 @@ export interface SubmitAnswerResult {
   atMs: number;
   /** 今回の送信で回答が変わらなかった(同じ選択の再送、または締切後に回答済みの内容を返した)。 */
   duplicate: boolean;
+}
+
+/** 回答(エントリー)の取り消し。ホスト/管理が、そのメンバーの回答を一覧から外す。 */
+export interface RemoveAnswerArgs extends DeviceCredentials {
+  key: string;
+  /** 回答を外すメンバー(ログインから確定したメンバーID)。 */
+  memberId: string;
+}
+
+export interface RemoveAnswerResult {
+  /** 実際に外した(そのメンバーの回答があった)。無ければ false(取り消し済みの再送も成功)。 */
+  removed: boolean;
 }
 
 export interface GetAnswersArgs extends DeviceCredentials {

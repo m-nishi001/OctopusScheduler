@@ -13,21 +13,36 @@ describe("MemberDrawService", () => {
   it("drawMember returns null when no candidates", () => {
     const members = [{ id: "m1" }];
     const drawResults = [{ wonMember: { id: "m1" } } as never];
-    expect(service([0]).drawMember(members as never, drawResults, 1)).toBeNull();
+    expect(service([0]).drawMember(members as never, drawResults, 1, [])).toBeNull();
   });
 
   it("drawMember returns a winner and dummy ids (winner is not a dummy)", () => {
     const members = [{ id: "m1" }, { id: "m2" }, { id: "m3" }];
-    const out = service([0, 0.5, 0.2]).drawMember(members as never, [], 2)!;
+    const out = service([0, 0.5, 0.2]).drawMember(members as never, [], 2, [])!;
     expect(out.winnerId).toBeDefined();
     expect(out.dummyIds).toHaveLength(2);
     expect(out.dummyIds).not.toContain(out.winnerId);
   });
 
+  it("飛ばした(不在で外した)人は、当選者にもダミーにもならない", () => {
+    const members = [{ id: "m1" }, { id: "m2" }, { id: "m3" }];
+    for (let i = 0; i < 20; i++) {
+      const out = service([i / 20, 0.3, 0.6, 0.9])!.drawMember(members as never, [], 3, ["m1"])!;
+      expect(out.winnerId).not.toBe("m1");
+      expect(out.dummyIds).not.toContain("m1");
+    }
+  });
+
+  it("飛ばした人と当選済みの人を除くと候補がいなければ null", () => {
+    const members = [{ id: "m1" }, { id: "m2" }];
+    const won = [{ wonMember: { id: "m1" } } as never];
+    expect(service([0]).drawMember(members as never, won, 0, ["m2"])).toBeNull();
+  });
+
   it("すでに当選した人は候補から外れる", () => {
     const members = [{ id: "m1" }, { id: "m2" }];
     const won = [{ wonMember: { id: "m1" } } as never];
-    expect(service([0]).drawMember(members as never, won, 0)!.winnerId).toBe("m2");
+    expect(service([0]).drawMember(members as never, won, 0, [])!.winnerId).toBe("m2");
   });
 
   describe("メンバーごとの当選しやすさ（weight）", () => {
@@ -39,16 +54,16 @@ describe("MemberDrawService", () => {
     ];
 
     it("乱数が重みの区間のどこに入るかで当選者が決まる", () => {
-      expect(service([0.05]).drawMember(members as never, [], 0)!.winnerId).toBe("a");
-      expect(service([0.2]).drawMember(members as never, [], 0)!.winnerId).toBe("b");
-      expect(service([0.5]).drawMember(members as never, [], 0)!.winnerId).toBe("c");
+      expect(service([0.05]).drawMember(members as never, [], 0, [])!.winnerId).toBe("a");
+      expect(service([0.2]).drawMember(members as never, [], 0, [])!.winnerId).toBe("b");
+      expect(service([0.5]).drawMember(members as never, [], 0, [])!.winnerId).toBe("c");
     });
 
     it("重みが大きい人ほど、たくさん当たる（乱数を等間隔に振った比率が重みに比例する）", () => {
       const draws = 1000;
       const counts: Record<string, number> = { a: 0, b: 0, c: 0 };
       for (let i = 0; i < draws; i++) {
-        const winner = service([(i + 0.5) / draws]).drawMember(members as never, [], 0)!.winnerId!;
+        const winner = service([(i + 0.5) / draws]).drawMember(members as never, [], 0, [])!.winnerId!;
         counts[winner]++;
       }
       expect(counts).toEqual({ a: 100, b: 200, c: 700 });
@@ -58,7 +73,7 @@ describe("MemberDrawService", () => {
       const none = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
       const draws = 1000;
       const counts: Record<string, number> = { a: 0, b: 0, c: 0, d: 0 };
-      for (let i = 0; i < draws; i++) counts[service([(i + 0.5) / draws]).drawMember(none as never, [], 0)!.winnerId!]++;
+      for (let i = 0; i < draws; i++) counts[service([(i + 0.5) / draws]).drawMember(none as never, [], 0, [])!.winnerId!]++;
       expect(counts).toEqual({ a: 250, b: 250, c: 250, d: 250 });
     });
 
@@ -68,13 +83,13 @@ describe("MemberDrawService", () => {
         { id: "big", weight: 100000 }, // → 10
       ];
       // 合計 11: [0,1)=zero, [1,11)=big
-      expect(service([0.01]).drawMember(odd as never, [], 0)!.winnerId).toBe("zero");
-      expect(service([0.5]).drawMember(odd as never, [], 0)!.winnerId).toBe("big");
+      expect(service([0.01]).drawMember(odd as never, [], 0, [])!.winnerId).toBe("zero");
+      expect(service([0.5]).drawMember(odd as never, [], 0, [])!.winnerId).toBe("big");
     });
 
     it("当選した人は、重みが大きくても次の抽選では候補にならない", () => {
       const won = [{ wonMember: { id: "c" } } as never];
-      const out = service([0.99]).drawMember(members as never, won, 0)!;
+      const out = service([0.99]).drawMember(members as never, won, 0, [])!;
       expect(out.winnerId).toBe("b");
     });
   });

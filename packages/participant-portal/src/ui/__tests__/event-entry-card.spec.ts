@@ -6,14 +6,15 @@ import { ENTRY_KEY } from "../../model/use-entry";
 import EventEntryCard from "../components/event-entry-card.vue";
 
 /** useEntry() の状態だけでカードが決まることを確かめるため、状態を直接差し込む。 */
-function mountCard(init: { phase: EntryPhase; entered?: boolean; auto?: boolean }, size?: "full" | "compact") {
+function mountCard(init: { phase: EntryPhase; entered?: boolean; cancelled?: boolean; auto?: boolean }, size?: "full" | "compact") {
   const phase = ref<EntryPhase>(init.phase);
   const entered = ref(init.entered ?? false);
   const auto = ref(init.auto ?? false);
   let enterCalls = 0;
   const entry: EntryState = {
     phase: computed(() => phase.value),
-    entered,
+    entered: computed(() => entered.value),
+    cancelled: computed(() => init.cancelled ?? false),
     autoEntered: computed(() => auto.value),
     isIn: computed(() => entered.value || auto.value),
     submitting: ref(false),
@@ -75,5 +76,19 @@ describe("EventEntryCard", () => {
     const m = mountCard({ phase: "open" }, "compact");
     expect(m.wrapper.classes()).toContain("is-compact");
     expect(m.wrapper.get('[data-testid="entry-button"]').text()).toBe("エントリーする");
+  });
+
+  it("エントリーが取り消されたら、受付中は押せるボタンに戻り、取り消されたことを知らせる", () => {
+    const m = mountCard({ phase: "open", cancelled: true });
+    expect(state(m)).toBe("open");
+    expect(m.wrapper.get('[data-testid="entry-button"]').text()).toContain("エントリーする");
+    expect(m.wrapper.get('[data-testid="entry-cancelled"]').text()).toContain("取り消されました");
+  });
+
+  it("取り消されたまま受付が終わっていたら、受付終了と、取り消されたことを出す(ボタンは無い)", () => {
+    const m = mountCard({ phase: "closed", cancelled: true });
+    expect(state(m)).toBe("closed");
+    expect(m.wrapper.find('[data-testid="entry-button"]').exists()).toBe(false);
+    expect(m.wrapper.text()).toContain("エントリーが取り消されました。受付は終了しています。");
   });
 });

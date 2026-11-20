@@ -252,3 +252,74 @@ describe("useEntry: 自動エントリー", () => {
     expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
   });
 });
+
+describe("useEntry: 運営がエントリーを取り消したとき", () => {
+  it("取り消された人の画面は「済み」が外れ、もう一度エントリーできる。運営側の一覧からも外れ、再エントリーで戻る", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    const bob = await connect(participantDevice(env.hub, BOB), memoryStorage(), "bob");
+    const opened = await env.openEntry(sampleEvent());
+    await tick(5000);
+    await alice.entry.enter();
+    await bob.entry.enter();
+    expect(alice.entry.entered.value).toBe(true);
+    expect(await env.entrants(opened.entry!.key)).toEqual(["alice", "bob"]);
+
+    const cancelled = await env.cancelEntry(opened, "alice");
+    await tick(5000);
+    expect(await env.entrants(opened.entry!.key)).toEqual(["bob"]);
+    expect(alice.entry.entered.value).toBe(false);
+    expect(alice.entry.cancelled.value).toBe(true);
+    expect(alice.entry.isIn.value).toBe(false);
+    // 取り消されていない人には影響しない
+    expect(bob.entry.entered.value).toBe(true);
+    expect(bob.entry.cancelled.value).toBe(false);
+
+    // もう一度エントリーできる(受付中)。再エントリーすると、また「済み」で、取り消しの知らせは消える
+    await alice.entry.enter();
+    expect(alice.entry.entered.value).toBe(true);
+    expect(alice.entry.cancelled.value).toBe(false);
+    expect((await env.entrants(opened.entry!.key)).sort()).toEqual(["alice", "bob"]);
+
+    // 2回目の取り消しでも同じ(回数が増える)
+    await env.cancelEntry(cancelled, "alice");
+    await tick(5000);
+    expect(alice.entry.entered.value).toBe(false);
+    alice.unmount();
+    bob.unmount();
+  });
+
+  it("リロードしても、取り消された状態が保たれる(保存した「済み」が、取り消し前のものとして無効になる)。受付が終わっていれば、取り消されたまま", async () => {
+    const env = await portalEnv();
+    const storage = memoryStorage();
+    const store = new MemoryDeviceStore();
+    const first = await connect(participantDevice(env.hub, ALICE, { store }), storage);
+    const opened = await env.openEntry(sampleEvent());
+    await tick(5000);
+    await first.entry.enter();
+    first.unmount();
+
+    const cancelled = await env.cancelEntry(opened, "alice");
+    await env.closeEntry(cancelled);
+    await tick(5000);
+    const reloaded = await connect(participantDevice(env.hub, ALICE, { store }), storage);
+    expect(reloaded.entry.entered.value).toBe(false);
+    expect(reloaded.entry.cancelled.value).toBe(true);
+    expect(reloaded.entry.phase.value).toBe("closed");
+    reloaded.unmount();
+  });
+
+  it("ジャックポットに当選済みの人のエントリーは取り消せない(サーバーが拒否し、一覧にも残る)", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    const opened = await env.openEntry(sampleEvent());
+    await tick(5000);
+    await alice.entry.enter();
+    await env.saveJackpotDraw({ drawId: "d1", memberId: "alice", memberName: "アリス", prizeId: "p1", prizeName: "1等", isKakuhen: false, atMs: 100 });
+
+    await expect(env.cancelEntry(opened, "alice")).rejects.toThrow(/当選済み/);
+    expect(await env.entrants(opened.entry!.key)).toEqual(["alice"]);
+    expect(alice.entry.entered.value).toBe(true);
+    alice.unmount();
+  });
+});

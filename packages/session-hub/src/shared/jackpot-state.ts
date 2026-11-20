@@ -43,6 +43,8 @@ export interface JackpotPublished {
   memberId: string | null;
   /** 公開済みの当選賞品名(停止演出が終わるまでは null)。 */
   prize: string | null;
+  /** 当選者を飛ばしたとき、引き直せるほかの候補の人数(ホストが分かるときだけ)。0 なら飛ばせない。 */
+  spare?: number;
   /** 説明画面: 表示中のページ(0始まり)と枚数。 */
   index?: number;
   total?: number;
@@ -64,6 +66,7 @@ export function readJackpotState(data: Record<string, unknown> | null | undefine
     memberId: orNull(raw.memberId),
     prize: orNull(raw.prize),
   };
+  if (typeof raw.spare === "number" && Number.isFinite(raw.spare)) state.spare = raw.spare;
   if (typeof raw.index === "number" && Number.isFinite(raw.index)) state.index = raw.index;
   if (typeof raw.total === "number" && Number.isFinite(raw.total)) state.total = raw.total;
   return state;

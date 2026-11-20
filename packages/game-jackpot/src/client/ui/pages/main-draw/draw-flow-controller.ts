@@ -46,6 +46,11 @@ export class DrawFlowController {
 
   constructor(private readonly deps: DrawFlowDeps) {}
 
+  /** 進行のステップ(または組み直し)を実行中。 */
+  get busy(): boolean {
+    return this.running;
+  }
+
   /** 抽選が終わっている(終了の画面を出している)。 */
   get finished(): boolean {
     return this.endedAtMs !== null;
@@ -57,9 +62,34 @@ export class DrawFlowController {
       this.leave();
       return;
     }
+    await this.run(async () => true);
+  }
+
+  /**
+   * いまのサイクルを、`prepare` が返すステップに組み直して、最初の pause まで進める(当選者を飛ばして、メンバー抽選からやり直すとき)。
+   * `prepare` が null を返す(やらない)、または例外のときは、積んであるステップをそのままにする。
+   * 進行中・終了後・離脱後は何もしない(進行操作と同じ排他。戻り値は、組み直したか)。
+   */
+  async replaceCycle(prepare: () => Promise<Step[] | null>): Promise<boolean> {
+    if (!this.ready || this.running || this.left || this.endedAtMs !== null) return false;
+    let replaced = false;
+    await this.run(async () => {
+      const steps = await prepare();
+      if (!steps) return false;
+      this.deps.queue.clear();
+      this.deps.queue.addCycle(steps);
+      replaced = true;
+      return true;
+    });
+    return replaced;
+  }
+
+  /** 進行中の印を立てて、`before` のあと(false を返したら進めない)pause のステップまで連続して進める。 */
+  private async run(before: () => Promise<boolean>): Promise<void> {
     this.running = true;
     this.deps.onStarted?.();
     try {
+      if (!(await before())) return;
       for (;;) {
         if (this.deps.queue.isEmpty() && !(await this.refill())) break;
         const next = this.deps.queue.dequeue();

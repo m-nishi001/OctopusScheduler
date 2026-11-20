@@ -296,6 +296,13 @@ export async function submitAnswer(deps: ServiceDeps, args: Parameters<typeof en
   );
 }
 
+/** 回答の取り消し。回答の書き込みと同じく、同一セッション内でロックする。 */
+export async function removeAnswer(deps: ServiceDeps, args: Parameters<typeof engine.removeAnswer>[1]) {
+  return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
+    engine.removeAnswer(engineDeps(deps, args.sessionId), args)
+  );
+}
+
 /** 回答の一覧を取得する(読み取りだけなのでロックは取らない)。 */
 export async function getAnswers(deps: ServiceDeps, args: Parameters<typeof engine.getAnswers>[1]) {
   return engine.getAnswers(engineDeps(deps, args.sessionId), args);

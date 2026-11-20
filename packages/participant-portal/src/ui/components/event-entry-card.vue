@@ -21,13 +21,14 @@
                 <span class="pp-entry__main">{{ entry.submitting.value ? '送信中…' : 'エントリーする' }}</span>
                 <span v-if="size === 'full'" class="pp-entry__sub">タップするだけで参加できます</span>
             </button>
+            <p v-if="entry.cancelled.value" class="pp-entry__error" role="status" data-testid="entry-cancelled">エントリーが取り消されました。もう一度エントリーできます。</p>
             <p v-if="size === 'full'" class="pp-muted">押すと、会場の画面にあなたが表示されます。</p>
         </div>
 
         <!-- 締切後（エントリーしていない人） -->
         <p v-else class="pp-entry__text" data-testid="entry-closed">
             受付終了
-            <span v-if="size === 'full'" class="pp-muted pp-entry__hint">{{ entry.message.value || '次の機会をお待ちください。' }}</span>
+            <span v-if="size === 'full'" class="pp-muted pp-entry__hint">{{ entry.message.value || (entry.cancelled.value ? 'エントリーが取り消されました。受付は終了しています。' : '次の機会をお待ちください。') }}</span>
         </p>
 
         <p v-if="entry.message.value && state === 'open'" class="pp-entry__error" role="alert" data-testid="entry-error">{{ entry.message.value }}</p>

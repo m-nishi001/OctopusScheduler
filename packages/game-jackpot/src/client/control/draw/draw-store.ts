@@ -1,3 +1,4 @@
+import type { MemberDto } from "../member/dto/member-dto";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 
 /**
@@ -17,7 +18,7 @@ export interface DrawPlan {
  *  - RehearsalDrawStore: メモリだけ(セッションの外の実行・デモ)。画面を開き直すと消える。
  *
  * 読み出し(results / plan / pending)は、読み込んだ内容をメモリから返す(通信しない)。
- * 通信するのは load / ensurePlan / commit / reveal / reset だけ。
+ * 通信するのは load / ensurePlan / commit / reveal / skipWinner / reset だけ。
  */
 export interface DrawStore {
   /** 保存先が結果を残すか。rehearsal のときは画面に「リハーサル」と出す。 */
@@ -38,6 +39,14 @@ export interface DrawStore {
   commit(result: DrawResultDto): Promise<void>;
   /** 確定済みの抽選を公開する(当選者と景品が画面に見えた時点)。何度呼んでも同じ。知らない drawId は DrawConflictError。 */
   reveal(drawId: string): Promise<void>;
+  /** 飛ばした(不在で以降の抽選から外した)メンバーのID。当選済みの人と同じく、二度と当たらない。 */
+  excludedMemberIds(): Promise<string[]>;
+  /**
+   * 不在の当選者を飛ばす。いまの当選者を以降の抽選から外し、その抽選(景品・確変の回はそのまま)の当選者を `newWinner` に置き換えて、
+   * 公開されていない状態に戻す。新しい当選者がすでに当選・除外されている、抽選が無い、のときは DrawConflictError(状態は読み直し済み)。
+   * すでに `newWinner` に置き換え済みなら成功。
+   */
+  skipWinner(drawId: string, newWinner: MemberDto): Promise<void>;
   /** 確定済みだが公開されていない抽選(ホストの再読み込みなどで演出が途中だったもの)。無ければ null。 */
   pending(): Promise<DrawResultDto | null>;
   /** 抽選の結果と確変の予定を消す。 */

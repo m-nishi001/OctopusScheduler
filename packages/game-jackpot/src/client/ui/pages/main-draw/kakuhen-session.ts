@@ -10,6 +10,11 @@ import { waitForWindowEvent } from "./wait-for-window-event";
 
 const sleep = (ms: number) => delay(ms / 1000);
 
+/** 確変の本抽選で当たる景品の見せ方(画像2のセクター・当選画像は「当選画像2」)。ルーレットの複製と、当選ダイアログの景品が共通で使う。 */
+export function kakuhenFinalPrize(winner: PrizeDto): PrizeDto {
+  return { ...winner, image: winner.image2, winningImage1: winner.winningImage2 || winner.image2, winningImage2: undefined };
+}
+
 /**
  * 確変(kakuhen)の景品抽選の2段階演出(1サイクルにつき1つ作る)。
  *
@@ -42,14 +47,7 @@ export class KakuhenSession {
     const designated = prizes.find((x) => x.id === prizeRes?.dummyWinnerPrizeId && x.id !== winner?.id);
     const shown: RoulettePrizeDto[] = [];
     if (winner) {
-      this.final = {
-        ...winner,
-        id: `${winner.id}__k2`,
-        image: winner.image2,
-        originalPrizeId: winner.id,
-        winningImage1: winner.winningImage2 || winner.image2,
-        winningImage2: undefined,
-      };
+      this.final = { ...kakuhenFinalPrize(winner), id: `${winner.id}__k2`, originalPrizeId: winner.id };
       if (designated) {
         this.dummy = {
           ...designated,

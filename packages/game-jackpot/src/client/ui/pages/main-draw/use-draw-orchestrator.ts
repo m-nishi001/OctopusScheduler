@@ -11,7 +11,7 @@ import { parseMemberStopSec, parsePrizeStopSec, DEFAULT_MEMBER_STOP_SEC, DEFAULT
 import { parseKakuhenPlan, AUTO_KAKUHEN_PLAN, type KakuhenPlan } from "@model/draw/kakuhen-plan";
 import { parseDemoDrawSettings, DEFAULT_DEMO_DRAW } from "@model/screen-config/demo-draw-setting";
 import { nextScreen, SCREEN_PATH } from "@model/screen-flow";
-import { DrawConflictError } from "@model/errors";
+import { DrawConflictError, NoEligibleMembersError } from "@model/errors";
 import type { MemberDto } from "@control/member/dto/member-dto";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
@@ -29,7 +29,8 @@ import { RouletteBgmManager } from "./roulette/roulette-bgm-manager";
 import { revokePreparedPrizes } from "./roulette/roulette-prize-preparer";
 import { createBgmBlobLoader } from "./bgm-blob-loader";
 import type { DrawContext } from "./draw-context";
-import { buildCycle } from "./draw-cycle";
+import { buildCycle, buildSkipCycle } from "./draw-cycle";
+import { kakuhenFinalPrize } from "./kakuhen-session";
 import { useLotteryBgm } from "./use-lottery-bgm";
 import { DrawFlowController, type NextCycle } from "./draw-flow-controller";
 import { createHostPublisher } from "./host-publisher";
@@ -69,6 +70,10 @@ export function useDrawOrchestrator() {
   const latestResult = ref<DrawResultDto | null>(null);
   const currentPrizeRes = ref<DrawPrizeResponse | null>(null);
   const currentMemberRes = ref<DrawMemberResponse | null>(null);
+  /** メンバー抽選の演出コンポーネントの鍵。当選者を飛ばして引き直すとき、前の当選者の状態が残らないよう作り直す。 */
+  const memberAnimKey = ref(0);
+  /** いまの当選者を飛ばしたとき、引き直せるほかの候補の人数(分かるときだけ)。管理端末に公開する。 */
+  const spareMembers = ref<number | undefined>(undefined);
   const currentPrizeComponent = shallowRef<Component>(markRaw(RouletteAnimation));
 
   // 演出コンポーネント(テンプレート ref)
@@ -128,8 +133,9 @@ export function useDrawOrchestrator() {
   let kakuhenPlan: KakuhenPlan = AUTO_KAKUHEN_PLAN;
 
   /** 抽選の結果を画面の状態に反映し、そのサイクルのステップを返す。 */
-  const applyOutcome = ({ result, prizeRes, memberRes, winner, prizeItems }: DrawOutcome) => {
+  const applyOutcome = ({ result, prizeRes, memberRes, winner, prizeItems, spareMembers: spare }: DrawOutcome) => {
     installPreparedPrizes(prizeItems);
+    spareMembers.value = spare;
     latestResult.value = result;
     currentPrizeRes.value = prizeRes;
     currentMemberRes.value = memberRes;
@@ -183,6 +189,12 @@ export function useDrawOrchestrator() {
     prepare: prepareNextCycle,
     discard: discardPrepared,
     onPrefetchError: (e) => console.warn("[DrawOrchestrator] next cycle prefetch failed; falling back to on-demand", e),
+    onPrefetched: (prepared) => {
+      // 次の抽選が確定したぶん、いまの当選者を飛ばして置き換えられる人が減る(その人数は、次の抽選の「飛ばして置き換えられる人数」と同じ)。進行中でなければ、管理端末に公開し直す
+      if (prepared.kind !== "draw" || prepared.outcome.spareMembers === undefined) return;
+      spareMembers.value = prepared.outcome.spareMembers;
+      if (!disposed && !flow.busy) publishHostState();
+    },
   });
   /** 先読みを作ったときの保存先(リハーサルとセッションの切り替えなどで別物になったら、先読みは使わない)。 */
   let prefetchedStore = drawService.store;
@@ -209,6 +221,54 @@ export function useDrawOrchestrator() {
     const outcome = await performResume(performDeps, pending);
     await preloadMemberImages(outcome.memberRes);
     return applyOutcome(outcome);
+  };
+
+  /**
+   * 管理端末の「この人を飛ばす(不在)」。いまの当選者を以降の抽選から外し、同じ景品の当選者だけを引き直して、メンバー抽選からやり直す。
+   * 景品と確変の回はそのまま(景品は演出し直さず、結果の表示だけ)。当選者が画面に見えていない間・古い画面の操作・進行中は何もしない。
+   */
+  const skipWinner = (memberId: string | null) => {
+    void flow.replaceCycle(async () => {
+      const current = latestResult.value;
+      if (!current?.wonMember || !revealTracker.memberRevealed || (memberId !== null && memberId !== current.wonMember.id)) return null;
+      try {
+        // 通信中の公開と、裏で進んでいる次の抽選の確定が済むのを待ってから、先読みを捨てる
+        // (確定済みの次の抽選は未公開で保存先に残り、あとで引き直さずに演出される)
+        await publishHostState.settled();
+        await cycleSource.settled();
+        cycleSource.invalidate();
+        const skipped = await drawService.skipWinner(current.drawId);
+        await preloadMemberImages(skipped.memberRes);
+        const prize = prizes.value.find((p) => p.id === skipped.result.wonPrize?.id);
+        if (!prize) throw new Error("当選した景品が景品一覧に見つかりません");
+        // 元のサイクルに残数の確認が残っていた(当選ダイアログの途中)ときだけ、組み直したサイクルにも残す
+        const withRemaining = !queue.isEmpty();
+        revealTracker.reset();
+        showPrizeWinningDialog.value = false;
+        showHalfRemainingDialog.value = false;
+        kakuhenOverlayVisible.value = false;
+        void RouletteBgmManager.stop();
+        void prizeLotteryBgm.stop();
+        latestResult.value = { ...skipped.result, wonPrize: prize };
+        currentMemberRes.value = skipped.memberRes;
+        spareMembers.value = skipped.spareMembers;
+        updateSelectedPrize(skipped.result.isKakuhen ? kakuhenFinalPrize(prize) : prize);
+        memberAnimKey.value++;
+        return buildSkipCycle(ctx, withRemaining);
+      } catch (e) {
+        console.error("[DrawOrchestrator] skip winner failed", e);
+        cycleSource.invalidate();
+        void drawService.store.load().catch((err) => console.error("[DrawOrchestrator] reload failed", err));
+        if (e instanceof NoEligibleMembersError) {
+          // ほかに候補がいない(先読みで次の抽選が確定したぶん減った)。画面はそのまま、知らせだけ出す
+          notice.value = e.message;
+          setTimeout(() => (notice.value = null), 8000);
+        } else {
+          alertError(e);
+        }
+        return null;
+      }
+    });
   };
 
   const onDrawError = (e: unknown) => {
@@ -249,7 +309,7 @@ export function useDrawOrchestrator() {
   let participantStop = DEFAULT_PARTICIPANT_STOP;
   let flow: DrawFlowController;
   const advance = () => void flow.advance();
-  const host = useJackpotHost({ advance, stopRoulette: advance }, { participantStop: () => participantStop });
+  const host = useJackpotHost({ advance, stopRoulette: advance, skipWinner }, { participantStop: () => participantStop });
   const publishHostState = createHostPublisher({
     host,
     tracker: revealTracker,
@@ -265,6 +325,7 @@ export function useDrawOrchestrator() {
     ended: () => endReason.value !== null,
     nextLabel: () => queue.peekLabel(),
     result: () => latestResult.value,
+    spare: () => spareMembers.value,
   });
 
   /** 画面の流れ(nextScreen)に従って、次の画面へ進む。 */
@@ -385,6 +446,7 @@ export function useDrawOrchestrator() {
     advance,
     kakuhenOverlayVisible,
     currentMemberRes,
+    memberAnimKey,
   } as const;
 }
 

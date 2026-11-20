@@ -16,7 +16,7 @@
                 <section class="member-area-fullscreen jp-stage" v-if="phase === 'member'">
                     <div class="jp-rays" aria-hidden="true"></div>
                     <div class="member-stage-fullscreen">
-                        <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
+                        <MemberDrawAnimation :key="memberAnimKey" ref="memberAnimRef" :members="members" :externalDialog="false"
                             :memberRes="currentMemberRes" />
                     </div>
                 </section>

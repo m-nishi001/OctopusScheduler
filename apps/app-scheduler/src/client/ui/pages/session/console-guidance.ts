@@ -41,6 +41,11 @@ export interface Guidance {
   now: string;
   /** 主ボタン。押せる操作が無い(ホスト不在・準備中)ときは null。 */
   main: { label: string; hint: string; action: MainAction; /** 演出中などで押せない(ボタンは出すが無効にする)。 */ disabled?: boolean } | null;
+  /**
+   * 副ボタン「この人を飛ばす(不在)」。当選者が画面に見えてから(メンバー発表後・結果の表示中)だけ出す。
+   * 押すと、その人を以降の抽選から外し、同じ景品で当選者を引き直す。押せないとき(演出中・候補がいない)は disabled と理由を付ける。
+   */
+  skip?: { label: string; hint: string; memberId: string; memberName: string; disabled: boolean; reason: string | null } | null;
   /** 副ボタン「前へ」(説明のスライドを戻す)。戻れるときだけ。 */
   back?: { label: string; hint: string } | null;
 }
@@ -114,8 +119,29 @@ const STAGE_TEXT: Record<JackpotStage, string> = {
   ended: "抽選は終了",
 };
 
+/** 当選者を飛ばせる場面か(当選者が画面に見えていて、抽選は終わっていない)。 */
+const SKIPPABLE_STAGES: readonly JackpotStage[] = ["member-revealed", "prize", "prize-revealed"];
+
+/** 「この人を飛ばす(不在)」の中身。飛ばせない場面では null。ほかに候補がいない(spare が 0)と、押せないようにして理由を出す。 */
+function describeSkip(jackpot: JackpotProgress): Guidance["skip"] {
+  if (!SKIPPABLE_STAGES.includes(jackpot.stage) || !jackpot.member || !jackpot.memberId) return null;
+  const noCandidates = jackpot.spare === 0;
+  return {
+    label: "この人を飛ばす(不在)",
+    hint: `${jackpot.member}さんを以降の抽選から外し、同じ景品で当選者を引き直します`,
+    memberId: jackpot.memberId,
+    memberName: jackpot.member,
+    disabled: jackpot.busy || noCandidates,
+    reason: noCandidates ? "ほかに抽選できる人がいないため、飛ばせません" : null,
+  };
+}
+
 function describeJackpotDraw(jackpot: JackpotProgress | null): Guidance {
   if (!jackpot) return { game: "jackpot", now: "ジャックポット: 抽選画面を準備中", main: null };
+  return { ...describeJackpotDrawMain(jackpot), skip: describeSkip(jackpot) };
+}
+
+function describeJackpotDrawMain(jackpot: JackpotProgress): Guidance {
   const result = jackpot.member || jackpot.prize ? ` ・ 当選者: ${jackpot.member ?? "—"} ・ 景品: ${jackpot.prize ?? "—"}` : "";
   const now = `ジャックポット: ${STAGE_TEXT[jackpot.stage]}${result}`;
   // ホストが停止の演出などを実行中。押しても無視されるので押せなくする(演出の直後に押した操作が、当選画面を飛ばさないため)

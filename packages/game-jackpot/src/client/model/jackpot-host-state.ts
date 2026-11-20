@@ -9,9 +9,15 @@ import type { JackpotPublished, JackpotStage } from "@octopus/session-hub";
 
 export const JACKPOT_STOP_COMMAND = "jackpot.stopRoulette";
 
+/**
+ * 当選者を飛ばして引き直したあと、景品を演出し直さずに結果だけ見せるステップのラベル(景品はもう決まっているため)。
+ * 止める操作ではない(STOP_LABELS に含めない)ので、参加者のスマホに停止ボタンは出ない。
+ */
+export const SHOW_PRIZE_RESULT = "showPrizeResult";
+
 /** 当選者が確定して画面に見えるステップのラベル。 */
 const REVEAL_MEMBER = ["stopMemberDraw"];
-const REVEAL_PRIZE = ["stopPrizeDraw", "stopKakuhenFinalDraw"];
+const REVEAL_PRIZE = ["stopPrizeDraw", "stopKakuhenFinalDraw", SHOW_PRIZE_RESULT];
 /** 参加者のスマホからも止めてよいステップのラベル。 */
 const STOP_LABELS = ["stopMemberDraw", "stopPrizeDraw", "stopKakuhenDummyDraw", "stopKakuhenFinalDraw"];
 
@@ -61,6 +67,8 @@ export function buildJackpotHostState(input: {
   memberName: string | null | undefined;
   memberId?: string | null;
   prizeName: string | null | undefined;
+  /** 当選者を飛ばしたとき、引き直せるほかの候補の人数(分かるときだけ)。 */
+  spare?: number;
 }): JackpotPublished {
   const { tracker } = input;
   return {
@@ -71,6 +79,7 @@ export function buildJackpotHostState(input: {
     member: tracker.memberRevealed ? input.memberName ?? null : null,
     memberId: tracker.memberRevealed ? input.memberId || null : null,
     prize: tracker.prizeRevealed ? input.prizeName ?? null : null,
+    ...(input.spare === undefined ? {} : { spare: input.spare }),
   };
 }
 

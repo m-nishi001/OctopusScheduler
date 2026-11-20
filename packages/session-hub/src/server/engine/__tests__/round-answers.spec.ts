@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { RoundAnswer } from "../../../shared/protocol";
-import { isSameRespondent, upsertAnswer } from "../round-answers";
+import { isSameRespondent, removeAnswerOf, upsertAnswer } from "../round-answers";
 
 const answer = (deviceId: string, memberId: string | null, no: number, atMs: number): RoundAnswer => ({
   deviceId,
@@ -65,5 +65,19 @@ describe("upsertAnswer", () => {
     expect(upsertAnswer(list, answer("d3", "c", 1, 30), 2).kind).toBe("full");
     expect(list).toHaveLength(2);
     expect(upsertAnswer(list, answer("d2", "b", 2, 40), 2).kind).toBe("replaced");
+  });
+});
+
+describe("removeAnswerOf", () => {
+  it("そのメンバーの回答を外し、外した位置を返す。後ろの回答は前に詰まる。端末は問わない", () => {
+    const list = [answer("d1", "a", 1, 10), answer("d2", "b", 1, 20), answer("d3", "c", 1, 30)];
+    expect(removeAnswerOf(list, "b")).toBe(1);
+    expect(list.map((a) => a.memberId)).toEqual(["a", "c"]);
+  });
+
+  it("無ければ -1 で、何も変えない。メンバーが分からない(null)回答は、メンバーIDでは外せない", () => {
+    const list = [answer("d1", null, 1, 10), answer("d2", "b", 1, 20)];
+    expect(removeAnswerOf(list, "x")).toBe(-1);
+    expect(list).toHaveLength(2);
   });
 });

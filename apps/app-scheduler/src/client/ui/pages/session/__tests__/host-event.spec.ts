@@ -350,7 +350,7 @@ describe("抽選の対象（ジャックポット）", () => {
       const d = await join(id, name);
       await d.conn.answer(await currentKey(), 1);
     };
-    return { meta, agent, admin, pool, command, published, join, enter, storage, eligibilityLoads };
+    return { meta, agent, admin, pool, command, published, join, enter, storage, eligibilityLoads, currentKey };
   }
 
   it("セッションに接続していなければ絞り込まない（null。リハーサル用）", async () => {
@@ -417,6 +417,65 @@ describe("抽選の対象（ジャックポット）", () => {
     expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob", "boss", "carol"]);
     await s.command("setPool", { mode: "entrants" });
     expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob", "boss"]);
+  });
+
+  describe("エントリーの取り消し(event.removeEntrant)", () => {
+    it("そのメンバーの回答を外し、抽選の対象から外れる。本人のスマホに知らせる回数が公開され、締切後の再開でも残る。取り消した人はもう一度エントリーできる", async () => {
+      const s = await poolScene();
+      await s.command("start", { title: "抽選" });
+      await s.command("setPool", { mode: "entrants" });
+      await s.command("openEntry");
+      await s.enter("alice", "アリス");
+      await s.enter("bob", "ボブ");
+      expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+
+      await s.command("removeEntrant", { memberId: "alice" });
+      expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["bob"]);
+      expect((await s.published())?.entry).toEqual({ key: await s.currentKey(), open: true, cancelled: { alice: 1 } });
+      // 保存してある直近のエントリー者の一覧も、取り消し後の状態
+      const saved = JSON.parse([...s.storage.data.entries()].find(([k]) => k.startsWith("octopus.host.entrants:"))![1]);
+      expect(saved.memberIds).toEqual(["bob"]);
+
+      // 受付を締め切って再開しても、取り消しの回数は残る。もう一度エントリーした人は戻る
+      await s.command("closeEntry");
+      await s.command("openEntry");
+      expect((await s.published())?.entry?.cancelled).toEqual({ alice: 1 });
+      await s.enter("alice", "アリス");
+      expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+
+      // もう一度取り消すと回数が増える。エントリーしていない人の取り消しは(サーバーでは何も外れないが)回数だけ進む
+      await s.command("removeEntrant", { memberId: "alice" });
+      expect((await s.published())?.entry?.cancelled).toEqual({ alice: 2 });
+    });
+
+    it("ジャックポットに当選済みの人は取り消せない(サーバーが拒否し、一覧も公開される回数も変わらない)", async () => {
+      const s = await poolScene();
+      await s.command("start", { title: "抽選" });
+      await s.command("setPool", { mode: "entrants" });
+      await s.command("openEntry");
+      await s.enter("alice", "アリス");
+      await s.enter("bob", "ボブ");
+      await s.agent.commitJackpotDraw({ drawId: "d1", memberId: "alice", memberName: "アリス", prizeId: "p1", prizeName: "1等", isKakuhen: false, atMs: 1 });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      await s.command("removeEntrant", { memberId: "alice" });
+      expect(warn).toHaveBeenCalled();
+      expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+      expect((await s.published())?.entry?.cancelled).toBeUndefined();
+      warn.mockRestore();
+    });
+
+    it("受付が始まっていないとき・不正なペイロードは無視する", async () => {
+      const s = await poolScene();
+      await s.command("removeEntrant", { memberId: "alice" });
+      await s.command("start", { title: "抽選" });
+      await s.command("removeEntrant", { memberId: "alice" });
+      await s.command("openEntry");
+      await s.enter("alice", "アリス");
+      for (const payload of [undefined, null, {}, { memberId: "" }, { memberId: 5 }]) await s.command("removeEntrant", payload);
+      expect((await s.published())?.entry?.cancelled).toBeUndefined();
+      expect(await s.pool.getEligibleMemberIds()).toContain("alice");
+    });
   });
 
   it("不正な対象の指定や、イベントが無いときの指定は無視する", async () => {

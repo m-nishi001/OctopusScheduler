@@ -43,6 +43,11 @@ export class ActionQueue {
     this.steps.push(...steps);
   }
 
+  /** 積んであるステップをすべて捨てる(当選者を飛ばして、いまのサイクルを組み直すとき)。 */
+  clear(): void {
+    this.steps = [];
+  }
+
   dequeue(): Step | undefined {
     const next = this.steps.shift();
     if (next) this.onDequeue?.(next.label);

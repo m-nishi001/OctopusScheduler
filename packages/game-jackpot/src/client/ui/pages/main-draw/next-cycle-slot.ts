@@ -74,6 +74,11 @@ export class NextCycleSlot<T> {
     return null;
   }
 
+  /** 用意中の仕事が終わる(出来上がる・失敗する)のを待つ。受け取らない(用意済みの値はそのまま)。 */
+  async whenSettled(): Promise<void> {
+    if (this.inflight) await this.inflight;
+  }
+
   /** 用意を取り消す(リセット・画面を離れる・対象の変更・読み直し)。用意済みの値は onDiscard で後始末する。 */
   invalidate(): void {
     this.generation++;

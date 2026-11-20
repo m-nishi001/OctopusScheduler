@@ -8,7 +8,7 @@ vi.mock("../../../../control/auth/auth-session", () => ({
 }));
 
 import SessionConsoleView from "../session-console-view.vue";
-import { resolveConfirm } from "../../../../../../../../packages/ui-kit/src/composables/use-feedback";
+import { confirmQueue, resolveConfirm } from "../../../../../../../../packages/ui-kit/src/composables/use-feedback";
 import { registerEventHost } from "../../../../control/session/event-host";
 import type { EventStorage } from "../../../../control/session/event-host";
 import { makeDevice, makeRouter, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
@@ -69,7 +69,7 @@ async function consoleScene() {
     await p.conn.answer(round!.key, 1);
     await settle(8000);
   };
-  return { wrapper, byTestId, button, click, startEvent, enter, navigations };
+  return { wrapper, byTestId, button, click, startEvent, enter, navigations, agent, meta };
 }
 
 describe("session-console-view: 参加者ポータルのイベント", () => {
@@ -105,6 +105,81 @@ describe("session-console-view: 参加者ポータルのイベント", () => {
     await s.startEvent("第2部");
     expect(s.byTestId("event-state").text()).toContain("第2部");
     expect(s.byTestId("event-state").text()).not.toContain("第1部");
+  });
+});
+
+describe("session-console-view: エントリーの取り消し", () => {
+  /** エントリーした人だけが対象で、アリスとボブがエントリー済み。 */
+  async function entrantsScene() {
+    const s = await consoleScene();
+    await s.startEvent("ジャックポット抽選");
+    await s.click("エントリー受付を開始");
+    await s.click("エントリーした人だけに切り替える");
+    await s.enter("alice", "アリス");
+    await s.enter("bob", "ボブ");
+    return s;
+  }
+  const rowOf = (s: Awaited<ReturnType<typeof consoleScene>>, name: string) => s.byTestId("entrants").findAll("li").find((li) => li.text().includes(name))!;
+  const entrantRows = (s: Awaited<ReturnType<typeof consoleScene>>) => s.byTestId("entrants").findAll("li").map((li) => li.text());
+
+  it("エントリーした人だけが対象のとき、各行に「外す」が出る。押すと確認(「◯◯さんのエントリーを取り消します…」)が出て、了承すると一覧から外れる", async () => {
+    const s = await entrantsScene();
+    expect(s.wrapper.findAll('[data-testid="entrant-remove"]')).toHaveLength(2);
+
+    await rowOf(s, "アリス").get('[data-testid="entrant-remove"]').trigger("click");
+    await settle(2000);
+    const dialog = confirmQueue[0];
+    expect(dialog.title).toBe("エントリーの取り消し");
+    expect(dialog.message).toContain("アリスさんのエントリーを取り消します");
+    expect(dialog.danger).toBe(true);
+    resolveConfirm(true);
+    await settle(10000);
+
+    expect(entrantRows(s).join("|")).not.toContain("アリス");
+    expect(entrantRows(s).join("|")).toContain("ボブ");
+    expect(s.byTestId("entry-count").text()).toBe("1");
+    expect(s.byTestId("pool-state").text()).toContain("エントリーした人のみ(1人)");
+  });
+
+  it("確認でやめたら、何も外れない", async () => {
+    const s = await entrantsScene();
+    await rowOf(s, "アリス").get('[data-testid="entrant-remove"]').trigger("click");
+    await settle(2000);
+    resolveConfirm(false);
+    await settle(10000);
+    expect(s.byTestId("entry-count").text()).toBe("2");
+  });
+
+  it("ジャックポットに当選済みの人の行には、ボタンを出さず「当選済み」と出す", async () => {
+    const s = await entrantsScene();
+    await s.agent.commitJackpotDraw({ drawId: "d1", memberId: "alice", memberName: "アリス", prizeId: "p1", prizeName: "1等", isKakuhen: false, atMs: 1 });
+    await s.agent.revealJackpotDraw("d1");
+    await settle(10000);
+
+    expect(rowOf(s, "アリス").find('[data-testid="entrant-remove"]').exists()).toBe(false);
+    expect(rowOf(s, "アリス").get('[data-testid="entrant-won"]').text()).toBe("当選済み");
+    expect(rowOf(s, "ボブ").find('[data-testid="entrant-remove"]').exists()).toBe(true);
+  });
+
+  it("まだ公開されていない当選(確定だけ)の人は、一覧に「外す」が出ていても、押したときの確認で拒否する(送らない)", async () => {
+    const s = await entrantsScene();
+    await s.agent.commitJackpotDraw({ drawId: "d1", memberId: "alice", memberName: "アリス", prizeId: "p1", prizeName: "1等", isKakuhen: false, atMs: 1 });
+    await rowOf(s, "アリス").get('[data-testid="entrant-remove"]').trigger("click");
+    await settle(2000);
+    resolveConfirm(true);
+    await settle(10000);
+    expect(s.byTestId("entry-count").text()).toBe("2");
+    expect(entrantRows(s).join("|")).toContain("アリス");
+  });
+
+  it("対象が参加者全員(自動)のときは、ボタンを出さず、「飛ばす」で対応する案内を出す", async () => {
+    const s = await entrantsScene();
+    await s.click("参加者全員(自動)に切り替える");
+    expect(s.wrapper.findAll('[data-testid="entrant-remove"]')).toHaveLength(0);
+    expect(s.byTestId("entrant-remove-note").text()).toContain("この人を飛ばす(不在)");
+    await s.click("エントリーした人だけに切り替える");
+    expect(s.byTestId("entrant-remove-note").exists()).toBe(false);
+    expect(s.wrapper.findAll('[data-testid="entrant-remove"]')).toHaveLength(2);
   });
 });
 

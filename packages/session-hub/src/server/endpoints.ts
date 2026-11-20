@@ -37,7 +37,9 @@ import type {
   PublishStateArgs,
   PutQuizResultArgs,
   ResetJackpotArgs,
+  RemoveAnswerArgs,
   RevealJackpotDrawArgs,
+  SkipJackpotWinnerArgs,
   SetPortalSessionArgs,
 } from "../shared/protocol";
 import type { SessionHubEndpointName } from "./session-hub-api-contract";
@@ -95,6 +97,7 @@ declare let _sessionHub_publishState: (args: PublishStateArgs) => Promise<string
 declare let _sessionHub_openRound: (args: OpenRoundArgs) => Promise<string>;
 declare let _sessionHub_closeRound: (args: CloseRoundArgs) => Promise<string>;
 declare let _sessionHub_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
+declare let _sessionHub_removeAnswer: (args: RemoveAnswerArgs) => Promise<string>;
 declare let _sessionHub_getAnswers: (args: GetAnswersArgs) => Promise<string>;
 declare let _sessionHub_listParticipants: (args: ListParticipantsArgs) => Promise<string>;
 declare let _sessionHub_putQuizResult: (args: PutQuizResultArgs) => Promise<string>;
@@ -102,6 +105,7 @@ declare let _sessionHub_getJackpotState: (args: GetJackpotStateArgs) => Promise<
 declare let _sessionHub_ensureJackpotPlan: (args: EnsureJackpotPlanArgs) => Promise<string>;
 declare let _sessionHub_commitJackpotDraw: (args: CommitJackpotDrawArgs) => Promise<string>;
 declare let _sessionHub_revealJackpotDraw: (args: RevealJackpotDrawArgs) => Promise<string>;
+declare let _sessionHub_skipJackpotWinner: (args: SkipJackpotWinnerArgs) => Promise<string>;
 declare let _sessionHub_resetJackpot: (args: ResetJackpotArgs) => Promise<string>;
 declare let _sessionHub_getResults: (args: GetResultsArgs) => Promise<string>;
 declare let _sessionHub_getWebAppUrl: () => Promise<string>;
@@ -155,6 +159,14 @@ _sessionHub_submitAnswer = secure("public", async (args: SubmitAnswerArgs): Prom
   return respond(() => backend().submitAnswer(args));
 });
 
+// エントリーの取り消し。運営(管理者)だけ。ジャックポットに当選済みのメンバーは、結果ファイルを見て拒否する。
+_sessionHub_removeAnswer = secure("admin", async (args: RemoveAnswerArgs): Promise<string> => {
+  return respond(async () => {
+    await results.assertNotJackpotWinner(resolveResultsDeps(), args?.sessionId, args?.memberId);
+    return backend().removeAnswer(args);
+  });
+});
+
 _sessionHub_getAnswers = secure("public", async (args: GetAnswersArgs): Promise<string> => {
   return respond(() => backend().getAnswers(args));
 });
@@ -182,6 +194,10 @@ _sessionHub_commitJackpotDraw = secure("admin", async (args: CommitJackpotDrawAr
 
 _sessionHub_revealJackpotDraw = secure("admin", async (args: RevealJackpotDrawArgs): Promise<string> => {
   return respond(() => results.revealJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.drawId));
+});
+
+_sessionHub_skipJackpotWinner = secure("admin", async (args: SkipJackpotWinnerArgs): Promise<string> => {
+  return respond(() => results.skipJackpotWinner(resolveResultsDeps(), args?.sessionId, args?.skip));
 });
 
 _sessionHub_resetJackpot = secure("admin", async (args: ResetJackpotArgs): Promise<string> => {
@@ -214,6 +230,7 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   openRound: _sessionHub_openRound,
   closeRound: _sessionHub_closeRound,
   submitAnswer: _sessionHub_submitAnswer,
+  removeAnswer: _sessionHub_removeAnswer,
   getAnswers: _sessionHub_getAnswers,
   listParticipants: _sessionHub_listParticipants,
   putQuizResult: _sessionHub_putQuizResult,
@@ -221,6 +238,7 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   ensureJackpotPlan: _sessionHub_ensureJackpotPlan,
   commitJackpotDraw: _sessionHub_commitJackpotDraw,
   revealJackpotDraw: _sessionHub_revealJackpotDraw,
+  skipJackpotWinner: _sessionHub_skipJackpotWinner,
   resetJackpot: _sessionHub_resetJackpot,
   getResults: _sessionHub_getResults,
   getWebAppUrl: _sessionHub_getWebAppUrl,

@@ -33,6 +33,8 @@ export interface DrawOutcomeParts {
   result: DrawResultDto;
   prizeRes: DrawPrizeResponse;
   memberRes: DrawMemberResponse;
+  /** 当選者を飛ばして引き直せる、ほかの候補の人数(分かるときだけ)。0 なら飛ばせない。 */
+  spareMembers?: number;
 }
 
 /** 1回の抽選で使う、取得済みの入力(抽選の対象の一覧とメンバー名簿)。1回の抽選の間は取り直さない(取得は通信になることがある)。 */
@@ -113,8 +115,10 @@ export class DrawApplicationService {
     const [prizes, results] = await Promise.all([this.prizeRepo.getPrizes(), this.store.results()]);
     const remainingPrizes = this.prizeDrawService.getRemainingPrizes(prizes, results).length;
     const eligible = eligibleIds === null ? null : new Set(eligibleIds);
+    // 飛ばした(不在の)人は、もう抽選の対象ではない。当選済みの人と違い、「対象の N 名全員」の数にも入れない
+    const excluded = new Set(await this.store.excludedMemberIds());
     const won = new Set(results.map((r) => r.wonMember?.id).filter(Boolean));
-    const pool = allMembers.filter((m) => eligible === null || eligible.has(m.id));
+    const pool = allMembers.filter((m) => (eligible === null || eligible.has(m.id)) && !excluded.has(m.id));
     const remainingMembers = pool.filter((m) => !won.has(m.id)).length;
     return toDrawProgress(remainingPrizes, remainingMembers, results.length, pool.length);
   }
@@ -128,7 +132,9 @@ export class DrawApplicationService {
     const inputs = await this.fetchInputs();
     const progress = await this.progressWith(inputs);
     if (progress.endReason) return { kind: "finished", progress };
-    return { kind: "drawn", progress, outcome: await this.executeDraw(request, inputs) };
+    const outcome = await this.executeDraw(request, inputs);
+    // 進み具合は抽選の前のもの(今回の当選者もまだ候補に数えている)。当選者を飛ばしたときに引き直せるのは、ほかの候補
+    return { kind: "drawn", progress, outcome: { ...outcome, spareMembers: Math.max(0, progress.remainingMembers - 1) } };
   }
 
   /**
@@ -192,7 +198,48 @@ export class DrawApplicationService {
           dummyPrizeIds: this.prizeDrawService.pickDummyPrizeIds(prizes, winnerPrize.id, Math.max(0, request.prizeRequestCount - 1)),
           isKakuhen: false,
         };
-    return { result: { ...pending, wonMember: toDtoMember(winnerMember), wonPrize: winnerPrize }, prizeRes, memberRes };
+    return {
+      result: { ...pending, wonMember: toDtoMember(winnerMember), wonPrize: winnerPrize },
+      prizeRes,
+      memberRes,
+      spareMembers: await this.spareMembers(),
+    };
+  }
+
+  /** いまの当選者が飛ばされたときに引き直せる候補の人数。対象の一覧が取れないときは分からない(undefined)。 */
+  private async spareMembers(): Promise<number | undefined> {
+    try {
+      return (await this.getDrawProgress()).remainingMembers;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * 不在の当選者を飛ばす。いまの当選者を以降の抽選から外し、同じ景品(確変の回もそのまま)の当選者だけを、残りの候補から引き直して確定する。
+   * 引き直したメンバーのリールの内訳(memberRes)と、置き換え後の結果を返す。景品の演出はやり直さない。
+   * 確定が矛盾で断られた(別の端末の操作・古い状態)ときは、状態を読み直して1回だけ引き直す。候補が残っていなければ NoEligibleMembersError。
+   */
+  async skipWinner(drawId: string, request: { memberRequestCount: number } = DEFAULT_REQUEST): Promise<{ result: DrawResultDto; memberRes: DrawMemberResponse; spareMembers: number }> {
+    const store = this.store;
+    for (let attempt = 0; ; attempt++) {
+      const inputs = await this.fetchInputs();
+      const current = (await store.results()).find((r) => r.drawId === drawId);
+      if (!current) throw new DrawConflictError("飛ばす抽選結果が見つかりません");
+      // 候補は、当選済み(いまの当選者を含む)と飛ばした人を除いた中から。いまの当選者は、まだこの抽選の結果に入っているので候補にならない
+      const memberRes = await this.executeMemberDraw({ requestCount: request.memberRequestCount }, inputs, current.wonMember ? [current.wonMember.id] : []);
+      if (!memberRes.winnerId) throw new NoEligibleMembersError("ほかに抽選できる人がいないため、当選者を飛ばせません。");
+      const winner = inputs.members.find((m) => m.id === memberRes.winnerId);
+      if (!winner) throw new NotFoundError("Winner member not found");
+      try {
+        await store.skipWinner(drawId, toDtoMember(winner));
+      } catch (e) {
+        if (!(e instanceof DrawConflictError) || attempt >= 1) throw e;
+        continue;
+      }
+      const progress = await this.progressWith(inputs);
+      return { result: { ...current, wonMember: toDtoMember(winner) }, memberRes: { ...memberRes, drawId }, spareMembers: progress.remainingMembers };
+    }
   }
 
   /**
@@ -322,14 +369,16 @@ export class DrawApplicationService {
     };
   }
 
-  private async executeMemberDraw(request: DrawMemberRequest, { eligibleIds, members: allMembers }: DrawInputs): Promise<DrawMemberResponse> {
+  /** `alsoExcluded`: 保存先にはまだ除外として載っていないが、この抽選では外す人(いま飛ばそうとしている当選者)。 */
+  private async executeMemberDraw(request: DrawMemberRequest, { eligibleIds, members: allMembers }: DrawInputs, alsoExcluded: readonly string[] = []): Promise<DrawMemberResponse> {
     const results = await this.store.results();
+    const excluded = [...(await this.store.excludedMemberIds()), ...alsoExcluded];
 
     // 抽選の対象を絞り込む（例: エントリーした人だけ）。候補も、リールに流すダミーも対象の中から選ぶ。
     // 一覧を取得できないときは例外のまま上へ伝える（全メンバーにフォールバックしない）。
-    const members = this.restrictToPool(allMembers, eligibleIds, results);
+    const members = this.restrictToPool(allMembers, eligibleIds, results, excluded);
 
-    const res = this.memberDrawService.drawMember(members, results, request.requestCount - 1);
+    const res = this.memberDrawService.drawMember(members, results, request.requestCount - 1, excluded);
     return {
       drawId: this.idGenerator.nextId(),
       winnerId: res?.winnerId ?? null,
@@ -339,14 +388,17 @@ export class DrawApplicationService {
 
   /** 演出し直すときのリールのダミー。対象の一覧が取れなければ(見せ用なので)全メンバーから選ぶ。 */
   private async dummyMemberPool(allMembers: Member[]): Promise<Member[]> {
+    // 飛ばした人はリールに流さない(不在の人が、また回って見えないように)
+    const excluded = await this.store.excludedMemberIds();
+    const present = allMembers.filter((m) => !excluded.includes(m.id));
     try {
       const eligibleIds = await this.drawPool.getEligibleMemberIds();
-      if (eligibleIds === null) return allMembers;
+      if (eligibleIds === null) return present;
       const eligible = new Set(eligibleIds);
-      const pool = allMembers.filter((m) => eligible.has(m.id));
-      return pool.length > 0 ? pool : allMembers;
+      const pool = present.filter((m) => eligible.has(m.id));
+      return pool.length > 0 ? pool : present;
     } catch {
-      return allMembers;
+      return present;
     }
   }
 
@@ -354,16 +406,16 @@ export class DrawApplicationService {
    * 抽選の対象（eligibleIds）に含まれるメンバーだけに絞る。null なら絞り込みなし。
    * 対象に、まだ当選していない人が1人もいなければ、人数の分かる理由の例外にする。
    */
-  private restrictToPool(members: Member[], eligibleIds: string[] | null, results: DrawResultDto[]): Member[] {
+  private restrictToPool(members: Member[], eligibleIds: string[] | null, results: DrawResultDto[], excludedMemberIds: readonly string[]): Member[] {
     if (eligibleIds === null) return members;
     const eligible = new Set(eligibleIds);
     const pool = members.filter((m) => eligible.has(m.id));
-    const remaining = pool.filter((m) => !results.some((r) => r.wonMember?.id === m.id));
+    const remaining = pool.filter((m) => !results.some((r) => r.wonMember?.id === m.id) && !excludedMemberIds.includes(m.id));
     if (remaining.length === 0) {
       throw new NoEligibleMembersError(
         pool.length === 0
           ? `抽選の対象のメンバーがいません(対象として届いた ${eligibleIds.length} 名のうち、メンバー名簿に載っているのは 0 名です)。エントリーした人がいないか、メンバー名簿に登録がありません。`
-          : `抽選の対象のメンバー(${pool.length} 名)は、全員がすでに当選しています。`
+          : `抽選の対象のメンバー(${pool.length} 名)は、全員がすでに当選しているか、飛ばされています。`
       );
     }
     return pool;

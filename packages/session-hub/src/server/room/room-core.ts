@@ -31,6 +31,7 @@ import { MAX_ROUND_ANSWERS_DO } from "../../shared/session-types";
 import type {
   CloseRoundArgs,
   GetAnswersArgs,
+  RemoveAnswerArgs,
   ListParticipantsArgs,
   OpenRoundArgs,
   SubmitAnswerArgs,
@@ -154,6 +155,12 @@ export class SessionRoomCore {
         // 回答数の変化は、在席と同じくまとめて配信する(1件ごとに全端末へ push しない)。
         // 受理した回答は alarm で保存されるので、alarm の予約に失敗したら受理せずエラーにする(保存されない回答を受理しない)。
         if (!result.duplicate) await this.scheduleAnswerFlush();
+        return result;
+      }
+      case "removeAnswer": {
+        const result = await engine.removeAnswer(deps, args as RemoveAnswerArgs);
+        // 回答の変化と同じく、alarm でまとめて保存・配信する
+        if (result.removed) await this.scheduleAnswerFlush();
         return result;
       }
       case "getAnswers":

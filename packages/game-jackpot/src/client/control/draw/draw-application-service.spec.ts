@@ -252,6 +252,89 @@ describe("DrawApplicationService", () => {
     });
   });
 
+  describe("skipWinner(不在の当選者を飛ばす)", () => {
+    it("同じ景品・同じ確変の回のまま当選者だけが替わり、元の当選者は除外され、公開前に戻る", async () => {
+      const { service, store, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [1] });
+      const { result } = await service.executeDraw(REQUEST);
+      await store.reveal(result.drawId);
+
+      const skipped = await service.skipWinner(result.drawId, REQUEST);
+
+      expect(skipped.result).toMatchObject({ drawId: result.drawId, isKakuhen: true, wonPrize: { id: result.wonPrize!.id } });
+      expect(skipped.result.wonMember!.id).not.toBe(result.wonMember!.id);
+      expect(skipped.memberRes).toMatchObject({ drawId: result.drawId, winnerId: skipped.result.wonMember!.id });
+      expect(skipped.memberRes.dummyIds).not.toContain(skipped.result.wonMember!.id);
+      expect(skipped.memberRes.dummyIds).not.toContain(result.wonMember!.id);
+      expect(await store.excludedMemberIds()).toEqual([result.wonMember!.id]);
+      expect(await store.pending()).toMatchObject({ drawId: result.drawId, wonMember: { id: skipped.result.wonMember!.id }, wonPrize: { id: result.wonPrize!.id } });
+      expect(await store.results()).toHaveLength(1);
+    });
+
+    it("飛ばした人は、あとの抽選にも出ない。最後まで通しても、当選者の重複は0(飛ばした人は当選しない)", async () => {
+      const { service, store, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const first = await service.executeDraw(REQUEST);
+      await store.reveal(first.result.drawId);
+      const skipped = await service.skipWinner(first.result.drawId, REQUEST);
+      await store.reveal(first.result.drawId);
+      const absent = first.result.wonMember!.id;
+      // 残りの候補(4人 - 飛ばした1人 = 3人のうち、1人は替わりの当選者)を最後まで引く
+      for (;;) {
+        const next = await service.drawNext(REQUEST);
+        if (next.kind === "finished") {
+          expect(next.progress.endReason).toBe("members");
+          expect(next.progress.eligibleMembers).toBe(3); // 飛ばした人は、対象の人数に数えない
+          break;
+        }
+        await store.reveal(next.outcome.result.drawId);
+      }
+      const ids = (await store.results()).map((r) => r.wonMember!.id);
+      expect(ids).toHaveLength(3);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids).not.toContain(absent);
+      expect(ids).toContain(skipped.result.wonMember!.id);
+    });
+
+    it("対象(エントリーした人)の中に、ほかの候補がいなければ、人数の分かる理由の例外。何も変わらない", async () => {
+      const { service, store, prizes } = setup({ eligibleMemberIds: ["alice"] });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const { result } = await service.executeDraw(REQUEST);
+      await expect(service.skipWinner(result.drawId, REQUEST)).rejects.toThrow(NoEligibleMembersError);
+      expect(await store.excludedMemberIds()).toEqual([]);
+      expect((await store.results())[0].wonMember!.id).toBe("alice");
+    });
+
+    it("存在しない抽選は DrawConflictError", async () => {
+      const { service, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes);
+      await expect(service.skipWinner("nope", REQUEST)).rejects.toThrow(DrawConflictError);
+    });
+
+    it("残りの候補の人数(spareMembers)を返す。抽選(drawNext)・再開(resumeDraw)・飛ばした後で、同じ数え方", async () => {
+      const { service, store, prizes } = setup(); // 4人
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const next = await service.drawNext(REQUEST);
+      if (next.kind !== "drawn") throw new Error("drawn のはず");
+      expect(next.outcome.spareMembers).toBe(3);
+      expect((await service.resumeDraw((await store.pending())!)).spareMembers).toBe(3);
+      const skipped = await service.skipWinner(next.outcome.result.drawId, REQUEST);
+      expect(skipped.spareMembers).toBe(2); // 元の人と替わりの人を除いた残り
+      expect((await service.resumeDraw((await store.pending())!)).spareMembers).toBe(2);
+    });
+
+    it("再開(別セッションの読み直し)後も除外が残る: 別のサービスが同じ保存先を読んでも、飛ばした人は引かれない", async () => {
+      const { service, store, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const { result } = await service.executeDraw(REQUEST);
+      await service.skipWinner(result.drawId, REQUEST);
+      await store.load();
+      const resumed = await service.resumeDraw((await store.pending())!);
+      expect(resumed.memberRes.dummyIds).not.toContain(result.wonMember!.id);
+      expect(await store.excludedMemberIds()).toEqual([result.wonMember!.id]);
+    });
+  });
+
   describe("getDrawProgress", () => {
     it("対象の人数(eligibleMembers)を含め、同じセッションの前のイベントの結果も数える", async () => {
       const { service, prizes } = setup({ eligibleMemberIds: ["alice", "bob", "carol"] });

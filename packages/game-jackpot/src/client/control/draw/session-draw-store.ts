@@ -2,6 +2,7 @@ import { parseHubErrorCode, stripHubErrorCode } from "@octopus/session-hub";
 import type { HostAgent, JackpotDraw, JackpotDrawInput } from "@octopus/session-hub";
 import { DrawConflictError } from "../../model/errors";
 import { fromMember } from "../member/dto/member-dto";
+import type { MemberDto } from "../member/dto/member-dto";
 import type { Member } from "../../model/member/member";
 import type { Prize } from "../../model/prize/prize";
 import type { DrawPlan, DrawStore } from "./draw-store";
@@ -15,6 +16,7 @@ interface Row {
 interface Snapshot {
   sessionId: string | null;
   plan: DrawPlan | null;
+  excludedMemberIds: string[];
   rows: Row[];
 }
 
@@ -27,7 +29,7 @@ export interface DrawDirectory {
 /**
  * セッションの結果ファイル(サーバー)を正本とする抽選状態。ホスト端末の HostAgent を通して読み書きする。
  * 読み込んだ内容はメモリに持ち、読み出しでは通信しない(GAS は1回の通信が重い)。
- * 通信するのは、読み込み(画面を開いたとき・矛盾が起きたとき)と、確変の予定の保存・commit・reveal・reset だけ。
+ * 通信するのは、読み込み(画面を開いたとき・矛盾が起きたとき)と、確変の予定の保存・commit・reveal・skipWinner・reset だけ。
  */
 export class SessionDrawStore implements DrawStore {
   readonly kind = "session" as const;
@@ -83,6 +85,7 @@ export class SessionDrawStore implements DrawStore {
     this.snapshot = {
       sessionId,
       plan: state.plan && { kakuhenTimings: [...state.plan.kakuhenTimings], reservedPrizeIds: [...state.plan.reservedPrizeIds] },
+      excludedMemberIds: [...state.excludedMemberIds],
       rows: state.draws.map((d) => ({ result: toResult(d, memberById, prizeById), revealed: d.revealedAtMs !== null })),
     };
   }
@@ -137,13 +140,33 @@ export class SessionDrawStore implements DrawStore {
     });
   }
 
+  async excludedMemberIds(): Promise<string[]> {
+    return [...(await this.ready()).excludedMemberIds];
+  }
+
+  async skipWinner(drawId: string, newWinner: MemberDto): Promise<void> {
+    await this.ready();
+    try {
+      await this.requireAgent().skipJackpotWinner({ drawId, newMemberId: newWinner.id, newMemberName: newWinner.name });
+    } catch (e) {
+      throw await this.translate(e);
+    }
+    this.applyLocal((snapshot) => {
+      const row = snapshot.rows.find((r) => r.result.drawId === drawId);
+      if (!row || row.result.wonMember?.id === newWinner.id) return;
+      if (row.result.wonMember) snapshot.excludedMemberIds.push(row.result.wonMember.id);
+      row.result = { ...row.result, wonMember: newWinner };
+      row.revealed = false;
+    });
+  }
+
   async pending(): Promise<DrawResultDto | null> {
     return (await this.ready()).rows.find((r) => !r.revealed)?.result ?? null;
   }
 
   async reset(): Promise<void> {
     await this.requireAgent().resetJackpot();
-    this.snapshot = { sessionId: this.currentSessionId(), plan: null, rows: [] };
+    this.snapshot = { sessionId: this.currentSessionId(), plan: null, excludedMemberIds: [], rows: [] };
   }
 
   /** 結果ファイルが受け付けなかった(JACKPOT_CONFLICT)ときは、状態を読み直してから DrawConflictError にする。 */

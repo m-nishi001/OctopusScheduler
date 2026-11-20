@@ -135,4 +135,35 @@ describe("CycleSource", () => {
     expect(await taken).toBe("prepared-once");
     expect(prepare).toHaveBeenCalledTimes(1); // 用意は1回だけ
   });
+
+  it("settled は先読みの終わりを待つだけで、用意したものは受け取らない(当選者を飛ばす前に、先読みの確定と重ならないため)", async () => {
+    let finish!: (v: string) => void;
+    const { source } = build(() => new Promise<string>((r) => (finish = r)));
+    source.prefetch("d1");
+    await flush();
+    let settled = false;
+    const waiting = source.settled().then(() => (settled = true));
+    await flush();
+    expect(settled).toBe(false);
+    finish("pre");
+    await waiting;
+    expect(source.state.kind).toBe("ready");
+    source.invalidate();
+    expect(source.state.kind).toBe("idle");
+  });
+
+
+  it("先読みが用意できたら onPrefetched で知らせる(無効化されたあとでも。確定した抽選は保存先に残るため)。その場の用意では呼ばない", async () => {
+    const onPrefetched = vi.fn();
+    const source = new CycleSource<string>({ refresh: async () => undefined, prepare: async () => "pre", discard: vi.fn(), onPrefetched });
+    source.prefetch("d1");
+    source.invalidate();
+    await flush();
+    expect(onPrefetched).toHaveBeenCalledWith("pre");
+
+    onPrefetched.mockClear();
+    await source.next();
+    expect(onPrefetched).not.toHaveBeenCalled();
+  });
+
 });

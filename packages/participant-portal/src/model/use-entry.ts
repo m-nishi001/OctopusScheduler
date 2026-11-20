@@ -1,6 +1,6 @@
 import { computed, inject, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref } from "vue";
-import { ENTRY_OPTION_NO, parseHubErrorCode } from "@octopus/session-hub";
+import { ENTRY_OPTION_NO, cancelCountOf, parseHubErrorCode } from "@octopus/session-hub";
 import type { PortalEvent } from "@octopus/session-hub";
 import type { PortalSession } from "./use-portal-session";
 
@@ -54,8 +54,10 @@ export function useEntryContext(): EntryState {
 
 export interface EntryState {
   phase: ComputedRef<EntryPhase>;
-  /** 自分がエントリー済みか（この端末で押した、または別の端末で済みと返された）。 */
-  entered: Ref<boolean>;
+  /** 自分がエントリー済みか（この端末で押した、または別の端末で済みと返された。運営に取り消されていない）。 */
+  entered: ComputedRef<boolean>;
+  /** エントリーしたあとで、運営に取り消された(もう一度エントリーできる)。 */
+  cancelled: ComputedRef<boolean>;
   /** 抽選の対象が「自動」で、エントリーしなくても対象になっている。 */
   autoEntered: ComputedRef<boolean>;
   /** エントリー済み、または自動エントリー（画面に「エントリー済み」を出す条件）。 */
@@ -69,6 +71,8 @@ export interface EntryState {
 /**
  * イベントのエントリー（参加受付）。受付中に押すと回答ラウンドに回答し、サーバー側で1人1回に数えられる。
  * エントリー済みはブラウザに（メンバーごとに）保存し、リロードしても「済み」の表示が残る。
+ * 保存するのは「エントリーしたときの、自分の取り消し回数」。運営がエントリーを取り消すと、ホストが公開する回数が増えて食い違うので、
+ * 「済み」が外れ、もう一度エントリーできる(サーバーの状態とずれたまま「済み」が残らない)。
  * 受付を締め切った/再開したは、ホストが公開するイベントの状態（entry.open）で全員の画面に反映される。
  */
 export interface EntryOptions {
@@ -89,7 +93,12 @@ export function useEntry(session: PortalSession, options: EntryOptions): EntrySt
   });
 
   const autoEntered = computed(() => isAutoEntered(session.event.value));
-  const entered = ref(false);
+  /** 自分のエントリーが取り消された回数(ホストが公開する)。 */
+  const cancelCount = computed(() => cancelCountOf(entry.value, options.memberId()));
+  /** 端末に保存してある、エントリーしたときの取り消し回数。エントリーしていなければ null。 */
+  const enteredAt = ref<number | null>(null);
+  const entered = computed(() => enteredAt.value !== null && enteredAt.value === cancelCount.value);
+  const cancelled = computed(() => enteredAt.value !== null && enteredAt.value !== cancelCount.value);
   const isIn = computed(() => entered.value || autoEntered.value);
   const submitting = ref(false);
   const message = ref("");
@@ -99,7 +108,9 @@ export function useEntry(session: PortalSession, options: EntryOptions): EntrySt
     storageKey,
     (key) => {
       message.value = "";
-      entered.value = key ? storage.get(key) === "1" : false;
+      const raw = key ? storage.get(key) : null;
+      const saved = raw === null ? Number.NaN : Number(raw);
+      enteredAt.value = Number.isInteger(saved) ? saved : null;
     },
     { immediate: true }
   );
@@ -112,9 +123,9 @@ export function useEntry(session: PortalSession, options: EntryOptions): EntrySt
     try {
       // 重複（別の端末で済み・連打）でも「エントリー済み」として扱う
       await session.answer(current.key, ENTRY_OPTION_NO);
-      entered.value = true;
+      enteredAt.value = cancelCount.value;
       const key = storageKey.value;
-      if (key) storage.set(key, "1");
+      if (key) storage.set(key, String(cancelCount.value));
     } catch (error) {
       const code = parseHubErrorCode(error instanceof Error ? error.message : "");
       message.value =
@@ -126,5 +137,5 @@ export function useEntry(session: PortalSession, options: EntryOptions): EntrySt
     }
   }
 
-  return { phase, entered, autoEntered, isIn, submitting, message, enter };
+  return { phase, entered, cancelled, autoEntered, isIn, submitting, message, enter };
 }

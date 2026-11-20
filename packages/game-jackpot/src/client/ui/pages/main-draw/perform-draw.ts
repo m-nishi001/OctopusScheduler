@@ -50,6 +50,8 @@ export interface DrawOutcome {
   winner: PrizeDto;
   /** ルーレットに描く景品(画像の URL つき)。使わずに捨てるときは revokePreparedPrizes で URL を破棄する。 */
   prizeItems: RouletteItem[];
+  /** 当選者を飛ばして引き直せる、ほかの候補の人数(分かるときだけ)。 */
+  spareMembers?: number;
 }
 
 /** 続けられるかの確認と、続けられるなら抽選・確定・ルーレットの材料まで済ませた結果。 */
@@ -76,12 +78,12 @@ export async function performResume(deps: PerformDrawDeps, pending: DrawResultDt
 
 async function prepareOutcome(
   deps: PerformDrawDeps,
-  { result, prizeRes, memberRes }: { result: DrawResultDto; prizeRes: DrawPrizeResponse; memberRes: DrawMemberResponse }
+  { result, prizeRes, memberRes, spareMembers }: { result: DrawResultDto; prizeRes: DrawPrizeResponse; memberRes: DrawMemberResponse; spareMembers?: number }
 ): Promise<DrawOutcome> {
   const winnerId = result.wonPrize?.id;
   const winner = winnerId ? deps.prizes.value.find((p) => p.id === winnerId) : undefined;
   if (!winner) throw new DrawStateError("当選した景品が景品一覧に見つかりません");
 
   const prizeItems = await deps.buildPrizeItems(buildPrizesToPrepare(deps.prizes.value, prizeRes));
-  return { result: { ...result, wonPrize: winner }, prizeRes, memberRes, winner, prizeItems };
+  return { result: { ...result, wonPrize: winner }, prizeRes, memberRes, winner, prizeItems, spareMembers };
 }
