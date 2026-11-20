@@ -399,4 +399,34 @@ describe("useJackpotFinale(結果・エンディングの画面)", () => {
     const w = mount(Screen);
     w.unmount();
   });
+
+  it("管理端末の skipWinner で、押した時点の当選者(memberId)つきでハンドラが呼ばれる。ハンドラが無い画面では何も起きない", async () => {
+    const { admin } = await scene();
+    const skipWinner = vi.fn();
+    const mounted = mountHost({ advance: vi.fn(), stopRoulette: vi.fn(), skipWinner });
+    await admin.conn.issue("jackpot", "skipWinner", { memberId: "winner" });
+    await tick(4000);
+    expect(skipWinner).toHaveBeenCalledWith("winner");
+    await admin.conn.issue("jackpot", "skipWinner");
+    await tick(4000);
+    expect(skipWinner).toHaveBeenLastCalledWith(null);
+    mounted.stop();
+
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    mountHost(handlers);
+    await admin.conn.issue("jackpot", "skipWinner", { memberId: "winner" });
+    await tick(4000);
+    expect(handlers.advance).not.toHaveBeenCalled();
+    expect(handlers.stopRoulette).not.toHaveBeenCalled();
+  });
+
+  it("参加者は skipWinner を送れない(管理端末の操作)", async () => {
+    const { client } = await scene();
+    const skipWinner = vi.fn();
+    mountHost({ advance: vi.fn(), stopRoulette: vi.fn(), skipWinner });
+    await client.conn.issue("jackpot", "skipWinner", { memberId: "winner" }).catch(() => undefined);
+    await tick(4000);
+    expect(skipWinner).not.toHaveBeenCalled();
+  });
+
 });

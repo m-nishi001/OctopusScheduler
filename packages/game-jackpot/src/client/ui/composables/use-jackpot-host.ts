@@ -11,6 +11,11 @@ export interface JackpotHostHandlers {
   back?(): void;
   /** ルーレット/スロットを止める。管理端末、またはホストが許可した参加者から届く。 */
   stopRoulette(): void;
+  /**
+   * 管理端末の「この人を飛ばす(不在)」。`memberId` は、押した時点で管理端末が見ていた当選者(ホストの当選者と違えば、古い画面の操作なので無視する)。
+   * 飛ばせない場面の画面(説明・デモ抽選など)では渡さない。
+   */
+  skipWinner?(memberId: string | null): void;
 }
 
 export interface JackpotHost {
@@ -64,6 +69,9 @@ export function useJackpotHost(handlers: JackpotHostHandlers, options: JackpotHo
         break;
       case "back":
         handlers.back?.();
+        break;
+      case "skipWinner":
+        handlers.skipWinner?.(typeof (command.payload as { memberId?: unknown } | undefined)?.memberId === "string" ? (command.payload as { memberId: string }).memberId : null);
         break;
       case "stopRoulette":
         // 止められる場面でだけ受け付ける。参加者の押下が遅れて届いても、次の場面を誤って進めない。

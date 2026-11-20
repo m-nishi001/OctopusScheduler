@@ -17,6 +17,11 @@ export interface CycleSourceDeps<P> {
    */
   settle?(): Promise<void>;
   onPrefetchError?(error: unknown): void;
+  /**
+   * 先読みが用意できた(確定まで済んだ)。無効化されたあとでも呼ぶ(確定した抽選は、保存先に残るため)。
+   * 先読みで次の抽選の当選者が確定すると、いまの当選者を飛ばして置き換えられる人数が減るので、画面はこの合図で数え直す。
+   */
+  onPrefetched?(prepared: P): void;
 }
 
 /**
@@ -45,7 +50,9 @@ export class CycleSource<P> {
   prefetch(afterDrawId: string): void {
     this.slot.start(afterDrawId, async () => {
       await this.deps.refresh();
-      return this.deps.prepare();
+      const prepared = await this.deps.prepare();
+      this.deps.onPrefetched?.(prepared);
+      return prepared;
     });
   }
 
@@ -56,6 +63,11 @@ export class CycleSource<P> {
     if (prepared) return prepared;
     await this.deps.refresh();
     return this.deps.prepare();
+  }
+
+  /** 先の用意が(あれば)終わるのを待つ。当選者を飛ばす前に呼び、先読みの確定と飛ばす操作が重ならないようにする。 */
+  settled(): Promise<void> {
+    return this.slot.whenSettled();
   }
 
   /** 先の用意を取り消す(リセット・読み直し・対象の変更・画面を離れる)。 */

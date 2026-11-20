@@ -59,6 +59,7 @@ export function createRoomApi(
     ensureJackpotPlan: () => Promise.reject(new Error("not supported in room api")),
     commitJackpotDraw: () => Promise.reject(new Error("not supported in room api")),
     revealJackpotDraw: () => Promise.reject(new Error("not supported in room api")),
+    skipJackpotWinner: () => Promise.reject(new Error("not supported in room api")),
     resetJackpot: () => Promise.reject(new Error("not supported in room api")),
     getResults: () => Promise.reject(new Error("not supported in room api")),
     getWebAppUrl: () => Promise.resolve({ url: null }),

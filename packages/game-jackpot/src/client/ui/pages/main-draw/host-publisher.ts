@@ -25,6 +25,8 @@ export interface HostPublisherDeps {
   ended(): boolean;
   nextLabel(): string | undefined;
   result(): DrawResultDto | null;
+  /** いまの当選者を飛ばしたとき、引き直せるほかの候補の人数(分かるときだけ)。管理端末が「飛ばす」を押せるかの判断に使う。 */
+  spare?(): number | undefined;
 }
 
 /** 進行が止まるたびに呼ぶ公開の関数。公開の通信の完了を待つ settled を持つ。 */
@@ -59,15 +61,19 @@ export function createHostPublisher(deps: HostPublisherDeps): HostPublisher {
             memberName: result?.wonMember?.name,
             memberId: result?.wonMember?.id,
             prizeName: result?.wonPrize?.name,
+            spare: deps.spare?.(),
           })
     );
     const drawId = revealableDrawId(result, deps.tracker);
-    if (!drawId || revealedDrawIds.has(drawId)) return;
-    revealedDrawIds.add(drawId);
+    if (!drawId) return;
+    // 同じ抽選でも、当選者を飛ばして置き換えたら(未公開に戻っている)、新しい当選者を公開し直す
+    const revealKey = `${drawId}:${result?.wonMember?.id}`;
+    if (revealedDrawIds.has(revealKey)) return;
+    revealedDrawIds.add(revealKey);
     const run = deps
       .reveal(drawId)
       .then((ok) => {
-        if (!ok) revealedDrawIds.delete(drawId);
+        if (!ok) revealedDrawIds.delete(revealKey);
         else deps.onRevealed?.(drawId);
       })
       .finally(() => inflight.delete(run));

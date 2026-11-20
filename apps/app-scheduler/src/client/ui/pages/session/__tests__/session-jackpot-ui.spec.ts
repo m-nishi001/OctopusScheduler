@@ -5,6 +5,11 @@ import { ref } from "vue";
 import { PORTAL_EVENT_NS } from "@octopus/session-hub";
 import type { ClientInput } from "@octopus/session-hub";
 
+const confirmMock = vi.fn(async (_options: unknown) => true);
+vi.mock("@octopus/ui-kit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@octopus/ui-kit")>();
+  return { ...actual, useConfirm: () => ({ ...actual.useConfirm(), confirm: confirmMock }) };
+});
 vi.mock("../../../../control/auth/auth-session", () => ({
   useAuthSession: () => ({ currentMember: ref({ id: "admin2", name: "田中", isAdmin: true }) }),
 }));
@@ -16,6 +21,8 @@ import type { SessionEnv } from "./session-test-kit";
 let env: SessionEnv;
 
 beforeEach(() => {
+  confirmMock.mockReset();
+  confirmMock.mockResolvedValue(true);
   vi.useFakeTimers();
   vi.setSystemTime(1_700_000_000_000);
   container.clearInstances();
@@ -280,4 +287,63 @@ describe("管理コンソールのジャックポット操作", () => {
     expect(wrapper.find('[data-testid="jackpot-state"]').text()).toBe("");
     expect(next(wrapper).exists()).toBe(false);
   });
+
+  describe("当選者を飛ばす(不在)", () => {
+    const skipButton = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-testid="skip-winner-button"]');
+    const revealed = { stage: "prize-revealed", member: "太郎", memberId: "m1", prize: "特賞" };
+
+    it("当選者が見えるまでは出ない。メンバー発表後・結果表示中に出る", async () => {
+      const { meta, agent } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDraw(agent, { stage: "member" });
+      expect(skipButton(wrapper).exists()).toBe(false);
+      await openDraw(agent, { stage: "member-revealed", member: "太郎", memberId: "m1" });
+      expect(skipButton(wrapper).exists()).toBe(true);
+      await openDraw(agent, revealed);
+      expect(skipButton(wrapper).text()).toContain("この人を飛ばす(不在)");
+    });
+
+    it("押すと確認ダイアログ(「◯◯さんを以降の抽選から外し、同じ景品で引き直します。続けますか?」)が出て、了承すると、当選者のIDと画面つきで skipWinner がホストに届く", async () => {
+      const { meta, agent, calls, payloads } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDraw(agent, revealed);
+      await skipButton(wrapper).trigger("click");
+      await settle(5000);
+      expect(confirmMock).toHaveBeenCalledTimes(1);
+      expect(confirmMock.mock.calls[0][0]).toMatchObject({ message: "太郎さんを以降の抽選から外し、同じ景品で引き直します。続けますか?", danger: true });
+      expect(calls).toEqual(["skipWinner"]);
+      expect(payloads).toEqual([{ memberId: "m1", expectedPath: "/execute/jackpot-draw" }]);
+    });
+
+    it("確認でやめたら何も送らない", async () => {
+      const { meta, agent, calls } = await setupHosted();
+      const { wrapper, device } = await mountConsole(meta.id);
+      await openDraw(agent, revealed);
+      confirmMock.mockResolvedValueOnce(false);
+      await skipButton(wrapper).trigger("click");
+      await settle(5000);
+      expect(confirmMock).toHaveBeenCalledTimes(1);
+      expect(calls).toEqual([]);
+      expect(device.api.calls.issueCommand ?? 0).toBe(0);
+    });
+
+    it("ほかに候補がいない(spare が 0)ときは押せず、理由が出る。ホストが演出中(busy)でも押せない", async () => {
+      const { meta, agent, calls } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDraw(agent, { ...revealed, spare: 0 });
+      expect(skipButton(wrapper).attributes("disabled")).toBeDefined();
+      expect(wrapper.find('[data-testid="skip-winner-reason"]').text()).toContain("ほかに抽選できる人がいない");
+      await skipButton(wrapper).trigger("click");
+      await settle(5000);
+      expect(confirmMock).not.toHaveBeenCalled();
+
+      await openDraw(agent, { ...revealed, spare: 2, busy: true });
+      expect(skipButton(wrapper).attributes("disabled")).toBeDefined();
+      await openDraw(agent, { ...revealed, spare: 2 });
+      expect(skipButton(wrapper).attributes("disabled")).toBeUndefined();
+      expect(wrapper.find('[data-testid="skip-winner-reason"]').exists()).toBe(false);
+      expect(calls).toEqual([]);
+    });
+  });
+
 });

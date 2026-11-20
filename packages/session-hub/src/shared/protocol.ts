@@ -76,6 +76,12 @@ export interface RevealJackpotDrawArgs {
   drawId: string;
 }
 
+/** いまの当選者を以降の抽選から外し、同じ景品の当選者を置き換える(未公開に戻す)。`skip` の形は JackpotSkipInput。矛盾があれば JACKPOT_CONFLICT。 */
+export interface SkipJackpotWinnerArgs {
+  sessionId: string;
+  skip: unknown;
+}
+
 /** 抽選の結果と予定を消す(クイズの結果は消さない)。 */
 export interface ResetJackpotArgs {
   sessionId: string;

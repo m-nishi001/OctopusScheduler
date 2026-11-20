@@ -35,6 +35,7 @@ import type {
   ResetJackpotArgs,
   ResultsRevResult,
   RevealJackpotDrawArgs,
+  SkipJackpotWinnerArgs,
   SetPortalSessionArgs,
 } from "../shared/protocol";
 import type { JackpotState, ResultsView } from "../shared/results";
@@ -62,6 +63,7 @@ export const SESSION_HUB_ENDPOINTS = [
   "ensureJackpotPlan",
   "commitJackpotDraw",
   "revealJackpotDraw",
+  "skipJackpotWinner",
   "resetJackpot",
   "getResults",
   "getWebAppUrl",
@@ -98,6 +100,8 @@ export interface SessionHubApi {
   commitJackpotDraw(args: CommitJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
   /** 確定済みの抽選を公開する(管理者のみ)。何度呼んでも同じ。公開で rev が進む。 */
   revealJackpotDraw(args: RevealJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
+  /** 不在の当選者を飛ばす(管理者のみ)。いまの当選者を以降の抽選から外し、同じ抽選の当選者を置き換えて未公開に戻す。矛盾すれば JACKPOT_CONFLICT。 */
+  skipJackpotWinner(args: SkipJackpotWinnerArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
   /** 抽選の結果と確変の予定を消す(管理者のみ。クイズの結果はそのまま)。 */
   resetJackpot(args: ResetJackpotArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
   /** 結果を、ログイン中のメンバー向けの見せ方で返す(ログイン済みなら誰でも)。 */

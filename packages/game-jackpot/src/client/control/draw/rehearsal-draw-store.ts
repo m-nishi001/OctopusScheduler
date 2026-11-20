@@ -1,4 +1,5 @@
 import { DrawConflictError } from "../../model/errors";
+import type { MemberDto } from "../member/dto/member-dto";
 import type { DrawPlan, DrawStore } from "./draw-store";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 
@@ -15,6 +16,7 @@ export class RehearsalDrawStore implements DrawStore {
   readonly kind = "rehearsal" as const;
   private rows: Row[] = [];
   private currentPlan: DrawPlan | null = null;
+  private excluded: string[] = [];
 
   async load(): Promise<void> {}
 
@@ -57,6 +59,22 @@ export class RehearsalDrawStore implements DrawStore {
     row.revealed = true;
   }
 
+  async excludedMemberIds(): Promise<string[]> {
+    return [...this.excluded];
+  }
+
+  async skipWinner(drawId: string, newWinner: MemberDto): Promise<void> {
+    const row = this.rows.find((r) => r.result.drawId === drawId);
+    if (!row) throw new DrawConflictError("飛ばす抽選結果が見つかりません");
+    const current = row.result.wonMember;
+    if (current?.id === newWinner.id) return;
+    if (this.rows.some((r) => r.result.wonMember?.id === newWinner.id)) throw new DrawConflictError("このメンバーはすでに当選しています");
+    if (this.excluded.includes(newWinner.id)) throw new DrawConflictError("このメンバーは抽選から外されています");
+    if (current) this.excluded.push(current.id);
+    row.result = { ...row.result, wonMember: newWinner };
+    row.revealed = false;
+  }
+
   async pending(): Promise<DrawResultDto | null> {
     const row = this.rows.find((r) => !r.revealed);
     return row ? { ...row.result } : null;
@@ -65,5 +83,6 @@ export class RehearsalDrawStore implements DrawStore {
   async reset(): Promise<void> {
     this.rows = [];
     this.currentPlan = null;
+    this.excluded = [];
   }
 }

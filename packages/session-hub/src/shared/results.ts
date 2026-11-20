@@ -79,6 +79,21 @@ export interface JackpotPlan {
   createdAtMs: number;
 }
 
+/** skipJackpotWinner に渡す内容。いまの当選者を以降の抽選から外し、同じ景品の当選者を `newMemberId` に置き換える。 */
+export interface JackpotSkipInput {
+  drawId: string;
+  /** 新しい当選者のID・名前(名前は commit と同じく、サーバーに残す表示用)。 */
+  newMemberId: string;
+  newMemberName: string;
+}
+
+/** ジャックポットの、セッションで決まる状態(確変の予定と、不在で飛ばした人)。 */
+export interface JackpotMeta {
+  plan: JackpotPlan | null;
+  /** 不在などで飛ばした(以降の抽選から外した)メンバーのID。当選済みの人と同じく、二度と当たらない。 */
+  excludedMemberIds: string[];
+}
+
 /** ensureJackpotPlan に渡す案(createdAtMs はサーバーが決める)。 */
 export type JackpotPlanInput = Omit<JackpotPlan, "createdAtMs">;
 
@@ -86,6 +101,8 @@ export type JackpotPlanInput = Omit<JackpotPlan, "createdAtMs">;
 export interface JackpotState {
   rev: number;
   plan: JackpotPlan | null;
+  /** 飛ばした(以降の抽選から外した)メンバーのID。 */
+  excludedMemberIds: string[];
   /** 古い順。 */
   draws: JackpotDraw[];
 }
@@ -100,12 +117,12 @@ export interface ResultsDoc {
   rounds: QuizRoundResult[];
   /** 抽選結果(commit 順=古い順)。未公開(revealedAtMs が null)の行を含む。 */
   draws: JackpotDraw[];
-  jackpot: { plan: JackpotPlan | null };
+  jackpot: JackpotMeta;
 }
 
 /** まだ何も残していない結果ファイル。 */
 export function emptyResultsDoc(): ResultsDoc {
-  return { v: 2, rev: 0, updatedAtMs: 0, rounds: [], draws: [], jackpot: { plan: null } };
+  return { v: 2, rev: 0, updatedAtMs: 0, rounds: [], draws: [], jackpot: { plan: null, excludedMemberIds: [] } };
 }
 
 // ---------- ポータルへ返す見せ方 ----------
@@ -239,6 +256,16 @@ export function parseJackpotDraw(input: unknown): JackpotDrawInput {
     prizeName: str(input.prizeName, "prizeName", RESULTS_LIMITS.maxNameLength),
     isKakuhen: input.isKakuhen === true,
     atMs: Math.floor(num(input.atMs, "atMs")),
+  };
+}
+
+/** skipJackpotWinner の引数を検証して正規化する。 */
+export function parseJackpotSkip(input: unknown): JackpotSkipInput {
+  if (!isRecord(input)) throw new ResultsValidationError("飛ばす内容が不正です");
+  return {
+    drawId: str(input.drawId, "drawId", RESULTS_LIMITS.maxIdLength),
+    newMemberId: str(input.newMemberId, "newMemberId", RESULTS_LIMITS.maxIdLength),
+    newMemberName: str(input.newMemberName, "newMemberName", RESULTS_LIMITS.maxNameLength),
   };
 }
 

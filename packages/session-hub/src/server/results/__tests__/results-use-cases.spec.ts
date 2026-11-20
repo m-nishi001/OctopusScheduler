@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { RESULTS_LIMITS } from "../../../shared/results";
 import { createTestHub } from "../../../testing/test-hub";
-import { commitJackpotDraw, ensureJackpotPlan, getJackpotState, getResultsFor, putQuizResult, resetJackpot, resultsKey, revealJackpotDraw } from "../results-use-cases";
+import { commitJackpotDraw, ensureJackpotPlan, getJackpotState, getResultsFor, putQuizResult, resetJackpot, resultsKey, revealJackpotDraw, skipJackpotWinner } from "../results-use-cases";
 import type { ResultsDeps } from "../results-use-cases";
 import { parseHubErrorCode } from "../../../shared/hub-error";
 
@@ -210,6 +210,81 @@ describe("results-use-cases", () => {
         const before = await storage.getContentAsText(resultsKey("s1"));
         await codeOf(commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", prizeId: "p2" })));
         expect(await storage.getContentAsText(resultsKey("s1"))).toBe(before);
+      });
+    });
+
+    describe("不在の当選者を飛ばす(skipJackpotWinner)", () => {
+      const skipInput = (over: Record<string, unknown> = {}) => ({ drawId: "d1", newMemberId: "b", newMemberName: "Bob", ...over });
+
+      it("当選者を置き換え、元の当選者を除外し、景品・確変の回はそのまま。未公開に戻って、ポータルの当選履歴から消える", async () => {
+        const { deps } = setup();
+        await ensureJackpotPlan(deps, "s1", { kakuhenTimings: [1], reservedPrizeIds: ["p1"] });
+        await putJackpotDraw(deps, "s1", drawInput({ isKakuhen: true }));
+        expect((await getResultsFor(deps, "s1", "a")).jackpot.draws).toHaveLength(1);
+        const { rev } = await skipJackpotWinner(deps, "s1", skipInput());
+        expect(rev).toBe(2); // 公開済みの抽選が見えなくなったので rev が進む
+        const state = await getJackpotState(deps, "s1");
+        expect(state.excludedMemberIds).toEqual(["a"]);
+        expect(state.draws).toEqual([{ ...drawInput({ isKakuhen: true }), memberId: "b", memberName: "Bob", revealedAtMs: null }]);
+        expect((await getResultsFor(deps, "s1", "b")).jackpot.draws).toEqual([]);
+        // 新しい当選者を見せ終えたら、公開し直す
+        await revealJackpotDraw(deps, "s1", "d1");
+        const view = await getResultsFor(deps, "s1", "b");
+        expect(view.jackpot.draws).toMatchObject([{ memberName: "Bob", prizeName: "1等", isKakuhen: true, mine: true }]);
+      });
+
+      it("未公開の抽選を飛ばしても rev は進まない", async () => {
+        const { deps } = setup();
+        await commitJackpotDraw(deps, "s1", drawInput());
+        expect(await skipJackpotWinner(deps, "s1", skipInput())).toEqual({ rev: 0 });
+        expect((await getJackpotState(deps, "s1")).draws[0]).toMatchObject({ memberId: "b", revealedAtMs: null });
+      });
+
+      it("飛ばした人は、あとの抽選でも当たらない(当選済みと同じ)。除外は何度飛ばしても積まれる", async () => {
+        const { deps } = setup();
+        await putJackpotDraw(deps, "s1", drawInput());
+        await skipJackpotWinner(deps, "s1", skipInput());
+        await revealJackpotDraw(deps, "s1", "d1");
+        await commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "c", memberName: "Carol", prizeId: "p2", atMs: 200 }));
+        await revealJackpotDraw(deps, "s1", "d2");
+        await skipJackpotWinner(deps, "s1", skipInput({ drawId: "d2", newMemberId: "d", newMemberName: "Dave" }));
+        expect((await getJackpotState(deps, "s1")).excludedMemberIds).toEqual(["a", "c"]);
+      });
+
+      it("同じ内容の再送は成功し、何も書かない", async () => {
+        const { deps } = setup();
+        await putJackpotDraw(deps, "s1", drawInput());
+        await skipJackpotWinner(deps, "s1", skipInput());
+        const before = await getJackpotState(deps, "s1");
+        await expect(skipJackpotWinner(deps, "s1", skipInput())).resolves.toEqual({ rev: before.rev });
+        expect(await getJackpotState(deps, "s1")).toEqual(before);
+      });
+
+      it("拒否(JACKPOT_CONFLICT): 抽選が無い / 新しい当選者がすでに当選している / すでに除外されている", async () => {
+        const { deps } = setup();
+        expect(await codeOf(skipJackpotWinner(deps, "s1", skipInput()))).toBe("JACKPOT_CONFLICT");
+        await putJackpotDraw(deps, "s1", drawInput());
+        await putJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "b", memberName: "Bob", prizeId: "p2", atMs: 200 }));
+        expect(await codeOf(skipJackpotWinner(deps, "s1", skipInput({ drawId: "d2", newMemberId: "a", newMemberName: "Alice" })))).toBe("JACKPOT_CONFLICT");
+        await skipJackpotWinner(deps, "s1", skipInput({ drawId: "d2", newMemberId: "c", newMemberName: "Carol" })); // b を除外
+        expect(await codeOf(skipJackpotWinner(deps, "s1", skipInput({ drawId: "d1", newMemberId: "b", newMemberName: "Bob" })))).toBe("JACKPOT_CONFLICT");
+      });
+
+      it("拒否されたときは何も書かれない。不正な入力は INVALID_ARGUMENT", async () => {
+        const { deps } = setup();
+        await putJackpotDraw(deps, "s1", drawInput());
+        const before = await getJackpotState(deps, "s1");
+        expect(await codeOf(skipJackpotWinner(deps, "s1", skipInput({ drawId: "nope" })))).toBe("JACKPOT_CONFLICT");
+        expect(await getJackpotState(deps, "s1")).toEqual(before);
+        expect(await codeOf(skipJackpotWinner(deps, "s1", { drawId: "d1" }))).toBe("INVALID_ARGUMENT");
+      });
+
+      it("結果のリセットで除外も消える", async () => {
+        const { deps } = setup();
+        await putJackpotDraw(deps, "s1", drawInput());
+        await skipJackpotWinner(deps, "s1", skipInput());
+        await resetJackpot(deps, "s1");
+        expect((await getJackpotState(deps, "s1")).excludedMemberIds).toEqual([]);
       });
     });
 

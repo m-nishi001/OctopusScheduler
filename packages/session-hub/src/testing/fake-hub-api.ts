@@ -115,6 +115,10 @@ export function createFakeHubApi(
       operator();
       return results.revealJackpotDraw(resultsDeps(), args.sessionId, args.drawId);
     }),
+    skipJackpotWinner: (args) => run("skipJackpotWinner", args, async () => {
+      operator();
+      return results.skipJackpotWinner(resultsDeps(), args.sessionId, args.skip);
+    }),
     resetJackpot: (args) => run("resetJackpot", args, async () => {
       operator();
       return results.resetJackpot(resultsDeps(), args.sessionId);

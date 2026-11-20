@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ActionQueue, type Step } from "./action-queue";
 import { DrawFlowController } from "./draw-flow-controller";
 import { toDrawProgress } from "@control/draw/dto/draw-progress";
-import { buildCycle, normalPrizeSteps, remainingSteps, SETTLE_SEC } from "./draw-cycle";
+import { buildCycle, buildSkipCycle, normalPrizeSteps, remainingSteps, SETTLE_SEC } from "./draw-cycle";
 import { DrawStateError } from "./draw-context";
 import { createTestContext } from "./draw-context.test-helper";
 import { playWinningBgm } from "./bgm";
@@ -242,5 +242,43 @@ describe("remainingSteps", () => {
     const ctx = withCount({ total: 10, remaining: 3 });
     await remainingSteps(ctx)[0].run();
     expect(ctx.showHalfRemainingDialog.value).toBe(false);
+  });
+});
+
+describe("buildSkipCycle(当選者を飛ばしたあと: メンバー抽選だけやり直し、景品は結果だけ見せる)", () => {
+  it("メンバー抽選の停止と、景品の結果の印(showPrizeResult)だけがラベル。景品の回転・確変の演出のステップは無い", () => {
+    const steps = buildSkipCycle(createTestContext(), false);
+    expect(labelsOf(steps)).toEqual(["stopMemberDraw", "showPrizeResult"]);
+  });
+
+  it("Enter待ちの位置: メンバー4回 + 当選ダイアログ1回。元のサイクルに残数の確認が残っていたときだけ末尾に付く", () => {
+    expect(pauseShape(buildSkipCycle(createTestContext(), false)).join("")).toBe(".P.P.P.P" + "." + ".P." );
+    expect(pauseShape(buildSkipCycle(createTestContext(), true)).join("")).toBe(".P.P.P.P" + "." + ".P." + ".");
+  });
+
+  it("ルーレットは回さず、当選ダイアログを出して閉じる。確変の演出(オーバーレイ)も出さない", async () => {
+    const ctx = createTestContext({ wait: vi.fn().mockResolvedValue(undefined) });
+    for (const s of buildSkipCycle(ctx, false)) await s.run();
+    expect(ctx.prizeAnim.value.startSpin).not.toHaveBeenCalled();
+    expect(ctx.prizeAnim.value.stopSpin).not.toHaveBeenCalled();
+    expect(ctx.kakuhenOverlayVisible.value).toBe(false);
+    expect(ctx.showPrizeWinningDialog.value).toBe(false);
+    expect(ctx.phase.value).toBe("prize");
+  });
+
+  it("ステップの順に、新しい当選者を発表してから景品の結果が見える(参加者への公開の基準と同じ)", async () => {
+    const { RevealTracker } = await import("@model/jackpot-host-state");
+    const tracker = new RevealTracker();
+    const queue = new ActionQueue();
+    queue.onDequeue = (label) => tracker.onAction(label);
+    queue.addCycle(buildSkipCycle(createTestContext({ wait: vi.fn().mockResolvedValue(undefined) }), false));
+    const seen: Array<[boolean, boolean]> = [];
+    for (let step = queue.dequeue(); step; step = queue.dequeue()) {
+      await step.run();
+      seen.push([tracker.memberRevealed, tracker.prizeRevealed]);
+    }
+    expect(seen.some(([m, p]) => m && !p)).toBe(true);
+    expect(seen[seen.length - 1]).toEqual([true, true]);
+    expect(tracker.prizeRevealed && tracker.memberRevealed).toBe(true);
   });
 });

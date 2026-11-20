@@ -4,7 +4,7 @@ import type { Member } from "../member/member";
 import { injectable, inject } from "tsyringe";
 import { MathRandomProvider } from "../common/math-random-provider";
 
-/** メンバー抽選。当選済みを除いた候補から、メンバーの重みに応じて1人を選ぶ。 */
+/** メンバー抽選。当選済み・飛ばした(不在で外した)人を除いた候補から、メンバーの重みに応じて1人を選ぶ。 */
 @injectable()
 export class MemberDrawService {
   private weightedSelector: WeightedSelector;
@@ -19,16 +19,18 @@ export class MemberDrawService {
   }
 
   /**
-   * 当選者を1人選ぶ。まだ当選していない人の中から、`weight`（当選しやすさ）に比例した確率で選ぶ
-   * （全員が無指定・同じ値なら均等）。ダミー（リールに流す他の人）は重みに関係なく選ぶ。
+   * 当選者を1人選ぶ。まだ当選しておらず、飛ばされてもいない(excludedMemberIds)人の中から、`weight`（当選しやすさ）に比例した確率で選ぶ
+   * （全員が無指定・同じ値なら均等）。ダミー（リールに流す他の人）は、飛ばされた人を除いて重みに関係なく選ぶ。
    * 候補がいなければ null。
    */
   drawMember(
     members: Member[],
     drawResults: DrawResult[],
-    dummyCount: number
+    dummyCount: number,
+    excludedMemberIds: readonly string[]
   ): { winnerId: string | null; dummyIds: string[] } | null {
-    const candidates = members.filter(
+    const present = members.filter((m) => !excludedMemberIds.includes(m.id));
+    const candidates = present.filter(
       (m) => !drawResults.some((dr) => dr.wonMember?.id === m.id)
     );
     if (candidates.length === 0) {
@@ -37,7 +39,7 @@ export class MemberDrawService {
     const winner = this.weightedSelector.selectWeighted(candidates);
     return {
       winnerId: winner.id,
-      dummyIds: this.pickDummyMemberIds(members, winner.id, dummyCount),
+      dummyIds: this.pickDummyMemberIds(present, winner.id, dummyCount),
     };
   }
 

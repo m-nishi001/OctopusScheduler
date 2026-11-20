@@ -40,6 +40,13 @@
                         <kbd v-if="enterTriggers(guidance.main.action)" class="console__key" data-testid="next-key">Enter</kbd>
                     </UiButton>
                     <p class="console__hint" data-testid="next-hint">押すと: {{ guidance.main.hint }}</p>
+                    <div v-if="guidance.skip" class="console__skip">
+                        <UiButton variant="danger" :disabled="busyMain || !canSend || guidance.skip.disabled" data-testid="skip-winner-button" @click="runSkip">
+                            {{ guidance.skip.label }}
+                        </UiButton>
+                        <p class="console__hint" data-testid="skip-winner-hint">押すと: {{ guidance.skip.hint }}</p>
+                        <p v-if="guidance.skip.reason" class="console__sub is-warn" role="status" data-testid="skip-winner-reason">{{ guidance.skip.reason }}</p>
+                    </div>
                     <div v-if="guidance.back" class="console__back">
                         <UiButton class="console__back-button" :disabled="busyMain || !canSend" data-testid="back-button" @click="runBack">
                             ← {{ guidance.back.label }}
@@ -376,6 +383,25 @@ async function runMain() {
     });
 }
 
+/**
+ * 副ボタン「この人を飛ばす(不在)」。確認のあと、押した時点の当選者(memberId)を添えて送る。
+ * ホストは、当選者がもう変わっていたら(古い画面の操作)破棄し、同じ景品で当選者だけを引き直す。
+ */
+async function runSkip() {
+    const skip = guidance.value.skip;
+    if (!skip || skip.disabled) return;
+    const ok = await confirm({
+        title: '当選者を飛ばしますか?',
+        message: `${skip.memberName}さんを以降の抽選から外し、同じ景品で引き直します。続けますか?`,
+        confirmLabel: '飛ばして引き直す',
+        danger: true,
+    });
+    if (!ok) return;
+    await runMainOrBack('main', async () => {
+        await connection.issue('jackpot', 'skipWinner', { memberId: skip.memberId, expectedPath: hostPath.value });
+    });
+}
+
 /** 副ボタン「前へ」。説明のページをひとつ戻す。 */
 async function runBack() {
     if (!guidance.value.back) return;
@@ -513,6 +539,7 @@ onUnmounted(() => {
 .console__warn { margin: 0; padding: 8px 12px; border-radius: 8px; background: rgba(255, 179, 0, 0.15); color: #ffd54f; }
 .console__error { margin: 0; color: #ff8a80; }
 .console__main { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.console__skip { display: flex; flex-direction: column; gap: 6px; align-items: stretch; margin-top: 8px; }
 .console__back { display: flex; flex-direction: column; gap: 6px; align-items: stretch; margin-top: 4px; }
 .console__back-button { min-height: 48px; width: 100%; }
 .console__key { margin-left: 10px; padding: 1px 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid currentColor; border-radius: 6px; opacity: 0.7; vertical-align: middle; }

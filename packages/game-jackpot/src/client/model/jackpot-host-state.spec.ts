@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RevealTracker, buildJackpotDemoDrawState, buildJackpotDescriptionState, buildJackpotFinaleState, buildJackpotHostState, canStopAt, deriveStage, revealableDrawId } from "./jackpot-host-state";
+import { RevealTracker, buildJackpotDemoDrawState, buildJackpotDescriptionState, buildJackpotFinaleState, buildJackpotHostState, canStopAt, deriveStage, revealableDrawId, SHOW_PRIZE_RESULT } from "./jackpot-host-state";
 import { JACKPOT_STAGES, readJackpotState } from "@octopus/session-hub";
 
 describe("canStopAt", () => {
@@ -186,5 +186,22 @@ describe("buildJackpotDemoDrawState", () => {
     const state = buildJackpotDemoDrawState();
     expect(state).toEqual({ page: "demo-draw", stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null });
     expect(readJackpotState({ jackpot: state })).toEqual(state);
+  });
+});
+
+describe("当選者を飛ばしたあとの、景品の結果の印(SHOW_PRIZE_RESULT)", () => {
+  it("景品が画面に見えた印にはなるが、止める操作ではない(参加者のスマホに停止ボタンを出さない)", () => {
+    const tracker = new RevealTracker();
+    tracker.onAction("stopMemberDraw");
+    tracker.onAction(SHOW_PRIZE_RESULT);
+    expect(tracker.prizeRevealed).toBe(true);
+    expect(canStopAt(SHOW_PRIZE_RESULT)).toBe(false);
+    expect(deriveStage({ phase: "prize", tracker, ended: false })).toBe("prize-revealed");
+  });
+
+  it("引き直せる候補の人数(spare)は、分かるときだけ載る", () => {
+    const base = { phase: "prize", nextLabel: undefined, tracker: new RevealTracker(), memberName: "A", prizeName: "P" };
+    expect(buildJackpotHostState({ ...base, spare: 2 }).spare).toBe(2);
+    expect("spare" in buildJackpotHostState(base)).toBe(false);
   });
 });

@@ -206,4 +206,43 @@ describe("createHostPublisher", () => {
       expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ page: "main-draw", member: "Alice", prize: "Prize" }));
     });
   });
+
+  it("当選者を飛ばして置き換えたら、同じ抽選でも新しい当選者を公開し直す(同じ当選者は1回だけ)", async () => {
+    const { publish, tracker, state, reveal } = setup();
+    tracker.onAction("stopMemberDraw");
+    tracker.onAction("stopPrizeDraw");
+    publish();
+    publish();
+    expect(reveal).toHaveBeenCalledTimes(1);
+
+    tracker.reset();
+    state.result = { ...state.result, wonMember: { id: "m2", name: "Bob" } };
+    publish();
+    expect(reveal).toHaveBeenCalledTimes(1); // 新しい当選者がまだ画面に見えていない
+
+    tracker.onAction("stopMemberDraw");
+    tracker.onAction("showPrizeResult");
+    publish();
+    publish();
+    expect(reveal).toHaveBeenCalledTimes(2);
+    expect(reveal).toHaveBeenLastCalledWith("d1");
+  });
+
+  it("引き直せるほかの候補の人数(spare)を、管理端末に公開する", () => {
+    const tracker = new RevealTracker();
+    const host = { publish: vi.fn() };
+    const publish = createHostPublisher({
+      host,
+      tracker,
+      reveal: vi.fn().mockResolvedValue(true),
+      phase: () => "prize",
+      ended: () => false,
+      nextLabel: () => undefined,
+      result: () => ({ drawId: "d1", wonMember: { id: "m1", name: "Alice" }, wonPrize: { id: "p1", name: "Prize", order: 1 }, isKakuhen: false, createdAt: 1 }),
+      spare: () => 0,
+    });
+    publish();
+    expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ spare: 0 }));
+  });
+
 });

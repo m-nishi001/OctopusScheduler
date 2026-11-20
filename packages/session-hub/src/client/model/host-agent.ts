@@ -1,5 +1,5 @@
 import { RESULTS_NAMESPACE } from "../../shared/results";
-import type { JackpotDrawInput, JackpotPlan, JackpotPlanInput, JackpotState, QuizRoundResult } from "../../shared/results";
+import type { JackpotDrawInput, JackpotSkipInput, JackpotPlan, JackpotPlanInput, JackpotState, QuizRoundResult } from "../../shared/results";
 import { lobbyPath } from "../../shared/host-navigation";
 import { PORTAL_EVENT_NS, readPortalEvent } from "../../shared/portal-event";
 import { HostCommandRouter } from "./host-command-router";
@@ -106,6 +106,12 @@ export class HostAgent {
   async revealJackpotDraw(drawId: string): Promise<void> {
     if (!this.active) return;
     this.publishResultsRev(await this.connection.revealJackpotDraw(drawId));
+  }
+
+  /** いまの当選者を以降の抽選から外し、同じ抽選の当選者を置き換える(未公開に戻る)。参加者へ知らせる。矛盾すれば JACKPOT_CONFLICT。 */
+  async skipJackpotWinner(skip: JackpotSkipInput): Promise<void> {
+    if (!this.active) return;
+    this.publishResultsRev(await this.connection.skipJackpotWinner(skip));
   }
 
   /** 抽選の結果と確変の予定を消し、参加者へ知らせる。 */

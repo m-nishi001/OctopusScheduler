@@ -38,6 +38,7 @@ import type {
   PutQuizResultArgs,
   ResetJackpotArgs,
   RevealJackpotDrawArgs,
+  SkipJackpotWinnerArgs,
   SetPortalSessionArgs,
 } from "../shared/protocol";
 import type { SessionHubEndpointName } from "./session-hub-api-contract";
@@ -102,6 +103,7 @@ declare let _sessionHub_getJackpotState: (args: GetJackpotStateArgs) => Promise<
 declare let _sessionHub_ensureJackpotPlan: (args: EnsureJackpotPlanArgs) => Promise<string>;
 declare let _sessionHub_commitJackpotDraw: (args: CommitJackpotDrawArgs) => Promise<string>;
 declare let _sessionHub_revealJackpotDraw: (args: RevealJackpotDrawArgs) => Promise<string>;
+declare let _sessionHub_skipJackpotWinner: (args: SkipJackpotWinnerArgs) => Promise<string>;
 declare let _sessionHub_resetJackpot: (args: ResetJackpotArgs) => Promise<string>;
 declare let _sessionHub_getResults: (args: GetResultsArgs) => Promise<string>;
 declare let _sessionHub_getWebAppUrl: () => Promise<string>;
@@ -184,6 +186,10 @@ _sessionHub_revealJackpotDraw = secure("admin", async (args: RevealJackpotDrawAr
   return respond(() => results.revealJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.drawId));
 });
 
+_sessionHub_skipJackpotWinner = secure("admin", async (args: SkipJackpotWinnerArgs): Promise<string> => {
+  return respond(() => results.skipJackpotWinner(resolveResultsDeps(), args?.sessionId, args?.skip));
+});
+
 _sessionHub_resetJackpot = secure("admin", async (args: ResetJackpotArgs): Promise<string> => {
   return respond(() => results.resetJackpot(resolveResultsDeps(), args?.sessionId));
 });
@@ -221,6 +227,7 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   ensureJackpotPlan: _sessionHub_ensureJackpotPlan,
   commitJackpotDraw: _sessionHub_commitJackpotDraw,
   revealJackpotDraw: _sessionHub_revealJackpotDraw,
+  skipJackpotWinner: _sessionHub_skipJackpotWinner,
   resetJackpot: _sessionHub_resetJackpot,
   getResults: _sessionHub_getResults,
   getWebAppUrl: _sessionHub_getWebAppUrl,

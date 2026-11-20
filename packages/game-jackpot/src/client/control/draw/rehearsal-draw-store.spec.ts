@@ -50,4 +50,40 @@ describe("RehearsalDrawStore(サーバーの commit と同じ検査)", () => {
     expect(await s.results()).toEqual([]);
     expect(await s.plan()).toBeNull();
   });
+
+  describe("skipWinner(不在の当選者を飛ばす)", () => {
+    const member = (id: string) => ({ id, name: id });
+
+    it("当選者を置き換え、元の当選者を除外し、公開されていない状態に戻す。景品・確変の回はそのまま", async () => {
+      const s = new RehearsalDrawStore();
+      await s.commit(draw("d1", "m1", "p1", true));
+      await s.reveal("d1");
+      await s.skipWinner("d1", member("m2"));
+      expect(await s.excludedMemberIds()).toEqual(["m1"]);
+      expect(await s.pending()).toMatchObject({ drawId: "d1", wonMember: { id: "m2" }, wonPrize: { id: "p1" }, isKakuhen: true });
+      expect(await s.results()).toHaveLength(1);
+    });
+
+    it("同じ人への置き換えの再送は成功。新しい当選者がすでに当選・除外済み、抽選が無いときは矛盾", async () => {
+      const s = new RehearsalDrawStore();
+      await s.commit(draw("d1", "m1", "p1"));
+      await s.reveal("d1");
+      await s.commit(draw("d2", "m2", "p2"));
+      await expect(s.skipWinner("d2", member("m1"))).rejects.toBeInstanceOf(DrawConflictError);
+      await s.skipWinner("d2", member("m3"));
+      await s.skipWinner("d2", member("m3"));
+      await expect(s.skipWinner("d1", member("m2"))).rejects.toThrow(/外されています/);
+      await expect(s.skipWinner("nope", member("m4"))).rejects.toBeInstanceOf(DrawConflictError);
+      expect(await s.excludedMemberIds()).toEqual(["m2"]);
+    });
+
+    it("reset で除外も消える", async () => {
+      const s = new RehearsalDrawStore();
+      await s.commit(draw("d1", "m1", "p1"));
+      await s.skipWinner("d1", member("m2"));
+      await s.reset();
+      expect(await s.excludedMemberIds()).toEqual([]);
+    });
+  });
+
 });

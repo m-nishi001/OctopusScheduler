@@ -184,4 +184,40 @@ describe("SessionDrawStore", () => {
       expect(await store.pending()).toBeNull();
     });
   });
+
+  describe("skipWinner(不在の当選者を飛ばす)", () => {
+    it("サーバーで当選者を置き換えて未公開に戻す。参加者の当選履歴から消え、公開し直すと新しい当選者が見える。除外はサーバーに残る", async () => {
+      const { store, client, agent, directory } = await scene();
+      await store.ensurePlan([], []);
+      await store.commit(draw("d1", 0, 0));
+      await store.reveal("d1");
+      await vi.advanceTimersByTimeAsync(3000);
+      expect((await client.conn.getResults()).jackpot.draws).toHaveLength(1);
+
+      await store.skipWinner("d1", { id: "m2", name: "花子" });
+      await vi.advanceTimersByTimeAsync(3000);
+      expect((await client.conn.getResults()).jackpot.draws).toHaveLength(0);
+      expect(await store.excludedMemberIds()).toEqual(["m1"]);
+      expect((await store.pending())?.wonMember?.id).toBe("m2");
+      expect((await store.results())[0].wonPrize?.id).toBe("p1");
+
+      await store.reveal("d1");
+      await vi.advanceTimersByTimeAsync(3000);
+      expect((await client.conn.getResults()).jackpot.draws[0]).toMatchObject({ memberName: "花子", prizeName: "1等" });
+
+      // ホストの再読み込み(新しい store)でも、除外は残る
+      const reloaded = new SessionDrawStore(() => agent, directory);
+      expect(await reloaded.excludedMemberIds()).toEqual(["m1"]);
+    });
+
+    it("矛盾(すでに当選している人への置き換え)は DrawConflictError にして、状態を読み直す", async () => {
+      const { store } = await scene();
+      await store.commit(draw("d1", 0, 0));
+      await store.reveal("d1");
+      await store.commit(draw("d2", 1, 1));
+      await expect(store.skipWinner("d2", { id: "m1", name: "太郎" })).rejects.toBeInstanceOf(DrawConflictError);
+      expect(await store.excludedMemberIds()).toEqual([]);
+    });
+  });
+
 });

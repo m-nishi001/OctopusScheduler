@@ -26,7 +26,7 @@ import type {
   PollArgs,
   PollResult,
 } from "../../shared/protocol";
-import type { JackpotDrawInput, JackpotPlan, JackpotPlanInput, JackpotState, QuizRoundResult, ResultsView } from "../../shared/results";
+import type { JackpotDrawInput, JackpotSkipInput, JackpotPlan, JackpotPlanInput, JackpotState, QuizRoundResult, ResultsView } from "../../shared/results";
 import type {
   ClientInput,
   Command,
@@ -596,6 +596,12 @@ export class SessionConnection implements TransportSource {
   async revealJackpotDraw(drawId: string): Promise<number> {
     const c = this.requireCreds();
     return (await this.withNetworkRetry(() => this.opts.api.revealJackpotDraw({ sessionId: c.sessionId, drawId }))).rev;
+  }
+
+  /** ホスト(管理者): いまの当選者を以降の抽選から外し、同じ抽選の当選者を置き換える(未公開に戻る)。返る rev を参加者へ知らせる。矛盾すれば JACKPOT_CONFLICT。 */
+  async skipJackpotWinner(skip: JackpotSkipInput): Promise<number> {
+    const c = this.requireCreds();
+    return (await this.withNetworkRetry(() => this.opts.api.skipJackpotWinner({ sessionId: c.sessionId, skip }))).rev;
   }
 
   /** ホスト(管理者): 抽選の結果と確変の予定を消す(クイズの結果はそのまま)。 */

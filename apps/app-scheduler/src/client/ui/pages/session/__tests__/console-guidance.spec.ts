@@ -193,4 +193,39 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
       expect(g.main).toMatchObject({ label: "次へ", action: { kind: "advance" } });
     });
   });
+
+  describe("当選者を飛ばす(不在)ボタン", () => {
+    const draw = (over: Partial<JackpotPublished>) =>
+      at({ hostPath: "/execute/jackpot-draw", jackpot: { page: "main-draw", stage: "member", canStop: false, busy: false, member: null, memberId: null, prize: null, ...over } });
+    const revealed = { member: "太郎", memberId: "m1", prize: null };
+
+    it.each(["member-revealed", "prize", "prize-revealed"] as const)("%s: 当選者が画面に見えているので出る。押すと何が起きるかを予告する", (stage) => {
+      const g = draw({ ...revealed, stage });
+      expect(g.skip).toMatchObject({ label: "この人を飛ばす(不在)", memberId: "m1", memberName: "太郎", disabled: false, reason: null });
+      expect(g.skip!.hint).toContain("太郎さん");
+      expect(g.skip!.hint).toContain("同じ景品");
+    });
+
+    it.each(["waiting", "member", "ended"] as const)("%s: 当選者が見えていない・抽選が終わっているときは出さない", (stage) => {
+      expect(draw({ stage, member: "太郎", memberId: "m1" }).skip ?? null).toBeNull();
+    });
+
+    it("メンバー名・IDが無ければ出さない", () => {
+      expect(draw({ stage: "prize-revealed", member: null, memberId: null }).skip ?? null).toBeNull();
+    });
+
+    it("ホストが演出中(busy)なら押せない。ほかに候補がいない(spare が 0)ときも押せず、理由が出る。人数不明(undefined)・1人以上なら押せる", () => {
+      expect(draw({ ...revealed, stage: "prize-revealed", busy: true }).skip).toMatchObject({ disabled: true, reason: null });
+      expect(draw({ ...revealed, stage: "prize-revealed", spare: 0 }).skip).toMatchObject({ disabled: true });
+      expect(draw({ ...revealed, stage: "prize-revealed", spare: 0 }).skip!.reason).toContain("ほかに抽選できる人がいない");
+      expect(draw({ ...revealed, stage: "prize-revealed", spare: 1 }).skip).toMatchObject({ disabled: false });
+      expect(draw({ ...revealed, stage: "prize-revealed" }).skip).toMatchObject({ disabled: false });
+    });
+
+    it("抽選画面以外・ホスト不在では出さない", () => {
+      expect(at({ hostPath: "/execute/jackpot-result" }).skip ?? null).toBeNull();
+      expect(at({ hostPath: "/execute/jackpot-draw", hostOnline: false }).skip ?? null).toBeNull();
+    });
+  });
+
 });

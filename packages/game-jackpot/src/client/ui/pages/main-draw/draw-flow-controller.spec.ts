@@ -366,4 +366,78 @@ describe("DrawFlowController: 抽選を打ち切って次の画面へ進む(デ�
     await flow.advance();
     expect(onLeave).toHaveBeenCalledTimes(1);
   });
+
+  describe("replaceCycle(当選者を飛ばして、サイクルを組み直す)", () => {
+    it("積んであるステップを捨てて、組み直したステップを最初の pause まで進める。進行中の印も立つ", async () => {
+      const { flow, deps, log } = setup({ cycles: [makeCycle([], "old", [3])] });
+      await flow.advance(); // 古いサイクルを積み、1つ目の pause まで
+      deps.onStarted.mockClear();
+      deps.onSettled.mockClear();
+
+      const replaced = await flow.replaceCycle(async () => makeCycle(log, "new", [2]));
+
+      expect(replaced).toBe(true);
+      expect(log).toContain("new1");
+      expect(log).toContain("new2");
+      expect(log).not.toContain("new3");
+      expect(deps.queue.isEmpty()).toBe(false); // 続きは次の操作で
+      expect(deps.onStarted).toHaveBeenCalledTimes(1);
+      expect(deps.onSettled).toHaveBeenCalledTimes(1);
+    });
+
+    it("prepare が null(やらない)・例外のときは、積んであるステップをそのままにして進めない", async () => {
+      const { flow, deps, log } = setup({ cycles: [makeCycle([], "old", [1])] });
+      await flow.advance();
+      const before = log.length;
+
+      expect(await flow.replaceCycle(async () => null)).toBe(false);
+      expect(await flow.replaceCycle(async () => { throw new Error("通信できません"); })).toBe(false);
+
+      expect(deps.onStepError).toHaveBeenCalledTimes(1);
+      expect(log.length).toBe(before);
+      expect(deps.queue.isEmpty()).toBe(false);
+    });
+
+    it("進行中・準備前・終了後は何もしない(進行操作と同じ排他)", async () => {
+      const { flow, deps } = setup({ remaining: [0] });
+      const prepare = vi.fn(async () => [] as Step[]);
+      flow.ready = false;
+      expect(await flow.replaceCycle(prepare)).toBe(false);
+      flow.ready = true;
+      await flow.advance(); // 終了になる
+      expect(flow.finished).toBe(true);
+      expect(await flow.replaceCycle(prepare)).toBe(false);
+      expect(prepare).not.toHaveBeenCalled();
+      expect(deps.onFinished).toHaveBeenCalledTimes(1);
+    });
+
+    it("組み直し中の進行操作は無視される(二重に進めない)", async () => {
+      const { flow, log } = setup({ cycles: [makeCycle([], "old", [1])] });
+      await flow.advance();
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      const running = flow.replaceCycle(async () => {
+        await gate;
+        return makeCycle(log, "new", [1]);
+      });
+      await flow.advance(); // 無視される
+      release();
+      await running;
+      expect(log.filter((l) => l.startsWith("new"))).toEqual(["new1"]);
+    });
+  });
+
+
+  it("busy は、進行(または組み直し)の実行中だけ true", async () => {
+    const { flow } = setup({ cycles: [makeCycle([], "a", [1])] });
+    let during: boolean | null = null;
+    expect(flow.busy).toBe(false);
+    await flow.replaceCycle(async () => {
+      during = flow.busy;
+      return null;
+    });
+    expect(during).toBe(true);
+    expect(flow.busy).toBe(false);
+  });
+
 });

@@ -15,6 +15,7 @@ import {
   isResultsValidationError,
   parseJackpotDraw,
   parseJackpotPlan,
+  parseJackpotSkip,
   parseQuizRoundResult,
   personalize,
   revealedDraws,
@@ -51,7 +52,7 @@ async function load(deps: ResultsDeps, key: string): Promise<ResultsDoc> {
   } catch {
     // 下で扱う
   }
-  if (!doc || doc.v !== 2 || !Array.isArray(doc.rounds) || !Array.isArray(doc.draws) || typeof doc.jackpot !== "object" || doc.jackpot === null) {
+  if (!doc || doc.v !== 2 || !Array.isArray(doc.rounds) || !Array.isArray(doc.draws) || typeof doc.jackpot !== "object" || doc.jackpot === null || !Array.isArray(doc.jackpot.excludedMemberIds)) {
     throw new DomainError(`結果ファイルを読み込めませんでした（${key} が壊れている可能性があります）`);
   }
   return doc;
@@ -121,7 +122,7 @@ const sameDraw = (a: JackpotDrawInput, b: JackpotDrawInput): boolean =>
 /** ジャックポットの抽選状態(未公開の行を含む)。管理者向け。 */
 export async function getJackpotState(deps: ResultsDeps, sessionId: string): Promise<JackpotState> {
   const doc = await load(deps, resultsKey(sessionId));
-  return { rev: doc.rev, plan: doc.jackpot.plan, draws: doc.draws };
+  return { rev: doc.rev, plan: doc.jackpot.plan, excludedMemberIds: doc.jackpot.excludedMemberIds, draws: doc.draws };
 }
 
 /** 確変の予定を、まだ無ければ保存する。すでにあれば保存済みのものを返す(並行して呼ばれても先に保存されたものが勝つ)。 */
@@ -175,11 +176,33 @@ export async function revealJackpotDraw(deps: ResultsDeps, sessionId: string, dr
   });
 }
 
+/**
+ * 不在の当選者を飛ばす。いまの当選者を以降の抽選から外し(excludedMemberIds)、同じ抽選(景品・確変の回はそのまま)の当選者を
+ * 新しいメンバーに置き換えて、未公開に戻す(ポータルの当選履歴から消え、新しい当選者を見せ終えてから公開し直す)。
+ * ロックの中で次を検証し、矛盾すれば JACKPOT_CONFLICT: 抽選が無い / 新しい当選者がすでに当選・除外されている。
+ * 置き換え済みの再送(いまの当選者が新しい当選者と同じ)は成功(何も書かない)。
+ */
+export async function skipJackpotWinner(deps: ResultsDeps, sessionId: string, input: unknown): Promise<{ rev: number }> {
+  const skip = parse(parseJackpotSkip, input);
+  return mutate(deps, sessionId, (doc) => {
+    const draw = doc.draws.find((d) => d.drawId === skip.drawId);
+    if (!draw) throw conflict("飛ばす抽選結果が見つかりません");
+    if (draw.memberId === skip.newMemberId) return null;
+    if (doc.draws.some((d) => d.memberId === skip.newMemberId)) throw conflict("このメンバーはすでに当選しています");
+    if (doc.jackpot.excludedMemberIds.includes(skip.newMemberId)) throw conflict("このメンバーは抽選から外されています");
+    doc.jackpot.excludedMemberIds.push(draw.memberId);
+    draw.memberId = skip.newMemberId;
+    draw.memberName = skip.newMemberName;
+    draw.revealedAtMs = null;
+    return doc;
+  });
+}
+
 /** 抽選の結果と確変の予定を消す(クイズのラウンドはそのまま)。 */
 export async function resetJackpot(deps: ResultsDeps, sessionId: string): Promise<{ rev: number }> {
   return mutate(deps, sessionId, (doc) => {
     doc.draws = [];
-    doc.jackpot = { plan: null };
+    doc.jackpot = { plan: null, excludedMemberIds: [] };
     return doc;
   });
 }

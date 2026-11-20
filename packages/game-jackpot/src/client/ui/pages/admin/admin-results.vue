@@ -37,6 +37,13 @@
             </template>
         </DataTable>
 
+        <h3>飛ばした人(不在)</h3>
+        <p v-if="excludedNames.length === 0" class="results-note" data-testid="excluded-empty">飛ばした人はいません</p>
+        <ul v-else class="excluded-list" data-testid="excluded-list">
+            <li v-for="e in excludedNames" :key="e.id">{{ e.name }}</li>
+        </ul>
+        <p class="results-note">飛ばした人は、当選済みの人と同じく以降の抽選に出ません(取り消しはできません。やり直すには結果をリセットします)。</p>
+
         <h3>メンバー当選状況</h3>
         <DataTable :columns="memberColumns" :rows="memberStats" row-key="id" empty-text="メンバー当選状況はありません">
             <template #cell-photo="{ row }">
@@ -111,6 +118,7 @@ const sessions = ref<SessionSummary[]>([]);
 const selected = ref<string>(REHEARSAL);
 const draws = ref<Row[]>([]);
 const reservedPrizeIds = ref<string[]>([]);
+const excludedMemberIds = ref<string[]>([]);
 const prizes = ref<Prize[]>([]);
 const members = ref<MemberDto[]>([]);
 const showResetModal = ref(false);
@@ -157,6 +165,11 @@ const remainingPrizes = computed(() => {
     return prizes.value.filter(p => !won.has(p.id)).length;
 });
 
+/** 飛ばした人の名前(名簿に無ければID)。 */
+const excludedNames = computed(() =>
+    excludedMemberIds.value.map(id => ({ id, name: members.value.find(m => m.id === id)?.name ?? id }))
+);
+
 const memberStats = computed(() =>
     members.value.map(member => ({ ...member, wins: draws.value.filter(r => r.memberId === member.id).length }))
 );
@@ -175,6 +188,7 @@ const openResetModal = () => {
 const fromState = (state: JackpotState) => {
     draws.value = state.draws.map(d => ({ ...d, revealed: d.revealedAtMs !== null }));
     reservedPrizeIds.value = state.plan?.reservedPrizeIds ?? [];
+    excludedMemberIds.value = state.excludedMemberIds;
 };
 
 /** 選んだ保存先(セッションの結果ファイル / リハーサル)の抽選状態を読む。 */
@@ -186,6 +200,7 @@ const loadJackpot = async () => {
             prizeId: r.wonPrize?.id ?? '', prizeName: r.wonPrize?.name ?? '不明', isKakuhen: r.isKakuhen, atMs: r.createdAt, revealed: true,
         }));
         reservedPrizeIds.value = (await store.plan())?.reservedPrizeIds ?? [];
+        excludedMemberIds.value = await store.excludedMemberIds();
         return;
     }
     const api = hubApi();
@@ -255,6 +270,16 @@ onMounted(async () => {
 .session-picker select {
     min-width: 0;
     max-width: 100%;
+}
+
+.results-note {
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-sm, 0.875rem);
+}
+
+.excluded-list {
+    margin: 0 0 8px;
+    padding-left: 20px;
 }
 
 .results-error {
