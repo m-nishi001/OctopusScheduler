@@ -16,6 +16,8 @@ import type {
   ListParticipantsResult,
   OpenRoundArgs,
   OpenRoundResult,
+  RemoveAnswerArgs,
+  RemoveAnswerResult,
   RoundAnswer,
   RoundSummary,
   SubmitAnswerArgs,
@@ -142,6 +144,20 @@ export async function submitAnswer(deps: EngineDeps, args: SubmitAnswerArgs): Pr
   if (!result) throw hubError("ROUND_NOT_OPEN", "いまは回答を受け付けていません");
   if (result.kind === "full") throw hubError("PAYLOAD_TOO_LARGE", "回答数が上限に達しました");
   return { no: result.answer.no, atMs: result.answer.atMs, duplicate: result.kind === "unchanged" };
+}
+
+/**
+ * ホスト/管理が、そのメンバーの回答(エントリー)を取り消して一覧から外す。受付中でも締切後でも外せる(締め切った一覧を直したいため)。
+ * すでに無ければ何もせず removed=false(取り消しの再送も成功)。外すと回答数・回答の版が更新される。
+ * 「ジャックポットに当選済みの人は外せない」は、結果の保存先を持たないこの層ではなく、エンドポイントが結果ファイルを見て拒否する。
+ */
+export async function removeAnswer(deps: EngineDeps, args: RemoveAnswerArgs): Promise<RemoveAnswerResult> {
+  const { device } = await authenticate(deps, args);
+  if (device.role === "client") throw hubError("FORBIDDEN", "参加者は回答を取り消せません");
+  if (typeof args.memberId !== "string" || args.memberId.length === 0) throw hubError("INVALID_ARGUMENT", "memberId が不正です");
+  const round = await deps.repo.getRound();
+  if (!round || round.key !== args.key) throw hubError("ROUND_NOT_OPEN", "該当する回答受付がありません");
+  return { removed: await deps.repo.removeAnswer(round.key, args.memberId) };
 }
 
 /** ホスト/管理が、回答の一覧(正誤・順位の集計に使う)を取得する。 */

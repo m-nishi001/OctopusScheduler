@@ -32,6 +32,8 @@ import type {
   PublishStateArgs,
   PublishStateResult,
   PutQuizResultArgs,
+  RemoveAnswerArgs,
+  RemoveAnswerResult,
   ResetJackpotArgs,
   ResultsRevResult,
   RevealJackpotDrawArgs,
@@ -56,6 +58,7 @@ export const SESSION_HUB_ENDPOINTS = [
   "openRound",
   "closeRound",
   "submitAnswer",
+  "removeAnswer",
   "getAnswers",
   "listParticipants",
   "putQuizResult",
@@ -87,6 +90,8 @@ export interface SessionHubApi {
   openRound(args: OpenRoundArgs, options?: ApiCallOptions): Promise<OpenRoundResult>;
   closeRound(args: CloseRoundArgs, options?: ApiCallOptions): Promise<RoundSummary>;
   submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmitAnswerResult>;
+  /** ホスト/管理(管理者): そのメンバーの回答(エントリー)を取り消す。ジャックポットに当選済みのメンバーは JACKPOT_CONFLICT で拒否する。 */
+  removeAnswer(args: RemoveAnswerArgs, options?: ApiCallOptions): Promise<RemoveAnswerResult>;
   getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<GetAnswersResult>;
   /** ホスト/管理: このセッションにポータルから入室したメンバーのID一覧を取得する。 */
   listParticipants(args: ListParticipantsArgs, options?: ApiCallOptions): Promise<ListParticipantsResult>;

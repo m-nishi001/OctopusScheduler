@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { RESULTS_LIMITS } from "../../../shared/results";
 import { createTestHub } from "../../../testing/test-hub";
-import { commitJackpotDraw, ensureJackpotPlan, getJackpotState, getResultsFor, putQuizResult, resetJackpot, resultsKey, revealJackpotDraw, skipJackpotWinner } from "../results-use-cases";
+import { commitJackpotDraw, ensureJackpotPlan, getJackpotState, getResultsFor, putQuizResult, resetJackpot, resultsKey, revealJackpotDraw, skipJackpotWinner, assertNotJackpotWinner } from "../results-use-cases";
 import type { ResultsDeps } from "../results-use-cases";
 import { parseHubErrorCode } from "../../../shared/hub-error";
 
@@ -277,6 +277,18 @@ describe("results-use-cases", () => {
         expect(await codeOf(skipJackpotWinner(deps, "s1", skipInput({ drawId: "nope" })))).toBe("JACKPOT_CONFLICT");
         expect(await getJackpotState(deps, "s1")).toEqual(before);
         expect(await codeOf(skipJackpotWinner(deps, "s1", { drawId: "d1" }))).toBe("INVALID_ARGUMENT");
+      });
+
+      it("当選済みのメンバーは「エントリーの取り消し」の前の確認(assertNotJackpotWinner)で拒否される。未公開の確定も当選として数える。飛ばされた人は当選者ではない", async () => {
+        const { deps } = setup();
+        await expect(assertNotJackpotWinner(deps, "s1", "a")).resolves.toBeUndefined();
+        await commitJackpotDraw(deps, "s1", drawInput());
+        expect(await codeOf(assertNotJackpotWinner(deps, "s1", "a"))).toBe("JACKPOT_CONFLICT");
+        await expect(assertNotJackpotWinner(deps, "s1", "b")).resolves.toBeUndefined();
+        await skipJackpotWinner(deps, "s1", skipInput());
+        await expect(assertNotJackpotWinner(deps, "s1", "a")).resolves.toBeUndefined();
+        expect(await codeOf(assertNotJackpotWinner(deps, "s1", "b"))).toBe("JACKPOT_CONFLICT");
+        expect(await codeOf(assertNotJackpotWinner(deps, "s1", ""))).toBe("INVALID_ARGUMENT");
       });
 
       it("結果のリセットで除外も消える", async () => {

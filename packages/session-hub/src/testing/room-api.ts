@@ -51,6 +51,7 @@ export function createRoomApi(
     openRound: (args) => run("openRound", args, () => room.call("openRound", args)),
     closeRound: (args) => run("closeRound", args, () => room.call("closeRound", args)),
     submitAnswer: (args) => run("submitAnswer", args, () => room.call("submitAnswer", args)),
+    removeAnswer: (args) => run("removeAnswer", args, () => room.call("removeAnswer", args)),
     getAnswers: (args) => run("getAnswers", args, () => room.call("getAnswers", args)),
     listParticipants: (args) => run("listParticipants", args, () => room.call("listParticipants", args)),
     // 結果の保存は DO ではなく R2 / Drive(Worker 側)で扱うので、1セッション分の DO を模すこの API には無い

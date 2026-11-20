@@ -15,6 +15,7 @@ import { parseHubErrorCode } from "../../shared/hub-error";
 import type { HubErrorCode } from "../../shared/hub-error";
 import type {
   GetAnswersResult,
+  RemoveAnswerResult,
   ListParticipantsResult,
   OpenRoundResult,
   RoundOption,
@@ -551,6 +552,14 @@ export class SessionConnection implements TransportSource {
     const c = this.requireCreds();
     return this.withNetworkRetry(() =>
       this.opts.api.closeRound({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key })
+    );
+  }
+
+  /** ホスト/管理: そのメンバーの回答(エントリー)を取り消す。ジャックポットに当選済みなら JACKPOT_CONFLICT。 */
+  async removeAnswer(key: string, memberId: string): Promise<RemoveAnswerResult> {
+    const c = this.requireCreds();
+    return this.withNetworkRetry(() =>
+      this.opts.api.removeAnswer({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key, memberId })
     );
   }
 

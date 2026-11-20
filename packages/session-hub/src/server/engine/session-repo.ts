@@ -8,7 +8,7 @@
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
 import { COMMAND_RING_SIZE } from "../../shared/session-types";
 import type { RoundAnswer } from "../../shared/protocol";
-import { isSameRespondent, upsertAnswer, type UpsertAnswerResult } from "./round-answers";
+import { isSameRespondent, removeAnswerOf, upsertAnswer, type UpsertAnswerResult } from "./round-answers";
 import type {
   Command,
   Device,
@@ -76,6 +76,10 @@ export interface SessionRepo {
    * ラウンドが無い/key が違うときは null。
    */
   upsertAnswer(key: string, answer: RoundAnswer, maxAnswers: number): Promise<UpsertAnswerResult | null>;
+  /**
+   * そのメンバーの回答を外す。外したら true(回答数・回答の版が更新される)。無い・ラウンドが無い/key が違うときは false。
+   */
+  removeAnswer(key: string, memberId: string): Promise<boolean>;
   /**
    * 参加者名簿(ポータルから入室したことのあるメンバーのID)に追加する。すでに入っていれば何もしない(書き込みもしない)。
    * 保存するのはメンバーIDだけ。
@@ -190,7 +194,7 @@ interface AnswerChunk {
 function createKvRoundOps(
   storage: IKeyValueStorage,
   k: (name: string) => string
-): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "reopenRound" | "listAnswers" | "upsertAnswer"> {
+): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "reopenRound" | "listAnswers" | "upsertAnswer" | "removeAnswer"> {
   const chunkKey = (index: number): string => k(`answers/${index}`);
 
   /** このラウンドの回答のかたまりを、先頭から順に読む(満杯でないかたまりが最後)。 */
@@ -239,6 +243,21 @@ function createKvRoundOps(
         await storage.set(k("round"), JSON.stringify({ ...round, answerCount: answers.length, answerRev: round.answerRev + 1 } satisfies StoredRound));
       }
       return result;
+    },
+    async removeAnswer(key, memberId) {
+      const round = await readJson<StoredRound>(storage, k("round"));
+      if (!round || round.key !== key) return false;
+      const answers = (await readChunks(key)).flat();
+      const removedIndex = removeAnswerOf(answers, memberId);
+      if (removedIndex < 0) return false;
+      // 外した位置のかたまりから後ろを書き直す(後ろの回答が前に詰まる)。最後のかたまりが空になったら、空のかたまりとして残す
+      const lastChunk = Math.max(0, Math.ceil((answers.length + 1) / ANSWER_CHUNK_SIZE) - 1);
+      for (let i = Math.floor(removedIndex / ANSWER_CHUNK_SIZE); i <= lastChunk; i++) {
+        const chunk: AnswerChunk = { key, answers: answers.slice(i * ANSWER_CHUNK_SIZE, (i + 1) * ANSWER_CHUNK_SIZE) };
+        await storage.set(chunkKey(i), JSON.stringify(chunk));
+      }
+      await storage.set(k("round"), JSON.stringify({ ...round, answerCount: answers.length, answerRev: round.answerRev + 1 } satisfies StoredRound));
+      return true;
     },
   };
 }

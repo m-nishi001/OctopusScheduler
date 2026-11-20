@@ -93,6 +93,11 @@ export function createFakeHubApi(
     openRound: (args) => run("openRound", args, () => service.openRound(hub.deps, args)),
     closeRound: (args) => run("closeRound", args, () => service.closeRound(hub.deps, args)),
     submitAnswer: (args) => run("submitAnswer", args, () => service.submitAnswer(hub.deps, args)),
+    removeAnswer: (args) => run("removeAnswer", args, async () => {
+      operator();
+      await results.assertNotJackpotWinner(resultsDeps(), args.sessionId, args.memberId);
+      return service.removeAnswer(hub.deps, args);
+    }),
     getAnswers: (args) => run("getAnswers", args, () => service.getAnswers(hub.deps, args)),
     listParticipants: (args) => run("listParticipants", args, () => service.listParticipants(hub.deps, args)),
     putQuizResult: (args) => run("putQuizResult", args, async () => {

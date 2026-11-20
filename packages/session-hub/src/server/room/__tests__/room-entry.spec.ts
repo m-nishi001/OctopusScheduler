@@ -88,3 +88,33 @@ describe("SessionRoomCore: エントリー受付(オープン型ラウンド)", 
     expect(MAX_ROUND_ANSWERS_DO).toBeGreaterThanOrEqual(1000);
   });
 });
+
+describe("SessionRoomCore: エントリーの取り消し", () => {
+  it("ホスト・管理が外せ、回答数の変化は alarm でまとめて配信・保存される。DO を作り直しても外れたまま", async () => {
+    const { room, host, admin, creds, portal, open, enter, answers } = await scene();
+    const wsHost = await room.connectAndAuth(creds(host));
+    await open();
+    await enter(await portal("alice"));
+    await enter(await portal("bob"));
+    await room.runAlarm();
+    const before = wsHost.received.length;
+
+    expect(await room.call("removeAnswer", { ...creds(admin), key: KEY, memberId: "alice" })).toEqual({ removed: true });
+    expect(wsHost.received.length).toBe(before); // 1件ごとには配信しない
+    await room.runAlarm();
+    expect(wsHost.received.length).toBe(before + 1);
+    expect(wsHost.lastUpdate()?.round).toMatchObject({ key: KEY, answerCount: 1 });
+    expect((await answers()).answers.map((a) => a.memberId)).toEqual(["bob"]);
+
+    // 無い人は何も起きない(alarm も増やさない)
+    expect(await room.call("removeAnswer", { ...creds(admin), key: KEY, memberId: "alice" })).toEqual({ removed: false });
+  });
+
+  it("参加者は取り消せない", async () => {
+    const { room, creds, portal, open, enter } = await scene();
+    await open();
+    const alice = await portal("alice");
+    await enter(alice);
+    await expect(room.call("removeAnswer", { ...creds(alice), key: KEY, memberId: "alice" })).rejects.toThrow(/FORBIDDEN/);
+  });
+});

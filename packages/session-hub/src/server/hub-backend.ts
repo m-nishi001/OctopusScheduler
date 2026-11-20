@@ -14,6 +14,8 @@ import type {
   ListParticipantsResult,
   OpenRoundArgs,
   OpenRoundResult,
+  RemoveAnswerArgs,
+  RemoveAnswerResult,
   RoundSummary,
   SubmitAnswerArgs,
   SubmitAnswerResult,
@@ -48,6 +50,7 @@ export interface SessionHubBackend {
   openRound(args: OpenRoundArgs): Promise<OpenRoundResult>;
   closeRound(args: CloseRoundArgs): Promise<RoundSummary>;
   submitAnswer(args: SubmitAnswerArgs): Promise<SubmitAnswerResult>;
+  removeAnswer(args: RemoveAnswerArgs): Promise<RemoveAnswerResult>;
   getAnswers(args: GetAnswersArgs): Promise<GetAnswersResult>;
   listParticipants(args: ListParticipantsArgs): Promise<ListParticipantsResult>;
 }
@@ -69,6 +72,7 @@ export function createKvBackend(deps: ServiceDeps): SessionHubBackend {
     openRound: (args) => service.openRound(deps, args),
     closeRound: (args) => service.closeRound(deps, args),
     submitAnswer: (args) => service.submitAnswer(deps, args),
+    removeAnswer: (args) => service.removeAnswer(deps, args),
     getAnswers: (args) => service.getAnswers(deps, args),
     listParticipants: (args) => service.listParticipants(deps, args),
   };

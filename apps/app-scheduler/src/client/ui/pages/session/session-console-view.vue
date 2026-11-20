@@ -122,8 +122,16 @@
                             <span class="console__seq">#{{ entryRoster.answers.value.length - i }}</span>
                             <span>{{ a.label }}</span>
                             <span class="console__sub">{{ entryTime(a.atMs) }}</span>
+                            <span v-if="a.memberId && winnerIds.has(a.memberId)" class="console__sub" data-testid="entrant-won">当選済み</span>
+                            <UiButton v-else-if="canRemoveEntrant(a)" size="sm" variant="danger" :disabled="busyRemove !== null || !canSend"
+                                :loading="busyRemove === a.memberId" data-testid="entrant-remove" @click="removeEntrant(a)">
+                                外す
+                            </UiButton>
                         </li>
                     </ol>
+                    <p v-if="drawPool === 'auto'" class="console__sub" data-testid="entrant-remove-note">
+                        抽選の対象が参加者全員(自動)のときは、エントリーの一覧は抽選に使われないので、取り消せません。不在の人は、抽選画面の「この人を飛ばす(不在)」で外せます。
+                    </p>
                     <p v-if="entryRoster.error.value" class="console__sub is-warn" role="alert">エントリー一覧を取得できませんでした。人数が変わると自動で取り直します。</p>
                     <div class="console__pool" data-testid="pool-panel">
                         <p class="console__sub" data-testid="pool-state">
@@ -200,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { GetAllQuizzesUseCase, QuizSyncService } from '@octopus/game-quiz';
@@ -211,6 +219,7 @@ import {
     PORTAL_EVENT_END,
     PORTAL_EVENT_NS,
     PORTAL_EVENT_OPEN_ENTRY,
+    PORTAL_EVENT_REMOVE_ENTRANT,
     PORTAL_EVENT_SET_POOL,
     PORTAL_EVENT_START,
     createSessionConnection,
@@ -237,7 +246,7 @@ const props = defineProps<{ connection?: SessionConnection }>();
 const route = useRoute();
 const router = useRouter();
 const { currentMember } = useAuthSession();
-const { confirm } = useConfirm();
+const { confirm, confirmDelete } = useConfirm();
 
 // 管理端末の接続はこの画面の寿命と一緒(画面を閉じたら切断。入室情報は残るのでリロードで復帰できる)。
 const { state, connection } = useSessionConnection(props.connection ?? createSessionConnection());
@@ -253,6 +262,7 @@ const { busy: busyStart, run: runStart } = useBusy<'quiz' | 'jackpot' | 'entry'>
 const { busy: busyEvent, run: runEvent } = useBusy<'start' | 'end'>(reportError);
 const { busy: busyEntry, run: runEntry } = useBusy<'openEntry' | 'closeEntry'>(reportError);
 const { busy: busyPool, run: runPool } = useBusy<DrawPool>(reportError);
+const { busy: busyRemove, run: runRemove } = useBusy<string>(reportError);
 const eventTitle = ref('');
 const quizzes = ref<Array<{ id: string; title: string; question: string }>>([]);
 const quizLoading = ref(false);
@@ -322,6 +332,46 @@ const entryRoster = useRoundAnswers(connection, state, entryKey);
 /** ジャックポットの抽選の対象。指定が無いイベントは全メンバー。 */
 const drawPool = computed<DrawPool>(() => portalEvent.value?.pool ?? 'auto');
 const poolLabel = computed(() => (drawPool.value === 'entrants' ? `エントリーした人のみ(${entryRoster.count.value}人)` : '参加者全員(自動)'));
+/**
+ * ジャックポットに当選済み(未公開の確定を含む)のメンバーのID。当選済みの人のエントリーは取り消せない(行にボタンを出さない)。
+ * ホストが結果を公開するたび(rev が進むとき)に取り直す。取れなくても、取り消しを押したときにもう一度確かめる。
+ */
+const winnerIds = ref<Set<string>>(new Set());
+async function loadWinners(): Promise<void> {
+    try {
+        winnerIds.value = new Set((await connection.getJackpotState()).draws.map((d) => d.memberId));
+    } catch {
+        // 取得できないときは前のまま
+    }
+}
+const resultsRev = computed(() => (state.value.roomState?.data?.results as { rev?: number } | undefined)?.rev ?? 0);
+watch(
+    [() => state.value.phase, resultsRev],
+    ([phase]) => {
+        if (phase === 'connected') void loadWinners();
+    },
+    { immediate: true }
+);
+
+/** 抽選の対象が「エントリーした人のみ」のときだけ、エントリーを取り消せる(自動のときは一覧が抽選に使われない)。ログインしていない回答(メンバー不明)は外せない。 */
+const canRemoveEntrant = (a: { memberId: string | null }): boolean => drawPool.value === 'entrants' && !!a.memberId;
+
+/** エントリーの取り消し。確認のあと、当選済みでないか確かめてから、ホストに取り消しを頼む(サーバーも当選済みは拒否する)。 */
+async function removeEntrant(a: { memberId: string | null; label: string }): Promise<void> {
+    const memberId = a.memberId;
+    if (!memberId) return;
+    const ok = await confirmDelete(`${a.label}さんのエントリーを取り消します。抽選の対象から外れます。受付中なら、本人はもう一度エントリーできます。続けますか?`, 'エントリーの取り消し');
+    if (!ok) return;
+    await loadWinners();
+    if (winnerIds.value.has(memberId)) {
+        toast.error('ジャックポットに当選済みのため、エントリーを取り消せません');
+        return;
+    }
+    await runRemove(memberId, async () => {
+        await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_REMOVE_ENTRANT, { memberId });
+    });
+}
+
 /** 新しい順に最大50人。全員を並べると長くなるので、人数は別に出す。 */
 const recentEntrants = computed(() => [...entryRoster.answers.value].reverse().slice(0, 50));
 const entryTime = (atMs: number): string => new Date(atMs).toLocaleTimeString('ja-JP', { hour12: false });

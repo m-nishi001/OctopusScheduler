@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ROUND_KEY_PATTERN } from "../session-types";
 import {
   ENTRY_OPTIONS,
+  cancelCountOf,
+  parseRemoveEntrantPayload,
   parseDrawPool,
   parseSetPoolPayload,
   MAX_EVENT_TITLE_LENGTH,
@@ -105,5 +107,31 @@ describe("ジャックポットの抽選の対象", () => {
     for (const v of [undefined, null, "", "all", "ALL", "member", 0]) expect(parseDrawPool(v)).toBeNull();
     expect(parseSetPoolPayload({ mode: "entrants" })).toEqual({ mode: "entrants" });
     for (const p of [null, undefined, {}, { mode: "x" }, "entrants"]) expect(parseSetPoolPayload(p)).toBeNull();
+  });
+});
+
+describe("エントリーの取り消し", () => {
+  const event = { id: "e1", title: "抽選", startedAtMs: 1_700_000_000_000 };
+  const entry = { key: "entry:e1", open: true };
+
+  it("イベントのエントリーから、取り消した回数(メンバーID → 回数)を取り出す。正の整数以外の項目は捨て、残らなければ省略する", () => {
+    expect(readPortalEvent({ event: { ...event, entry: { ...entry, cancelled: { alice: 2, bob: 1 } } } })?.entry?.cancelled).toEqual({ alice: 2, bob: 1 });
+    expect(readPortalEvent({ event: { ...event, entry: { ...entry, cancelled: { alice: 0, bob: -1, carol: 1.5, dave: "1", eve: 3 } } } })?.entry?.cancelled).toEqual({ eve: 3 });
+    for (const cancelled of [undefined, null, [], "x", 5, {}, { a: 0 }]) {
+      expect(readPortalEvent({ event: { ...event, entry: { ...entry, cancelled } } })?.entry, JSON.stringify(cancelled)).toEqual(entry);
+    }
+  });
+
+  it("cancelCountOf は、そのメンバーの取り消し回数(無ければ 0)", () => {
+    expect(cancelCountOf({ cancelled: { alice: 2 } }, "alice")).toBe(2);
+    expect(cancelCountOf({ cancelled: { alice: 2 } }, "bob")).toBe(0);
+    expect(cancelCountOf({}, "alice")).toBe(0);
+    expect(cancelCountOf(null, "alice")).toBe(0);
+    expect(cancelCountOf({ cancelled: { alice: 2 } }, null)).toBe(0);
+  });
+
+  it("event.removeEntrant のペイロードは memberId が空でない文字列のときだけ受け付ける", () => {
+    expect(parseRemoveEntrantPayload({ memberId: "alice" })).toEqual({ memberId: "alice" });
+    for (const p of [null, undefined, {}, { memberId: "" }, { memberId: 1 }, "alice"]) expect(parseRemoveEntrantPayload(p)).toBeNull();
   });
 });

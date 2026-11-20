@@ -2,7 +2,7 @@
 import type { Command, Device, RoomState, SessionMeta } from "../../shared/session-types";
 import { COMMAND_RING_SIZE } from "../../shared/session-types";
 import type { RoundAnswer } from "../../shared/protocol";
-import { upsertAnswer } from "../engine/round-answers";
+import { removeAnswerOf, upsertAnswer } from "../engine/round-answers";
 import type { SessionRepo, StoredHead, StoredRound } from "../engine/session-repo";
 import type { RoomStorage } from "./room-types";
 
@@ -105,6 +105,15 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
         version++;
       }
       return result;
+    },
+    async removeAnswer(key, memberId) {
+      const round = await loadRound();
+      const stored = await loadAnswers();
+      if (!round || !stored || stored.key !== key) return false;
+      if (removeAnswerOf(stored.answers, memberId) < 0) return false;
+      roundCache = { ...round, answerCount: stored.answers.length, answerRev: round.answerRev + 1 };
+      version++;
+      return true;
     },
     listParticipantIds: async () => [...(await loadParticipants())],
     async addParticipant(memberId) {

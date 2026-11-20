@@ -20,6 +20,16 @@ export function isSameRespondent(existing: RoundAnswer, by: Pick<RoundAnswer, "d
 }
 
 /**
+ * 回答の一覧から、そのメンバーの回答を外す(一覧を直接書き換える)。外した位置を返す(無ければ -1)。
+ * 同じメンバーの回答は1人1件なので、外すのは高々1件。端末でなくメンバーで探す(別の端末から回答していても同じ人)。
+ */
+export function removeAnswerOf(answers: RoundAnswer[], memberId: string): number {
+  const index = answers.findIndex((a) => a.memberId === memberId);
+  if (index >= 0) answers.splice(index, 1);
+  return index;
+}
+
+/**
  * 受付中の回答を一覧へ反映する(一覧を直接書き換える)。1人1件で、選び直すと置き換わり、一覧の末尾へ移る。
  * 置き換えたときだけ回答時刻(atMs)が新しくなる = 速さの基準は「最後に選んだ時刻」。
  * 一覧は常に回答時刻の順に並ぶ。

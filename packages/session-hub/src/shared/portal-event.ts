@@ -15,6 +15,8 @@ export const PORTAL_EVENT_OPEN_ENTRY = "openEntry";
 export const PORTAL_EVENT_CLOSE_ENTRY = "closeEntry";
 /** まだ一度もエントリー受付を始めていないイベントだけ、受付を開始する(クイズのエントリー画面が自動で呼ぶ)。 */
 export const PORTAL_EVENT_ENSURE_ENTRY = "ensureEntry";
+/** エントリー受付から、メンバーをひとり取り消す(エントリーした人だけが抽選の対象のとき、間違ったエントリーを外す)。当選済みの人は外せない。 */
+export const PORTAL_EVENT_REMOVE_ENTRANT = "removeEntrant";
 /** ジャックポットの抽選の対象を切り替える（参加者全員(自動) / エントリーした人だけ）。 */
 export const PORTAL_EVENT_SET_POOL = "setPool";
 
@@ -47,6 +49,23 @@ export interface PortalEventEntry {
   key: string;
   /** 受付中か。締め切ったあとも、エントリー済みの人の表示のために残す。 */
   open: boolean;
+  /**
+   * エントリーを取り消した回数(メンバーID → 回数)。取り消されたことを、その人のスマホが知るための印。
+   * 参加者は「エントリーしたときの回数」を覚えておき、いまの回数と違えば取り消されたと分かって、もう一度エントリーできる。
+   * 取り消しがなければ省略する(件数と同じく、エントリーのたびに全員へ配信しない)。
+   */
+  cancelled?: Record<string, number>;
+}
+
+/** そのメンバーのエントリーが取り消された回数(無ければ 0)。 */
+export function cancelCountOf(entry: Pick<PortalEventEntry, "cancelled"> | null | undefined, memberId: string | null | undefined): number {
+  return (memberId && entry?.cancelled?.[memberId]) || 0;
+}
+
+/** `event.removeEntrant` のペイロードを検証する。不正なら null。 */
+export function parseRemoveEntrantPayload(payload: unknown): { memberId: string } | null {
+  const memberId = (payload as { memberId?: unknown } | null)?.memberId;
+  return typeof memberId === "string" && memberId.length > 0 ? { memberId } : null;
 }
 
 export interface PortalEvent {
@@ -86,6 +105,16 @@ export function parseEventStartPayload(payload: unknown): { title: string; pool:
   return { title, pool: parseDrawPool((payload as { pool?: unknown }).pool) ?? "auto" };
 }
 
+/** 公開された取り消しの回数を読む。形が合わない項目は捨て、1件も残らなければ undefined。 */
+function parseCancelled(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [id, n] of Object.entries(value)) {
+    if (typeof n === "number" && Number.isInteger(n) && n > 0) out[id] = n;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /**
  * 公開された状態(RoomState.data)から、いま発生中のイベントを取り出す。
  * 形が合わないものは「イベント無し」として扱う(古い/壊れた状態でポータルを壊さない)。
@@ -100,6 +129,8 @@ export function readPortalEvent(data: Record<string, unknown> | null | undefined
   // エントリーの形が合わないときは、イベントごと捨てずにエントリーだけ無いものとして扱う
   if (entry && typeof entry === "object" && typeof entry.key === "string" && ROUND_KEY_PATTERN.test(entry.key) && typeof entry.open === "boolean") {
     event.entry = { key: entry.key, open: entry.open };
+    const cancelled = parseCancelled((entry as Partial<PortalEventEntry>).cancelled);
+    if (cancelled) event.entry.cancelled = cancelled;
   }
   const pool = parseDrawPool(value.pool);
   if (pool) event.pool = pool;

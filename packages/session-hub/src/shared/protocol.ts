@@ -227,6 +227,18 @@ export interface SubmitAnswerResult {
   duplicate: boolean;
 }
 
+/** 回答(エントリー)の取り消し。ホスト/管理が、そのメンバーの回答を一覧から外す。 */
+export interface RemoveAnswerArgs extends DeviceCredentials {
+  key: string;
+  /** 回答を外すメンバー(ログインから確定したメンバーID)。 */
+  memberId: string;
+}
+
+export interface RemoveAnswerResult {
+  /** 実際に外した(そのメンバーの回答があった)。無ければ false(取り消し済みの再送も成功)。 */
+  removed: boolean;
+}
+
 export interface GetAnswersArgs extends DeviceCredentials {
   key: string;
 }

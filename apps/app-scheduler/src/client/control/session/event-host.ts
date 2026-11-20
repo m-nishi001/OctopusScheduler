@@ -5,11 +5,14 @@ import {
   PORTAL_EVENT_ENSURE_ENTRY,
   PORTAL_EVENT_NS,
   PORTAL_EVENT_OPEN_ENTRY,
+  PORTAL_EVENT_REMOVE_ENTRANT,
   PORTAL_EVENT_SET_POOL,
   PORTAL_EVENT_START,
+  cancelCountOf,
   entryRoundKey,
   parseEventStartPayload,
   parseHubErrorCode,
+  parseRemoveEntrantPayload,
   parseSetPoolPayload,
   readPortalEvent,
 } from "@octopus/session-hub";
@@ -75,6 +78,7 @@ const defaultNewId = (): string =>
  *   - `event.openEntry`       : エントリー受付を開始する。締切後なら、エントリー済みの人を残したまま再開する
  *   - `event.closeEntry`      : エントリー受付を締め切る
  *   - `event.ensureEntry`     : まだ受付を始めていないイベントだけ、受付を開始する(クイズのエントリー画面が自動で呼ぶ)
+ *   - `event.removeEntrant { memberId }` : エントリーしたメンバーをひとり取り消す(間違ったエントリーを外す)。ジャックポットに当選済みの人は、サーバーが拒否する
  * 発生中のイベントはセッションごとに端末へ保存し、ホストがリロード・再接続しても公開し直す。
  * 受付そのものは回答ラウンドとしてサーバー側に残るので、リロードしても受付中の人数は失われない。
  */
@@ -131,7 +135,7 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
       return;
     }
     // 抽選の対象（pool）は触らない。切り替えは運営の `event.setPool` だけで行う。
-    await save(sessionId, { ...event, entry: { key, open: true } });
+    await save(sessionId, { ...event, entry: { ...event.entry, key, open: true } });
   };
 
   const unregister = agent.router.register(PORTAL_EVENT_NS, async (command) => {
@@ -166,6 +170,21 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
       // 締め切ったあとの確定した一覧を保存する（のちに別の回答受付が始まっても、抽選の対象が失われないように）
       await snapshotEntrants(event);
       await save(sessionId, { ...event, entry: { ...event.entry, open: false } });
+    } else if (command.type === PORTAL_EVENT_REMOVE_ENTRANT) {
+      const parsed = parseRemoveEntrantPayload(command.payload);
+      if (!event?.entry || !parsed) return;
+      try {
+        await agent.connection.removeAnswer(event.entry.key, parsed.memberId);
+      } catch (error) {
+        // 当選済み(JACKPOT_CONFLICT)・通信の失敗。何も変えない(取り消されなかったのに、本人の画面だけ「取り消し」にしない)
+        console.warn("エントリーを取り消せませんでした", error);
+        return;
+      }
+      // 抽選のときに保存する「直近のエントリー者の一覧」も、取り消し後の状態にしておく(取得できなくても取り消しは済んでいる)
+      await snapshotEntrants(event);
+      // 本人のスマホに「取り消された」ことを知らせる(エントリーしたときの回数と違えば、もう一度エントリーできる)
+      const cancelled = { ...event.entry.cancelled, [parsed.memberId]: cancelCountOf(event.entry, parsed.memberId) + 1 };
+      await save(sessionId, { ...event, entry: { ...event.entry, cancelled } });
     } else if (command.type === PORTAL_EVENT_SET_POOL) {
       const parsed = parseSetPoolPayload(command.payload);
       if (!event || !parsed || event.pool === parsed.mode) return;

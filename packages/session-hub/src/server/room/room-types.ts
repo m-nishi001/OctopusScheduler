@@ -45,6 +45,7 @@ export type RoomOp =
   | "openRound"
   | "closeRound"
   | "submitAnswer"
+  | "removeAnswer"
   | "getAnswers"
   | "listParticipants";
 

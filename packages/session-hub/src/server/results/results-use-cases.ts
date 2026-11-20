@@ -125,6 +125,16 @@ export async function getJackpotState(deps: ResultsDeps, sessionId: string): Pro
   return { rev: doc.rev, plan: doc.jackpot.plan, excludedMemberIds: doc.jackpot.excludedMemberIds, draws: doc.draws };
 }
 
+/**
+ * そのメンバーがジャックポットに当選済み(未公開の確定を含む)でないことを確かめる。当選済みなら JACKPOT_CONFLICT。
+ * エントリーの取り消しの前に呼ぶ(当選した人のエントリーを外すと、当選の根拠がなくなるため)。
+ */
+export async function assertNotJackpotWinner(deps: ResultsDeps, sessionId: string, memberId: unknown): Promise<void> {
+  if (typeof memberId !== "string" || memberId.length === 0) throw hubError("INVALID_ARGUMENT", "memberId が不正です");
+  const doc = await load(deps, resultsKey(sessionId));
+  if (doc.draws.some((d) => d.memberId === memberId)) throw conflict("ジャックポットに当選済みのため、エントリーを取り消せません");
+}
+
 /** 確変の予定を、まだ無ければ保存する。すでにあれば保存済みのものを返す(並行して呼ばれても先に保存されたものが勝つ)。 */
 export async function ensureJackpotPlan(deps: ResultsDeps, sessionId: string, input: unknown): Promise<{ rev: number; plan: JackpotPlan }> {
   const proposal = parse(parseJackpotPlan, input);

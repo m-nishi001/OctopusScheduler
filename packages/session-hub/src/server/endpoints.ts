@@ -37,6 +37,7 @@ import type {
   PublishStateArgs,
   PutQuizResultArgs,
   ResetJackpotArgs,
+  RemoveAnswerArgs,
   RevealJackpotDrawArgs,
   SkipJackpotWinnerArgs,
   SetPortalSessionArgs,
@@ -96,6 +97,7 @@ declare let _sessionHub_publishState: (args: PublishStateArgs) => Promise<string
 declare let _sessionHub_openRound: (args: OpenRoundArgs) => Promise<string>;
 declare let _sessionHub_closeRound: (args: CloseRoundArgs) => Promise<string>;
 declare let _sessionHub_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
+declare let _sessionHub_removeAnswer: (args: RemoveAnswerArgs) => Promise<string>;
 declare let _sessionHub_getAnswers: (args: GetAnswersArgs) => Promise<string>;
 declare let _sessionHub_listParticipants: (args: ListParticipantsArgs) => Promise<string>;
 declare let _sessionHub_putQuizResult: (args: PutQuizResultArgs) => Promise<string>;
@@ -155,6 +157,14 @@ _sessionHub_closeRound = secure("public", async (args: CloseRoundArgs): Promise<
 
 _sessionHub_submitAnswer = secure("public", async (args: SubmitAnswerArgs): Promise<string> => {
   return respond(() => backend().submitAnswer(args));
+});
+
+// エントリーの取り消し。運営(管理者)だけ。ジャックポットに当選済みのメンバーは、結果ファイルを見て拒否する。
+_sessionHub_removeAnswer = secure("admin", async (args: RemoveAnswerArgs): Promise<string> => {
+  return respond(async () => {
+    await results.assertNotJackpotWinner(resolveResultsDeps(), args?.sessionId, args?.memberId);
+    return backend().removeAnswer(args);
+  });
 });
 
 _sessionHub_getAnswers = secure("public", async (args: GetAnswersArgs): Promise<string> => {
@@ -220,6 +230,7 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   openRound: _sessionHub_openRound,
   closeRound: _sessionHub_closeRound,
   submitAnswer: _sessionHub_submitAnswer,
+  removeAnswer: _sessionHub_removeAnswer,
   getAnswers: _sessionHub_getAnswers,
   listParticipants: _sessionHub_listParticipants,
   putQuizResult: _sessionHub_putQuizResult,
