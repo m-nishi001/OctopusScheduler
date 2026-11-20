@@ -65,6 +65,7 @@
                     <span v-else>画像なし</span>
                 </div>
             </template>
+            <template #cell-remaining="{ row }">{{ row.remaining ?? '対象外' }}</template>
             <template #cell-reserved="{ row }">
                 <span v-if="row.reserved" class="reserved-badge" data-testid="reserved-badge">確変用に取り置き</span>
             </template>
@@ -86,6 +87,7 @@ import { MemberPhotoCache } from '@octopus/accounts';
 import { HostAgent, ISessionHubApiToken } from '@octopus/session-hub';
 import type { JackpotState, SessionHubApi, SessionSummary } from '@octopus/session-hub';
 import type { Prize } from '../../../model/prize/prize';
+import { prizeStock, remainingPrizeCount } from '../../../model/prize/prize-stock';
 import type { MemberDto } from '@control/member/dto/member-dto';
 import { MemberRepository } from '@model/member/member-repository';
 import { JackpotRepository } from '@model/jackpot-repository';
@@ -160,10 +162,7 @@ const drawRows = computed(() => draws.value.map(r => ({ ...r, at: formatDate(r.a
 
 const totalDraws = computed(() => draws.value.length);
 const winnersCount = computed(() => new Set(draws.value.map(r => r.memberId)).size);
-const remainingPrizes = computed(() => {
-    const won = new Set(draws.value.map(r => r.prizeId));
-    return prizes.value.filter(p => !won.has(p.id)).length;
-});
+const remainingPrizes = computed(() => remainingPrizeCount(prizes.value, draws.value.map(r => r.prizeId)));
 
 /** 飛ばした人の名前(名簿に無ければID)。 */
 const excludedNames = computed(() =>
@@ -176,8 +175,8 @@ const memberStats = computed(() =>
 
 const prizeStats = computed(() =>
     prizes.value.map(prize => {
-        const wins = draws.value.filter(r => r.prizeId === prize.id).length;
-        return { ...prize, wins, remaining: wins > 0 ? 0 : 1, reserved: reservedPrizeIds.value.includes(prize.id) };
+        const stock = prizeStock(prize, draws.value.map(r => r.prizeId));
+        return { ...prize, ...stock, reserved: reservedPrizeIds.value.includes(prize.id) };
     })
 );
 
