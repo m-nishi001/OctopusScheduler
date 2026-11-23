@@ -51,14 +51,14 @@ describe("SessionDrawStore", () => {
     await store.ensurePlan([], []);
     await store.commit(draw("d1", 0, 0));
     expect((await client.conn.getResults()).jackpot.draws).toHaveLength(0);
-    expect((await store.pending())?.drawId).toBe("d1");
+    expect((await store.unrevealed())[0]?.drawId).toBe("d1");
     await store.reveal("d1");
     await vi.advanceTimersByTimeAsync(3000);
     expect(client.conn.state.roomState?.data.results).toEqual({ rev: 1 });
     expect(JSON.stringify(client.conn.state.roomState?.data)).not.toContain("太郎");
     const view = await client.conn.getResults();
     expect(view.jackpot.draws[0]).toMatchObject({ memberName: "太郎", prizeName: "1等" });
-    expect(await store.pending()).toBeNull();
+    expect(await store.unrevealed()).toEqual([]);
   });
 
   it("読み出しは読み込み済みのメモリから返し、通信を増やさない", async () => {
@@ -67,18 +67,18 @@ describe("SessionDrawStore", () => {
     await store.load();
     await store.results();
     await store.plan();
-    await store.pending();
+    await store.unrevealed();
     await store.results();
     expect(get).toHaveBeenCalledTimes(1);
   });
 
-  it("新しい store(ホストの再読み込み)が、サーバーの結果を詳細つきで読み、未公開の行を pending で返す", async () => {
+  it("新しい store(ホストの再読み込み)が、サーバーの結果を詳細つきで読み、未公開の行を unrevealed で返す", async () => {
     const { store, agent, directory } = await scene();
     await store.ensurePlan([2], ["p2"]);
     await store.commit(draw("d1", 0, 0));
     const reloaded = new SessionDrawStore(() => agent, directory);
     expect(await reloaded.plan()).toEqual({ kakuhenTimings: [2], reservedPrizeIds: ["p2"] });
-    const pending = await reloaded.pending();
+    const pending = (await reloaded.unrevealed())[0];
     expect(pending).toMatchObject({ drawId: "d1", wonMember: { id: "m1", name: "太郎" }, wonPrize: { id: "p1", name: "1等" } });
   });
 
@@ -91,11 +91,14 @@ describe("SessionDrawStore", () => {
     expect(get).toHaveBeenCalledTimes(1);
   });
 
-  it("同じ内容の再送は成功する。公開されていない別の抽選があれば矛盾", async () => {
+  it("同じ内容の再送は成功する。未公開の抽選が残っていても、別の抽選を確定できる(先読み。未公開は古い順)", async () => {
     const { store } = await scene();
     await store.commit(draw("d1", 0, 0));
     await store.commit(draw("d1", 0, 0));
-    await expect(store.commit(draw("d2", 1, 1))).rejects.toThrow(/公開されていない/);
+    await store.commit(draw("d2", 1, 1));
+    expect((await store.unrevealed()).map((r) => r.drawId)).toEqual(["d1", "d2"]);
+    await store.reveal("d1");
+    expect((await store.unrevealed()).map((r) => r.drawId)).toEqual(["d2"]);
   });
 
   it("別の端末で結果がリセットされたあとの reveal は、DrawConflictError", async () => {
@@ -129,10 +132,10 @@ describe("SessionDrawStore", () => {
     const spy = vi.spyOn(agent, "revealJackpotDraw");
     await Promise.all([store.reveal("d1"), store.reveal("d1")]);
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(await store.pending()).toBeNull();
-    // 完了後の呼び出しは、また普通に送れる(何度呼んでも同じ結果)
+    expect(await store.unrevealed()).toEqual([]);
+    // 公開済みなら、何度呼んでも通信しない
     await store.reveal("d1");
-    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it("公開が失敗したら、次の公開はやり直せる(失敗を覚えて塞がない)", async () => {
@@ -142,11 +145,11 @@ describe("SessionDrawStore", () => {
     vi.spyOn(agent, "revealJackpotDraw").mockRejectedValueOnce(new Error("network"));
     await expect(store.reveal("d1")).rejects.toThrow("network");
     await store.reveal("d1");
-    expect(await store.pending()).toBeNull();
+    expect(await store.unrevealed()).toEqual([]);
   });
 
   describe("通信の間に読み直し(load)が入っても、書いたことがメモリから消えない", () => {
-    it("commit の通信中に load が入れ替わっても、確定した抽選が pending に残る", async () => {
+    it("commit の通信中に load が入れ替わっても、確定した抽選が未公開に残る", async () => {
       const { store, agent } = await scene();
       await store.ensurePlan([], []);
       const real = agent.commitJackpotDraw.bind(agent);
@@ -155,7 +158,7 @@ describe("SessionDrawStore", () => {
         return real(input);
       });
       await store.commit(draw("d1", 0, 0));
-      expect((await store.pending())?.drawId).toBe("d1");
+      expect((await store.unrevealed())[0]?.drawId).toBe("d1");
       expect((await store.results()).filter((r) => r.drawId === "d1")).toHaveLength(1); // 二重に積まない
     });
 
@@ -181,7 +184,7 @@ describe("SessionDrawStore", () => {
         return real(id);
       });
       await store.reveal("d1");
-      expect(await store.pending()).toBeNull();
+      expect(await store.unrevealed()).toEqual([]);
     });
   });
 
@@ -198,7 +201,7 @@ describe("SessionDrawStore", () => {
       await vi.advanceTimersByTimeAsync(3000);
       expect((await client.conn.getResults()).jackpot.draws).toHaveLength(0);
       expect(await store.excludedMemberIds()).toEqual(["m1"]);
-      expect((await store.pending())?.wonMember?.id).toBe("m2");
+      expect((await store.unrevealed())[0]?.wonMember?.id).toBe("m2");
       expect((await store.results())[0].wonPrize?.id).toBe("p1");
 
       await store.reveal("d1");

@@ -128,7 +128,8 @@ export class SessionDrawStore implements DrawStore {
   }
 
   private async revealOnce(drawId: string): Promise<void> {
-    await this.ready();
+    const snapshot = await this.ready();
+    if (snapshot.rows.find((r) => r.result.drawId === drawId)?.revealed) return; // 公開済み(通信しない)
     try {
       await this.requireAgent().revealJackpotDraw(drawId);
     } catch (e) {
@@ -160,8 +161,8 @@ export class SessionDrawStore implements DrawStore {
     });
   }
 
-  async pending(): Promise<DrawResultDto | null> {
-    return (await this.ready()).rows.find((r) => !r.revealed)?.result ?? null;
+  async unrevealed(): Promise<DrawResultDto[]> {
+    return (await this.ready()).rows.filter((r) => !r.revealed).map((r) => r.result);
   }
 
   async reset(): Promise<void> {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { RESULTS_LIMITS } from "../../../shared/results";
 import { createTestHub } from "../../../testing/test-hub";
-import { commitJackpotDraw, ensureJackpotPlan, getJackpotState, getResultsFor, putQuizResult, resetJackpot, resultsKey, revealJackpotDraw, skipJackpotWinner, assertNotJackpotWinner } from "../results-use-cases";
+import { commitJackpotDraw, ensureJackpotPlan, getJackpotState, getResultsFor, putQuizResult, resetJackpot, resultsKey, revealJackpotDraw, skipJackpotWinner, assertCanUnentry, discardPrefetchedDraw } from "../results-use-cases";
 import type { ResultsDeps } from "../results-use-cases";
 import { parseHubErrorCode } from "../../../shared/hub-error";
 
@@ -148,6 +148,15 @@ describe("results-use-cases", () => {
       expect((await getJackpotState(deps, "s1")).draws).toHaveLength(1);
     });
 
+    it("未公開の抽選が残っていても、次の抽選を確定できる(先読み)。未公開は確定の古い順に並ぶ", async () => {
+      const { deps } = setup();
+      await commitJackpotDraw(deps, "s1", drawInput());
+      await commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "b", prizeId: "p2", atMs: 2000 }));
+      const state = await getJackpotState(deps, "s1");
+      expect(state.draws.map((d) => [d.drawId, d.revealedAtMs])).toEqual([["d1", null], ["d2", null]]);
+      expect(state.rev).toBe(0);
+    });
+
     it("reveal は何度呼んでも同じ(2回目以降は rev も公開時刻も変わらない)", async () => {
       const { deps } = setup();
       await commitJackpotDraw(deps, "s1", drawInput());
@@ -173,14 +182,6 @@ describe("results-use-cases", () => {
         const { deps } = setup();
         await putJackpotDraw(deps, "s1", drawInput());
         expect(await codeOf(commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "b" })))).toBe("JACKPOT_CONFLICT");
-      });
-
-      it("未公開の抽選が残っている(別の drawId)", async () => {
-        const { deps } = setup();
-        await commitJackpotDraw(deps, "s1", drawInput());
-        expect(await codeOf(commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "b", prizeId: "p2" })))).toBe("JACKPOT_CONFLICT");
-        await revealJackpotDraw(deps, "s1", "d1");
-        await commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "b", prizeId: "p2" }));
       });
 
       it("同じ drawId で中身が違う", async () => {
@@ -279,16 +280,44 @@ describe("results-use-cases", () => {
         expect(await codeOf(skipJackpotWinner(deps, "s1", { drawId: "d1" }))).toBe("INVALID_ARGUMENT");
       });
 
-      it("当選済みのメンバーは「エントリーの取り消し」の前の確認(assertNotJackpotWinner)で拒否される。未公開の確定も当選として数える。飛ばされた人は当選者ではない", async () => {
+      it("エントリーの取り消し: 公開済み・演出中(最古の未公開)は拒否、先読み分(未公開で最古でない)はその抽選を削除して通す。飛ばされた人は当選者ではない", async () => {
         const { deps } = setup();
-        await expect(assertNotJackpotWinner(deps, "s1", "a")).resolves.toBeUndefined();
+        await expect(assertCanUnentry(deps, "s1", "a")).resolves.toBeUndefined();
         await commitJackpotDraw(deps, "s1", drawInput());
-        expect(await codeOf(assertNotJackpotWinner(deps, "s1", "a"))).toBe("JACKPOT_CONFLICT");
-        await expect(assertNotJackpotWinner(deps, "s1", "b")).resolves.toBeUndefined();
+        // 演出中(最古の未公開)
+        expect(await codeOf(assertCanUnentry(deps, "s1", "a"))).toBe("JACKPOT_CONFLICT");
+        await expect(assertCanUnentry(deps, "s1", "b")).resolves.toBeUndefined();
+        // 先読み分
+        await commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "b", prizeId: "p2", atMs: 2000 }));
+        await expect(assertCanUnentry(deps, "s1", "b")).resolves.toBeUndefined();
+        await discardPrefetchedDraw(deps, "s1", "b");
+        expect((await getJackpotState(deps, "s1")).draws.map((d) => d.drawId)).toEqual(["d1"]);
+        // 演出中の抽選は discard の対象にならない
+        await discardPrefetchedDraw(deps, "s1", "a");
+        expect((await getJackpotState(deps, "s1")).draws.map((d) => d.drawId)).toEqual(["d1"]);
+        // 公開済みは拒否
+        await revealJackpotDraw(deps, "s1", "d1");
+        expect(await codeOf(assertCanUnentry(deps, "s1", "a"))).toBe("JACKPOT_CONFLICT");
+        expect(await codeOf(assertCanUnentry(deps, "s1", ""))).toBe("INVALID_ARGUMENT");
+      });
+
+      it("先読み分の削除は rev を進めない。削除した景品・メンバーはまた引ける", async () => {
+        const { deps } = setup();
+        await commitJackpotDraw(deps, "s1", drawInput({ drawId: "d0", memberId: "z", prizeId: "p0", atMs: 50 }));
+        await revealJackpotDraw(deps, "s1", "d0");
+        await commitJackpotDraw(deps, "s1", drawInput());
+        await commitJackpotDraw(deps, "s1", drawInput({ drawId: "d2", memberId: "b", prizeId: "p2", atMs: 2000 }));
+        await discardPrefetchedDraw(deps, "s1", "b");
+        expect((await getJackpotState(deps, "s1")).rev).toBe(1);
+        await commitJackpotDraw(deps, "s1", drawInput({ drawId: "d3", memberId: "b", prizeId: "p2", atMs: 3000 }));
+      });
+
+      it("飛ばされた人は取り消せる", async () => {
+        const { deps } = setup();
+        await commitJackpotDraw(deps, "s1", drawInput());
         await skipJackpotWinner(deps, "s1", skipInput());
-        await expect(assertNotJackpotWinner(deps, "s1", "a")).resolves.toBeUndefined();
-        expect(await codeOf(assertNotJackpotWinner(deps, "s1", "b"))).toBe("JACKPOT_CONFLICT");
-        expect(await codeOf(assertNotJackpotWinner(deps, "s1", ""))).toBe("INVALID_ARGUMENT");
+        await expect(assertCanUnentry(deps, "s1", "a")).resolves.toBeUndefined();
+        expect(await codeOf(assertCanUnentry(deps, "s1", "b"))).toBe("JACKPOT_CONFLICT");
       });
 
       it("結果のリセットで除外も消える", async () => {

@@ -12,15 +12,16 @@ const draw = (drawId: string, memberId: string, prizeId: string, isKakuhen = fal
 });
 
 describe("RehearsalDrawStore(サーバーの commit と同じ検査)", () => {
-  it("同じ人・同じ景品は二度確定できない。公開されていない別の抽選があれば確定できない", async () => {
+  it("同じ人・同じ景品は二度確定できない。未公開の抽選があっても別の抽選は確定できる(先読み)", async () => {
     const s = new RehearsalDrawStore();
     await s.commit(draw("d1", "m1", "p1"));
-    await expect(s.commit(draw("d2", "m2", "p2"))).rejects.toThrow(/公開されていない/);
+    await s.commit(draw("d3", "m3", "p3"));
+    expect((await s.unrevealed()).map((r) => r.drawId)).toEqual(["d1", "d3"]);
     await s.reveal("d1");
     await expect(s.commit(draw("d2", "m1", "p2"))).rejects.toThrow(/すでに当選/);
     await expect(s.commit(draw("d2", "m2", "p1"))).rejects.toThrow(/当選済み/);
     await s.commit(draw("d2", "m2", "p2"));
-    expect(await s.results()).toHaveLength(2);
+    expect(await s.results()).toHaveLength(3);
   });
 
   it("同じ内容の再送は成功、同じ drawId で中身が違えば矛盾", async () => {
@@ -60,7 +61,7 @@ describe("RehearsalDrawStore(サーバーの commit と同じ検査)", () => {
       await s.reveal("d1");
       await s.skipWinner("d1", member("m2"));
       expect(await s.excludedMemberIds()).toEqual(["m1"]);
-      expect(await s.pending()).toMatchObject({ drawId: "d1", wonMember: { id: "m2" }, wonPrize: { id: "p1" }, isKakuhen: true });
+      expect((await s.unrevealed())[0]).toMatchObject({ drawId: "d1", wonMember: { id: "m2" }, wonPrize: { id: "p1" }, isKakuhen: true });
       expect(await s.results()).toHaveLength(1);
     });
 

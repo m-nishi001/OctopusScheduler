@@ -126,13 +126,41 @@ export async function getJackpotState(deps: ResultsDeps, sessionId: string): Pro
 }
 
 /**
- * そのメンバーがジャックポットに当選済み(未公開の確定を含む)でないことを確かめる。当選済みなら JACKPOT_CONFLICT。
- * エントリーの取り消しの前に呼ぶ(当選した人のエントリーを外すと、当選の根拠がなくなるため)。
+ * エントリーを取り消してよいか。そのメンバーの当選が、公開済み・演出中(一番古い未公開)なら JACKPOT_CONFLICT
+ * (当選した人のエントリーを外すと当選の根拠がなくなる。演出中の人は「飛ばす」を使う)。
+ * 先読みで確定しただけの抽選(2件目以降の未公開)と、当選していない人は取り消してよい。
  */
-export async function assertNotJackpotWinner(deps: ResultsDeps, sessionId: string, memberId: unknown): Promise<void> {
+function unentryVerdict(doc: ResultsDoc, memberId: string): "free" | "prefetched" | "locked" {
+  const draw = doc.draws.find((d) => d.memberId === memberId);
+  if (!draw) return "free";
+  if (draw.revealedAtMs !== null) return "locked";
+  const oldest = doc.draws.find((d) => d.revealedAtMs === null);
+  return oldest === draw ? "locked" : "prefetched";
+}
+
+const parseMemberId = (memberId: unknown): string => {
   if (typeof memberId !== "string" || memberId.length === 0) throw hubError("INVALID_ARGUMENT", "memberId が不正です");
+  return memberId;
+};
+
+/** エントリーの取り消しの前に呼ぶ。取り消せないときは JACKPOT_CONFLICT。 */
+export async function assertCanUnentry(deps: ResultsDeps, sessionId: string, memberId: unknown): Promise<void> {
+  const id = parseMemberId(memberId);
   const doc = await load(deps, resultsKey(sessionId));
-  if (doc.draws.some((d) => d.memberId === memberId)) throw conflict("ジャックポットに当選済みのため、エントリーを取り消せません");
+  if (unentryVerdict(doc, id) === "locked") throw conflict("ジャックポットに当選済みのため、エントリーを取り消せません");
+}
+
+/**
+ * エントリーを取り消したあとに呼ぶ。そのメンバーが先読みで確定しただけの抽選(未公開で最古でない)に当たっていたら、その抽選を削除する
+ * (ホストが次の抽選を引き直す)。公開済みの行は変わらないので rev は進めない。
+ */
+export async function discardPrefetchedDraw(deps: ResultsDeps, sessionId: string, memberId: unknown): Promise<void> {
+  const id = parseMemberId(memberId);
+  await mutate(deps, sessionId, (doc) => {
+    if (unentryVerdict(doc, id) !== "prefetched") return null;
+    doc.draws = doc.draws.filter((d) => d.memberId !== id);
+    return doc;
+  });
 }
 
 /** 確変の予定を、まだ無ければ保存する。すでにあれば保存済みのものを返す(並行して呼ばれても先に保存されたものが勝つ)。 */
@@ -148,7 +176,8 @@ export async function ensureJackpotPlan(deps: ResultsDeps, sessionId: string, in
 
 /**
  * 抽選結果を未公開で確定する。ロックの中で次を検証し、矛盾すれば JACKPOT_CONFLICT。
- * 同じ drawId で中身も同じ再送は成功(何も書かない)。
+ * 同じ drawId で中身も同じ再送は成功(何も書かない)。未公開の抽選が残っていても確定できる
+ * (ホストが、演出中の抽選のあいだに次の抽選を先読みで確定するため。未公開の行は確定の古い順に並び、一番古いものが演出中)。
  */
 export async function commitJackpotDraw(deps: ResultsDeps, sessionId: string, input: unknown): Promise<{ rev: number }> {
   const draw = parse(parseJackpotDraw, input);
@@ -160,7 +189,6 @@ export async function commitJackpotDraw(deps: ResultsDeps, sessionId: string, in
     }
     if (doc.draws.some((d) => d.memberId === draw.memberId)) throw conflict("このメンバーはすでに当選しています");
     if (doc.draws.some((d) => d.prizeId === draw.prizeId)) throw conflict("この景品はすでに当選済みです");
-    if (doc.draws.some((d) => d.revealedAtMs === null)) throw conflict("公開されていない抽選結果があります");
     // 確変の取り置きは、予定(plan)があるときだけ突き合わせる(予定が無い=取り置きの概念が無い)。
     if (doc.jackpot.plan) {
       const reserved = doc.jackpot.plan.reservedPrizeIds;

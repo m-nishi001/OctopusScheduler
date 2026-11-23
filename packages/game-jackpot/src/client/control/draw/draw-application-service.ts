@@ -19,6 +19,7 @@ import {
 } from "../../model/errors";
 import { DrawPoolProviderToken } from "../../model/draw/draw-pool";
 import type { DrawPoolProvider } from "../../model/draw/draw-pool";
+import { restorePlan } from "../../model/draw/unrevealed-draws";
 import { DrawStateInitializer } from "./draw-state-initializer";
 import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
 import { mapToDrawResult } from "./mappers/draw-result-mapper";
@@ -141,6 +142,7 @@ export class DrawApplicationService {
    * 抽選を実行し、結果を保存先に確定(commit)する。演出は、この結果が返ってから始める
    * (確定できなかった結果で演出すると、画面と記録が食い違うため)。
    * 確定が矛盾で断られた(別の端末の操作・古い状態)ときは、状態を読み直して1回だけ引き直す。
+   * 未公開の抽選(演出中のもの)は公開しない: 演出中に次の抽選を先読みで確定するため。公開は演出が済んだ呼び出し側が行う。
    * `inputs` を渡すと、対象の一覧・メンバー名簿を取り直さずにそれを使う(終了の判定で取得済みのとき。省略したら取得する)。
    */
   async executeDraw(
@@ -148,7 +150,6 @@ export class DrawApplicationService {
     inputs?: DrawInputs
   ): Promise<DrawOutcomeParts> {
     const store = this.store;
-    await this.revealPending(store);
     for (let attempt = 0; ; attempt++) {
       const computed = await this.computeDrawResult(request, inputs);
       const result = mapToDrawResult(computed.prizeRes.drawId, computed.winnerMember, computed.winnerPrize, computed.prizeRes.isKakuhen ?? false);
@@ -157,15 +158,20 @@ export class DrawApplicationService {
         return { result, prizeRes: computed.prizeRes, memberRes: computed.memberRes, prizeCounts: await this.prizeCountsAfterDraw() };
       } catch (e) {
         if (!(e instanceof DrawConflictError) || attempt >= 1) throw e;
-        await this.revealPending(store); // 読み直した結果、公開されていない行があれば、先に公開してから引き直す
+        // 読み直した状態(computeDrawResult が読む)で引き直す
       }
     }
   }
 
-  /** 公開されていない確定済みの抽選があれば公開する(前回の公開が通信の失敗で漏れていた場合の後始末)。 */
-  private async revealPending(store: DrawStore): Promise<void> {
-    const pending = await store.pending();
-    if (pending) await store.reveal(pending.drawId);
+  /**
+   * ホストを開いた(再読み込みした)ときの復元。未公開の抽選のうち古い分は公開済みにし(古い順)、最後の1件を返す(演出し直す)。無ければ null。
+   * 規則は {@link restorePlan}。
+   */
+  async restoreUnrevealed(): Promise<DrawResultDto | null> {
+    const store = this.store;
+    const { revealFirst, resume } = restorePlan(await store.unrevealed());
+    for (const draw of revealFirst) await store.reveal(draw.drawId);
+    return resume;
   }
 
   /**

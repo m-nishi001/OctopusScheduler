@@ -95,8 +95,10 @@ export function createFakeHubApi(
     submitAnswer: (args) => run("submitAnswer", args, () => service.submitAnswer(hub.deps, args)),
     removeAnswer: (args) => run("removeAnswer", args, async () => {
       operator();
-      await results.assertNotJackpotWinner(resultsDeps(), args.sessionId, args.memberId);
-      return service.removeAnswer(hub.deps, args);
+      await results.assertCanUnentry(resultsDeps(), args.sessionId, args.memberId);
+      const removed = await service.removeAnswer(hub.deps, args);
+      await results.discardPrefetchedDraw(resultsDeps(), args.sessionId, args.memberId);
+      return removed;
     }),
     getAnswers: (args) => run("getAnswers", args, () => service.getAnswers(hub.deps, args)),
     listParticipants: (args) => run("listParticipants", args, () => service.listParticipants(hub.deps, args)),

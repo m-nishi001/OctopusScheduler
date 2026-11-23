@@ -159,11 +159,13 @@ _sessionHub_submitAnswer = secure("public", async (args: SubmitAnswerArgs): Prom
   return respond(() => backend().submitAnswer(args));
 });
 
-// エントリーの取り消し。運営(管理者)だけ。ジャックポットに当選済みのメンバーは、結果ファイルを見て拒否する。
+// エントリーの取り消し。運営(管理者)だけ。公開済み・演出中の当選者は、結果ファイルを見て拒否する。先読みで確定しただけの抽選は削除して通す。
 _sessionHub_removeAnswer = secure("admin", async (args: RemoveAnswerArgs): Promise<string> => {
   return respond(async () => {
-    await results.assertNotJackpotWinner(resolveResultsDeps(), args?.sessionId, args?.memberId);
-    return backend().removeAnswer(args);
+    await results.assertCanUnentry(resolveResultsDeps(), args?.sessionId, args?.memberId);
+    const removed = await backend().removeAnswer(args);
+    await results.discardPrefetchedDraw(resolveResultsDeps(), args?.sessionId, args?.memberId);
+    return removed;
   });
 });
 
