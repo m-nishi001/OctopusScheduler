@@ -128,7 +128,7 @@ describe("registerMediaCommands(ホスト)", () => {
     await admin.conn.issue("media", "play", { assetId: "song9" });
     await settle(5000);
     expect(source.ensure).toHaveBeenCalledWith("song9");
-    expect(fakeAudio.play).toHaveBeenCalledWith("i1", 0, false);
+    expect(fakeAudio.play).toHaveBeenCalledWith("i1", 0, false, expect.any(Function));
   });
 
   it("再生・表示できなかったら(素材が取れないなど)、その素材の ID で onFailure を呼ぶ。止める指示や成功では呼ばない", async () => {

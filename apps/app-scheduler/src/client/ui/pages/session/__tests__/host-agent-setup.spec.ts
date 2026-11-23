@@ -119,7 +119,14 @@ describe("setupHostAgent: session.navigate", () => {
     await router.push("/jackpot-ending");
     await settle(100);
     const state = await env.hub.deps.repoFor(meta.id).getState();
-    expect(state?.data).toEqual({ session: { path: "/execute/jackpot-ending" } });
+    expect(state?.data).toMatchObject({ session: { path: "/execute/jackpot-ending" } });
+  });
+
+  it("ホストとして入室したら、鳴っている曲を状態 playback として公開する(何も鳴っていなければ空)", async () => {
+    const { meta } = await hostedScene();
+    await settle(100);
+    const state = await env.hub.deps.repoFor(meta.id).getState();
+    expect(state?.data).toMatchObject({ playback: { audio: [] } });
   });
 
   it("ホストでない(未接続の)端末は遷移を公開しようとしない", async () => {

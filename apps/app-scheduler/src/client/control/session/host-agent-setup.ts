@@ -12,6 +12,8 @@ import { toExecutePath } from "../router/execute-path";
 import { registerEventHost } from "./event-host";
 import { registerMediaCommands } from "../media/host-media-commands";
 import { registerMediaSyncPublisher } from "../media/media-sync-publisher";
+import { registerPlaybackPublisher } from "../media/playback-publisher";
+import { AudioControl } from "../media/audio";
 import { prepareHostData } from "./prepare-host-data";
 
 /** 管理端末の `session.navigate` で受け取るペイロード。 */
@@ -56,6 +58,7 @@ async function dispatchEventCommand(agent: HostAgent, type: string): Promise<voi
  *   - ゲームの終了画面からロビーへ戻ったら、エントリー受付を締め切ってイベントを終了する(運営の手動操作を不要にする)。
  *     終了画面に入った時点では終了しない(クイズの順位発表はイベントとクイズの状態が生きている間に行う)
  *   - expectedPath 付きのコマンドは、ホストの現在の画面と違えば破棄する(古い画面を見て押された主ボタンの取り違え防止)
+ *   - 鳴っている曲を、状態 `playback` として公開する(曲が変わったときと、ホストとして入室したとき)
  *   - 画面遷移のたびに、いまの画面(`session.path`)を状態として公開する
  */
 export function setupHostAgent(router: Router): HostAgent {
@@ -86,6 +89,8 @@ export function setupHostAgent(router: Router): HostAgent {
   // あわせて、ホストの素材の一覧とサーバーの一覧の差(アップロード前の素材など)を公開する。
   const mediaSync = registerMediaSyncPublisher(agent);
   registerMediaCommands(agent, undefined, mediaSync.reportFailure);
+  // ホストが実際に鳴らしている曲を、状態 `playback` として公開する(管理端末の「いま流れているもの」)。映っている画面は、下の `session.path` から導く。
+  registerPlaybackPublisher(agent, () => container.resolve(AudioControl));
 
   router.afterEach((to, from) => {
     if (!agent.active) return; // プレビューなど、ホストとして接続していないときは何もしない

@@ -98,6 +98,55 @@ test.describe("コントロール画面: 音楽・スクリーン", () => {
     for (const d of [admin, host]) await d.context.close();
   });
 
+  test("いま流れている曲が欄に並び、1曲だけ止めると、もう1曲が残る。止めた曲は一覧の「再生中」も消える", async ({ browser, request }) => {
+    test.setTimeout(120_000);
+    const tag = uid();
+    const second = { id: `e2esongb${tag}`, fileName: `e2e-tone-b-${tag}.wav`, mime: "audio/wav", body: Buffer.concat([silentWav(), Buffer.from(tag)]) };
+    const { admin, host, song } = await scene(browser, request, "メディア(いまの一覧・音楽)", [second]);
+    await admin.page.getByTestId("media-reload").click();
+    await expect(admin.page.getByTestId(`media-play-${second.id}`)).toBeVisible();
+    await expect(admin.page.getByTestId("media-now-audio-none")).toBeVisible();
+
+    await admin.page.getByTestId(`media-play-${song.id}`).click();
+    await admin.page.getByTestId(`media-play-${second.id}`).click();
+    await expect.poll(async () => (await audioProbe(host.page)).started, { timeout: 30_000 }).toBe(2);
+    // ホストが実際に鳴らしているものが、管理端末の欄に出る
+    const rows = admin.page.getByTestId("media-now-audio");
+    await expect(rows).toHaveCount(2, { timeout: 20_000 });
+    await expect(rows.filter({ hasText: song.fileName })).toHaveCount(1);
+    await expect(admin.page.getByTestId("media-song-playing")).toHaveCount(2);
+
+    // 1曲だけ止める(フェード秒は短くしておく)
+    await admin.page.getByTestId("media-fade-sec").fill("1");
+    await admin.page.getByTestId(`media-now-stop-${song.id}`).click();
+    await expect(rows).toHaveCount(1, { timeout: 20_000 });
+    await expect(rows.filter({ hasText: second.fileName })).toHaveCount(1);
+    await expect.poll(async () => (await audioProbe(host.page)).stopped, { timeout: 30_000 }).toBe(1);
+
+    // 「すべて停止」で、欄は「なし」に戻る
+    await admin.page.getByTestId("media-stop-all").click();
+    await expect(admin.page.getByTestId("media-now-audio-none")).toBeVisible({ timeout: 20_000 });
+    await expect(admin.page.getByTestId("media-song-playing")).toHaveCount(0);
+    for (const d of [admin, host]) await d.context.close();
+  });
+
+  test("画像を表示すると、画面の欄にその名前が出て、「消す」で「なし」に戻る", async ({ browser, request }) => {
+    test.setTimeout(120_000);
+    const { admin, host, image, lobby } = await scene(browser, request, "メディア(いまの一覧・画面)");
+    await expect(admin.page.getByTestId("media-now-screen-none")).toBeVisible();
+
+    await admin.page.getByTestId("media-tab-screen").click();
+    await admin.page.getByTestId(`media-show-${image.id}`).click();
+    await expect.poll(() => route(host.page)).toBe(`/execute/show-image/${image.id}`);
+    await expect(admin.page.getByTestId("media-now-screen")).toContainText(image.fileName, { timeout: 20_000 });
+    await expect(admin.page.getByTestId("media-now-screen")).toContainText("画像");
+
+    await admin.page.getByTestId("media-now-clear").click();
+    await expect.poll(() => route(host.page)).toBe(lobby);
+    await expect(admin.page.getByTestId("media-now-screen-none")).toBeVisible({ timeout: 20_000 });
+    for (const d of [admin, host]) await d.context.close();
+  });
+
   test("ホストがまだ取っていない素材でも、取ってから表示される", async ({ browser, request }) => {
     test.setTimeout(120_000);
     const { admin, host, image } = await scene(browser, request, "メディア(未取得)");

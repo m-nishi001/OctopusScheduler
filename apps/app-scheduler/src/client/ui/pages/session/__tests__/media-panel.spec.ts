@@ -336,3 +336,84 @@ describe("media-panel: フェード秒", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("media-panel: いま流れている・映っているもの", () => {
+  const playing = (audio: Array<{ assetId: string; loop: boolean }>, path = "/session/host/s1") => ({ playback: { audio }, session: { path } });
+  const allText = (wrapper: ReturnType<typeof mount>, id: string) => wrapper.findAll(`[data-testid="${id}"]`).map((r) => r.text());
+
+  it("何も無ければ「なし」と出す(公開が無い古いホストでも)", async () => {
+    for (const roomData of [undefined, null, {}, playing([])]) {
+      const { wrapper } = mountPanel({ roomData });
+      await flushPromises();
+      expect(find(wrapper, "media-now-audio-none").text()).toContain("なし");
+      expect(find(wrapper, "media-now-screen-none").text()).toContain("なし");
+      expect(wrapper.findAll('[data-testid="media-now-audio"]')).toHaveLength(0);
+      expect(wrapper.findAll('[data-testid="media-song-playing"]')).toHaveLength(0);
+    }
+  });
+
+  it("鳴っている曲を、名前・ループの印・停止ボタンで並べ、曲の一覧の行にも「再生中」を付ける", async () => {
+    const { wrapper } = mountPanel({ roomData: playing([{ assetId: "song1", loop: true }, { assetId: "song2", loop: false }]) });
+    await flushPromises();
+    const rows = allText(wrapper, "media-now-audio");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain("bgm.mp3");
+    expect(rows[0]).toContain("ループ");
+    expect(rows[1]).toContain("fanfare.wav");
+    expect(rows[1]).not.toContain("ループ");
+    expect(wrapper.findAll('[data-testid="media-now-loop"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid="media-song-playing"]')).toHaveLength(2);
+    expect(find(wrapper, "media-now-audio-none").exists()).toBe(false);
+  });
+
+  it("欄の「停止」は、その曲だけを、指定したフェード秒で止める", async () => {
+    const { wrapper, issue } = mountPanel({ roomData: playing([{ assetId: "song1", loop: false }, { assetId: "song2", loop: false }]) });
+    await flushPromises();
+    await find(wrapper, "media-fade-sec").setValue("3");
+    await find(wrapper, "media-now-stop-song2").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song2", fadeSec: 3 });
+  });
+
+  it("一覧に無い曲も、行は出す。ホストが公開していない曲の「再生中」は付かない", async () => {
+    const { wrapper } = mountPanel({ roomData: playing([{ assetId: "ghost", loop: false }]) });
+    await flushPromises();
+    expect(allText(wrapper, "media-now-audio")[0]).toContain("名前の分からない素材");
+    expect(wrapper.findAll('[data-testid="media-song-playing"]')).toHaveLength(0);
+  });
+
+  it("画面は session.path から、種類と名前を出す。「消す」で clear を送る", async () => {
+    const { wrapper, issue } = mountPanel({ roomData: playing([], "/execute/show-image/img1") });
+    await flushPromises();
+    expect(find(wrapper, "media-now-screen").text()).toContain("画像");
+    expect(find(wrapper, "media-now-screen").text()).toContain("photo.png");
+    expect(find(wrapper, "media-now-screen-none").exists()).toBe(false);
+    await find(wrapper, "media-now-clear").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "clear", { fadeSec: 2 });
+  });
+
+  it("動画とスライドショーの画面も出る。ロビーや別の画面なら「なし」", async () => {
+    const video = mountPanel({ roomData: playing([], "/execute/show-video/vid1") });
+    await flushPromises();
+    expect(find(video.wrapper, "media-now-screen").text()).toContain("動画");
+    expect(find(video.wrapper, "media-now-screen").text()).toContain("clip.mp4");
+
+    const spec = encodeURIComponent(JSON.stringify({ kind: "slideshow", folder: "show1", intervalSec: 5, transition: "fade" }));
+    const slideshow = mountPanel({ roomData: playing([], `/execute/show-slideshow/${spec}`) });
+    await flushPromises();
+    expect(find(slideshow.wrapper, "media-now-screen").text()).toContain("スライドショー");
+    expect(find(slideshow.wrapper, "media-now-screen").text()).toContain("show1");
+
+    const quiz = mountPanel({ roomData: playing([], "/execute/quiz/q1/entry") });
+    await flushPromises();
+    expect(find(quiz.wrapper, "media-now-screen-none").exists()).toBe(true);
+  });
+
+  it("送れない間は、欄のボタンも押せない", async () => {
+    const { wrapper } = mountPanel({ canSend: false, roomData: playing([{ assetId: "song1", loop: false }], "/execute/show-image/img1") });
+    await flushPromises();
+    expect(find(wrapper, "media-now-stop-song1").attributes("disabled")).toBeDefined();
+    expect(find(wrapper, "media-now-clear").attributes("disabled")).toBeDefined();
+  });
+});
