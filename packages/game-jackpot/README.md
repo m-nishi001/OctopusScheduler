@@ -10,8 +10,8 @@
   - 当選済みのメンバー・景品は二度当たらない。メンバーか景品が尽きている場合は例外にする。
 - `previewDraw(...)`
   - `executeDraw` と同じ計算をするが、一切保存しない(デモ・リハーサル用)。
-- `getLastPrizeCount()`
-  - `{ total, remaining }`。`remaining` が 0 になったら「おしまい」。
+- 抽選の結果(`DrawOutcomeParts`)の `prizeCounts`
+  - `{ total, before, after }`。その抽選を確定した時点の当選対象の景品の数。「あと半分」の判定(`crossedHalf`)に使う。
 
 ### 抽選の対象(`DrawPoolProvider`)
 

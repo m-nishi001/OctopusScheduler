@@ -16,6 +16,7 @@ import type { MemberDto } from "@control/member/dto/member-dto";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
+import type { PrizeCounts } from "@model/draw/half-remaining";
 import type { DrawEndReason } from "@control/draw/dto/draw-progress";
 import { RevealTracker } from "@model/jackpot-host-state";
 import { useJackpotHost } from "../../composables/use-jackpot-host";
@@ -69,6 +70,7 @@ export function useDrawOrchestrator() {
   const phase = ref("idle");
   const latestResult = ref<DrawResultDto | null>(null);
   const currentPrizeRes = ref<DrawPrizeResponse | null>(null);
+  const currentPrizeCounts = ref<PrizeCounts | null>(null);
   const currentMemberRes = ref<DrawMemberResponse | null>(null);
   /** メンバー抽選の演出コンポーネントの鍵。当選者を飛ばして引き直すとき、前の当選者の状態が残らないよう作り直す。 */
   const memberAnimKey = ref(0);
@@ -93,10 +95,10 @@ export function useDrawOrchestrator() {
   const kakuhenOverlayVisible = ref(false);
 
   const ctx: DrawContext = {
-    drawService,
     phase,
     result: latestResult,
     prizeRes: currentPrizeRes,
+    prizeCounts: currentPrizeCounts,
     prizes,
     selectedPrize,
     setSelectedPrize: updateSelectedPrize,
@@ -133,11 +135,12 @@ export function useDrawOrchestrator() {
   let kakuhenPlan: KakuhenPlan = AUTO_KAKUHEN_PLAN;
 
   /** 抽選の結果を画面の状態に反映し、そのサイクルのステップを返す。 */
-  const applyOutcome = ({ result, prizeRes, memberRes, winner, prizeItems, spareMembers: spare }: DrawOutcome) => {
+  const applyOutcome = ({ result, prizeRes, memberRes, winner, prizeItems, spareMembers: spare, prizeCounts }: DrawOutcome) => {
     installPreparedPrizes(prizeItems);
     spareMembers.value = spare;
     latestResult.value = result;
     currentPrizeRes.value = prizeRes;
+    currentPrizeCounts.value = prizeCounts;
     currentMemberRes.value = memberRes;
     updateSelectedPrize(winner);
     currentPrizeComponent.value = markRaw(
@@ -199,6 +202,27 @@ export function useDrawOrchestrator() {
   /** 先読みを作ったときの保存先(リハーサルとセッションの切り替えなどで別物になったら、先読みは使わない)。 */
   let prefetchedStore = drawService.store;
 
+  /**
+   * 次の抽選の材料がまだ無く待たされるとき、景品の画面のまま固まらないよう、メンバー抽選の待機画面を出す
+   * (材料が届いたら、そのままメンバー抽選が始まる。次の当選者がまだ分からないので、メンバーはまだ見せない)。
+   * 先読みが済んでいれば何もしない。最初の抽選(まだ景品の画面ではない)でも出さない。
+   */
+  const showMemberWaiting = () => {
+    if (phase.value !== "prize") return;
+    waitingFromPhase = phase.value;
+    showPrizeWinningDialog.value = false;
+    currentMemberRes.value = null;
+    memberAnimKey.value++;
+    phase.value = "member";
+  };
+  /** 待機画面を出す前の段階。出していなければ null。 */
+  let waitingFromPhase: string | null = null;
+  /** 次の抽選がなかった(終了)・失敗したときは、待機画面を出す前の段階に戻す(メンバー抽選が始まらないのに、メンバーの画面のままにしない)。 */
+  const leaveMemberWaiting = () => {
+    if (waitingFromPhase !== null) phase.value = waitingFromPhase;
+    waitingFromPhase = null;
+  };
+
   /** 次のサイクルを、画面の状態に反映して進行役に渡す。 */
   const nextCycle = async (): Promise<NextCycle> => {
     // デモ抽選は、決めた回数を引いたら次の画面(本抽選)へ進む
@@ -209,7 +233,11 @@ export function useDrawOrchestrator() {
       prefetchedStore = drawService.store;
     }
     const prepared = await cycleSource.next();
-    if (prepared.kind === "finished") return prepared;
+    if (prepared.kind === "finished") {
+      leaveMemberWaiting();
+      return prepared;
+    }
+    waitingFromPhase = null;
     demoDrawn++;
     demoRound.value = demoDrawn;
     return { kind: "cycle", steps: applyOutcome(prepared.outcome) };
@@ -273,6 +301,7 @@ export function useDrawOrchestrator() {
 
   const onDrawError = (e: unknown) => {
     console.error("[DrawOrchestrator] draw failed", e);
+    leaveMemberWaiting();
     latestResult.value = null;
     currentPrizeRes.value = null;
     currentMemberRes.value = null;
@@ -289,6 +318,8 @@ export function useDrawOrchestrator() {
   const revealDraw = async (drawId: string): Promise<boolean> => {
     try {
       await drawService.store.reveal(drawId);
+      // 公開の通信が通った = 保存先がいま使えて、結果は(矛盾なく)そのまま。先読みの前に読み直す通信は省く
+      storeLoadedAtMs = Date.now();
       return true;
     } catch (e) {
       if (e instanceof DrawConflictError) {
@@ -337,6 +368,8 @@ export function useDrawOrchestrator() {
   flow = new DrawFlowController({
     queue,
     nextCycle,
+    nextReady: () => cycleSource.state.kind === "ready" || (isDemoDraw && demoDrawn >= demoRounds),
+    onWaiting: showMemberWaiting,
     onDrawError,
     onStepError: (e) => console.error("[DrawOrchestrator] step failed", e),
     onFinished: (reason, progress) => {
@@ -368,6 +401,8 @@ export function useDrawOrchestrator() {
     try {
       await updatePrizes(await prizeRepo.getPrizes());
       members.value = await memberRepo.getMembers();
+      // 全メンバーの写真を裏で読み始める(待たない)。次のサイクルの準備で、写真の読み込みを待たないようにする。失敗しても飾りなので画面は止めない
+      void container.resolve(MemberPhotoCache).ensure(members.value.map((m) => m.photo));
       // 抽選の状態(当選者・確変の予定)を保存先から読み直す。以後の読み出しはこのメモリから行う
       const store = drawService.store;
       rehearsal.value = store.kind === "rehearsal";

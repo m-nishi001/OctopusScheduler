@@ -1,4 +1,4 @@
-import type { DrawApplicationService } from "@control/draw/draw-application-service";
+import type { PrizeCounts } from "@model/draw/half-remaining";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
@@ -18,13 +18,14 @@ interface Writable<T> {
  * ステップは ctx だけを見て動くので、Vue のコンポーネントを立てなくても単体テストできる。
  */
 export interface DrawContext {
-  drawService: Pick<DrawApplicationService, "getLastPrizeCount">;
   /** 画面の段階("member" = メンバー抽選, "prize" = 景品抽選)。 */
   phase: Writable<string>;
   /** 今回の抽選結果。抽選に失敗したときは null。 */
   result: Writable<DrawResultDto | null>;
   /** 今回の抽選で、ルーレットに流す景品の内訳。 */
   prizeRes: Readable<DrawPrizeResponse | null>;
+  /** 今回の抽選を確定した時点の、当選対象の景品の数(「あと半分」の判定。保存先を読み直さないので、次の抽選の先読みに影響されない)。 */
+  prizeCounts: Readable<PrizeCounts | null>;
   prizes: Readable<PrizeDto[]>;
   selectedPrize: Readable<PrizeDto | null>;
   setSelectedPrize(prize: PrizeDto | null): void;

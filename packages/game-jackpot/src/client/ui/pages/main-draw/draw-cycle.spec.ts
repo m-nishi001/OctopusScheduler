@@ -1,3 +1,4 @@
+import { ref } from "vue";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ActionQueue, type Step } from "./action-queue";
 import { DrawFlowController } from "./draw-flow-controller";
@@ -62,7 +63,7 @@ describe("演出の待ち時間(SETTLE_SEC)", () => {
 
   it("半分の知らせの3秒も、差し替えた待ちで待つ", async () => {
     const wait = vi.fn().mockResolvedValue(undefined);
-    const ctx = createTestContext({ wait, drawService: { getLastPrizeCount: vi.fn().mockResolvedValue({ total: 10, remaining: 5 }) } });
+    const ctx = createTestContext({ wait, prizeCounts: ref({ total: 10, before: 6, after: 5 }) });
     await remainingSteps(ctx)[0].run();
     expect(wait).toHaveBeenCalledWith(3);
     expect(ctx.showHalfRemainingDialog.value).toBe(false);
@@ -223,11 +224,10 @@ describe("remainingSteps", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  const withCount = (count: { total: number; remaining: number }) =>
-    createTestContext({ drawService: { getLastPrizeCount: vi.fn().mockResolvedValue(count) } });
+  const withCount = (counts: { total: number; before: number; after: number } | null) => createTestContext({ prizeCounts: ref(counts) });
 
   it("ちょうど半分になったら、3秒間だけ「半分」ダイアログを出して閉じる", async () => {
-    const ctx = withCount({ total: 10, remaining: 5 });
+    const ctx = withCount({ total: 10, before: 6, after: 5 });
     const [half] = remainingSteps(ctx);
 
     const p = half.run();
@@ -239,7 +239,32 @@ describe("remainingSteps", () => {
   });
 
   it("半分でなければ「半分」ダイアログは出さない", async () => {
-    const ctx = withCount({ total: 10, remaining: 3 });
+    const ctx = withCount({ total: 10, before: 4, after: 3 });
+    await remainingSteps(ctx)[0].run();
+    expect(ctx.showHalfRemainingDialog.value).toBe(false);
+  });
+
+  it("判定はこの抽選を確定した時点の数だけで決まる。次の抽選の先読みが済んでいても(保存先の残数が減っていても)同じ回に出る", async () => {
+    const ctx = withCount({ total: 10, before: 6, after: 5 });
+    const wait = vi.fn().mockResolvedValue(undefined);
+    Object.assign(ctx, { wait });
+    await remainingSteps(ctx)[0].run();
+    expect(wait).toHaveBeenCalledWith(3);
+  });
+
+  it("奇数(全体7)でも、半分以下になった最初の回(4→3)に1度だけ出る。次の回(3→2)では出ない", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const shown: boolean[] = [];
+    for (const [before, after] of [[5, 4], [4, 3], [3, 2], [2, 1]]) {
+      const ctx = createTestContext({ wait, prizeCounts: ref({ total: 7, before, after }) });
+      await remainingSteps(ctx)[0].run();
+      shown.push(wait.mock.calls.length > shown.filter(Boolean).length);
+    }
+    expect(shown).toEqual([false, true, false, false]);
+  });
+
+  it("抽選の数が無いとき(まだ抽選していない)は出さない", async () => {
+    const ctx = withCount(null);
     await remainingSteps(ctx)[0].run();
     expect(ctx.showHalfRemainingDialog.value).toBe(false);
   });

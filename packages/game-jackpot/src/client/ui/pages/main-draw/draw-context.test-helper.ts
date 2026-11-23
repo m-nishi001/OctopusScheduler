@@ -7,10 +7,10 @@ export function createTestContext(overrides: Record<string, unknown> = {}) {
   const selectedPrize = ref<any>(null);
   const prizes = ref<any[]>([]);
   const ctx = {
-    drawService: { getLastPrizeCount: vi.fn().mockResolvedValue({ total: 10, remaining: 7 }) },
     phase: ref("idle"),
     result: ref<any>({ wonMember: { id: "m1", name: "Alice" }, wonPrize: { id: "p1", name: "Prize" }, isKakuhen: false }),
     prizeRes: ref<any>(null),
+    prizeCounts: ref<any>({ total: 10, before: 8, after: 7 }),
     prizes,
     selectedPrize,
     setSelectedPrize: vi.fn((p: any) => {
