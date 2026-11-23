@@ -17,6 +17,13 @@ export interface DrawFlowDeps {
    * 失敗したら例外を投げる。
    */
   nextCycle(): Promise<NextCycle>;
+  /** 次の抽選の材料が、いますぐ渡せるか(先読みが済んでいるか)。省略したら渡せる。 */
+  nextReady?(): boolean;
+  /**
+   * 次の抽選の材料がまだ無く、待たされるとき(`nextReady` が false)に、待つ前に呼ぶ。景品の画面で固まらないよう、
+   * メンバー抽選の待機画面を出すなどに使う。
+   */
+  onWaiting?(): void;
   /** 抽選の失敗。サイクルは積まれず、次の進行操作でもう一度抽選する。 */
   onDrawError(error: unknown): void;
   /** ステップの失敗。そのステップは捨てられ、次の進行操作で続きから進む。 */
@@ -118,6 +125,7 @@ export class DrawFlowController {
   /** 続けられるなら次の抽選を引いてサイクルを積む。終了、または積めなかったら false。 */
   private async refill(): Promise<boolean> {
     try {
+      if (!(this.deps.nextReady?.() ?? true)) this.deps.onWaiting?.();
       const next = await this.deps.nextCycle();
       if (next.kind === "leave") {
         this.left = true;

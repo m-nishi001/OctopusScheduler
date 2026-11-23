@@ -3,6 +3,7 @@ import { playWinningBgm, preloadBgm } from "./bgm";
 import { SHOW_PRIZE_RESULT } from "@model/jackpot-host-state";
 import { requireSelectedPrize, type DrawContext } from "./draw-context";
 import { kakuhenPrizeSteps } from "./kakuhen-session";
+import { crossedHalf } from "@model/draw/half-remaining";
 import { shouldHoldLotteryBgm } from "./use-lottery-bgm";
 
 /**
@@ -99,14 +100,14 @@ function winningDialogSteps(ctx: DrawContext): Step[] {
 }
 
 /**
- * 景品がちょうど半分になったら知らせる。
+ * 景品が半分以下になった最初の回に、1度だけ知らせる(判定は crossedHalf。この抽選を確定した時点の数で見る)。
  * 終了(景品かメンバーが尽きた)は、サイクルの外で進行役が抽選の前に判定する(DrawFlowController)。
  */
 export function remainingSteps(ctx: DrawContext): Step[] {
   return [
     step(async () => {
-      const { total, remaining } = await ctx.drawService.getLastPrizeCount();
-      if (total > 0 && remaining > 0 && remaining * 2 === total) {
+      const counts = ctx.prizeCounts.value;
+      if (counts && crossedHalf(counts)) {
         ctx.showHalfRemainingDialog.value = true;
         await (ctx.wait ?? delay)(3);
         ctx.showHalfRemainingDialog.value = false;

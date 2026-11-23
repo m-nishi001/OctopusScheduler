@@ -440,4 +440,36 @@ describe("DrawFlowController: 抽選を打ち切って次の画面へ進む(デ�
     expect(flow.busy).toBe(false);
   });
 
+  describe("次の材料が無く待たされるとき", () => {
+    it("先読みが済んでいなければ、待つ前に onWaiting を呼ぶ(待ち終えてから呼ばない)", async () => {
+      const log: string[] = [];
+      const { flow, deps } = setup({ cycles: [makeCycle(log, "a", [1])] });
+      const order: string[] = [];
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      const inner = deps.nextCycle;
+      deps.nextCycle = async () => {
+        order.push("nextCycle:start");
+        await gate;
+        order.push("nextCycle:end");
+        return inner();
+      };
+      Object.assign(deps, { nextReady: () => false, onWaiting: () => order.push("waiting") });
+      const running = flow.advance();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(order).toEqual(["waiting", "nextCycle:start"]);
+      release();
+      await running;
+      expect(log).toEqual(["a1"]);
+    });
+
+    it("先読みが済んでいれば onWaiting は呼ばない(待たない)", async () => {
+      const { flow, deps } = setup({ cycles: [makeCycle([], "a", [1])] });
+      const onWaiting = vi.fn();
+      Object.assign(deps, { nextReady: () => true, onWaiting });
+      await flow.advance();
+      expect(onWaiting).not.toHaveBeenCalled();
+    });
+  });
 });

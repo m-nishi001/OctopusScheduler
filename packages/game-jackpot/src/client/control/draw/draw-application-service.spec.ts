@@ -130,6 +130,32 @@ describe("DrawApplicationService", () => {
     });
   });
 
+  describe("prizeCounts(「あと半分」の判定の材料)", () => {
+    it("当選対象でない景品は、全体にも残りにも数えない。確定した時点の数で、前後(before = after + 1)を返す", async () => {
+      const prizes = [...prizeList, { id: "pX", name: "対象外", rank: 3, order: 7, kakuhen: false, drawable: false }];
+      const { service } = setup({ prizes, members: ["a", "b", "c", "d", "e", "f"].map((id) => ({ id, name: id })) });
+      await service.initializeStateIfNeeded(prizes);
+      const counts = [];
+      for (let i = 0; i < 6; i++) {
+        const next = await service.drawNext(REQUEST);
+        if (next.kind !== "drawn") throw new Error("finished");
+        counts.push(next.outcome.prizeCounts);
+      }
+      expect(counts.map((c) => c.total)).toEqual([6, 6, 6, 6, 6, 6]);
+      expect(counts.map((c) => [c.before, c.after])).toEqual([[6, 5], [5, 4], [4, 3], [3, 2], [2, 1], [1, 0]]);
+    });
+
+    it("再開(resumeDraw)でも、先に次の抽選が確定していない限り、確定時点と同じ数になる", async () => {
+      const { service, store, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes);
+      const next = await service.drawNext(REQUEST);
+      if (next.kind !== "drawn") throw new Error("finished");
+      const pending = await store.pending();
+      const resumed = await service.resumeDraw(pending!);
+      expect(resumed.prizeCounts).toEqual(next.outcome.prizeCounts);
+    });
+  });
+
   describe("executeDraw", () => {
     it("通常の抽選は、結果をちょうど1回 commit する(未公開のまま)", async () => {
       const { service, store, prizes } = setup();

@@ -5,6 +5,7 @@ import type { DrawMemberRequest } from "./dto/draw-member-request";
 import type { DrawMemberResponse } from "./dto/draw-member-response";
 import type { DrawPrizeResponse } from "./dto/draw-prize-response";
 import { isDrawablePrize, type Prize } from "../../model/prize/prize";
+import type { PrizeCounts } from "../../model/draw/half-remaining";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 import { toDrawProgress, type DrawProgress } from "./dto/draw-progress";
 import type { Member } from "../../model/member/member";
@@ -35,6 +36,8 @@ export interface DrawOutcomeParts {
   memberRes: DrawMemberResponse;
   /** 当選者を飛ばして引き直せる、ほかの候補の人数(分かるときだけ)。0 なら飛ばせない。 */
   spareMembers?: number;
+  /** この抽選を確定した時点の、当選対象の景品の数(「あと半分」の判定に使う)。 */
+  prizeCounts: PrizeCounts;
 }
 
 /** 1回の抽選で使う、取得済みの入力(抽選の対象の一覧とメンバー名簿)。1回の抽選の間は取り直さない(取得は通信になることがある)。 */
@@ -84,15 +87,12 @@ export class DrawApplicationService {
     return this.prizeDrawService.getRemainingPrizes(prizes, results);
   }
 
-  /**
-   * Return a simple summary of total prizes and remaining prizes.
-   * Used by UI code to decide whether to show half/ending dialogs.
-   */
-  async getLastPrizeCount(): Promise<{ total: number; remaining: number }> {
+  /** 確定済みの抽選をすべて含めた、当選対象の景品の数。この抽選が最後に確定したもの(before = after + 1)として数える。 */
+  private async prizeCountsAfterDraw(): Promise<PrizeCounts> {
     const prizes = await this.prizeRepo.getPrizes();
     const results = await this.store.results();
-    const remaining = this.prizeDrawService.getRemainingPrizes(prizes, results).length;
-    return { total: prizes.length, remaining };
+    const after = this.prizeDrawService.getRemainingPrizes(prizes, results).length;
+    return { total: this.prizeDrawService.countDrawablePrizes(prizes), before: after + 1, after };
   }
 
   /**
@@ -154,7 +154,7 @@ export class DrawApplicationService {
       const result = mapToDrawResult(computed.prizeRes.drawId, computed.winnerMember, computed.winnerPrize, computed.prizeRes.isKakuhen ?? false);
       try {
         await store.commit(result);
-        return { result, prizeRes: computed.prizeRes, memberRes: computed.memberRes };
+        return { result, prizeRes: computed.prizeRes, memberRes: computed.memberRes, prizeCounts: await this.prizeCountsAfterDraw() };
       } catch (e) {
         if (!(e instanceof DrawConflictError) || attempt >= 1) throw e;
         await this.revealPending(store); // 読み直した結果、公開されていない行があれば、先に公開してから引き直す
@@ -203,6 +203,7 @@ export class DrawApplicationService {
       prizeRes,
       memberRes,
       spareMembers: await this.spareMembers(),
+      prizeCounts: await this.prizeCountsAfterDraw(),
     };
   }
 
@@ -246,7 +247,7 @@ export class DrawApplicationService {
    * 本番と同じ抽選計算を行うが、結果を保存しない(確定しない)プレビュー用抽選。
    * 設定画面の動作確認など、本番の当選者・景品の在庫を消費せずに「実際の抽選と同じ見た目の結果」を確認したい用途に使う。
    */
-  async previewDraw(request: { memberRequestCount: number; prizeRequestCount: number } = DEFAULT_REQUEST): Promise<DrawOutcomeParts> {
+  async previewDraw(request: { memberRequestCount: number; prizeRequestCount: number } = DEFAULT_REQUEST): Promise<Omit<DrawOutcomeParts, "prizeCounts">> {
     const computed = await this.computeDrawResult(request);
     const result = mapToDrawResult(computed.prizeRes.drawId, computed.winnerMember, computed.winnerPrize, computed.prizeRes.isKakuhen ?? false);
     return { result, prizeRes: computed.prizeRes, memberRes: computed.memberRes };
