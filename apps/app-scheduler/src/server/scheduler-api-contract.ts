@@ -16,6 +16,11 @@ export const OCTOPUS_SCHEDULER_ENDPOINTS = [
   "existsAssetBlobs",
   "putAssetBlob",
   "getAssetBlob",
+  "getScheduleEvents",
+  "saveScheduleEvent",
+  "deleteScheduleEvents",
+  "importScheduleEvents",
+  "markScheduleEvents",
 ] as const;
 
 /**
@@ -68,6 +73,36 @@ export function assetRecordHashes(data: unknown): string[] {
   return (data as Partial<AssetRecordEntry>[]).flatMap((e) => (typeof e?.hash === "string" ? [e.hash] : []));
 }
 
+/** 予定イベントの実行状態。未実行(pending)→ 実行中(running)→ 完了(completed)。 */
+export const SCHEDULE_EXECUTION_STATUSES = ["pending", "running", "completed"] as const;
+export type ScheduleExecutionStatus = (typeof SCHEDULE_EXECUTION_STATUSES)[number];
+
+/**
+ * サーバーに保存する予定イベント1件(日時は ISO 文字列)。種類ごとの固有の項目は、サーバーは中身を見ずにそのまま持つ
+ * (形の検証はクライアントの `reviveAppEvent`)。
+ */
+export interface ScheduleEventJson {
+  id: string;
+  type: string;
+  startTime: string;
+  endTime: string;
+  processedAt: string | null;
+  registeredAt: string;
+  updatedAt: string;
+  [field: string]: unknown;
+}
+
+/** 予定イベントのサーバー上のレコード1件。イベントと、その実行状態(無いイベントは未実行)を、全端末で共有する。 */
+export interface ScheduleEventRecord {
+  version: 1;
+  events: ScheduleEventJson[];
+  /** イベント id → 実行状態。pending は持たない(無ければ未実行)。 */
+  status: Record<string, ScheduleExecutionStatus>;
+}
+
+/** 予定イベントのレコードのサーバー上の名前。 */
+export const SCHEDULE_EVENTS_RECORD_FILE = "schedule-events.json";
+
 /**
  * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
  * Proxyの型として使う。`doGet` は GAS Web アプリのエントリポイントであり、
@@ -86,6 +121,16 @@ export interface OctopusSchedulerApi {
   existsAssetBlobs(args: { hashes: string[] }, options?: ApiCallOptions): Promise<{ existing: string[] }>;
   putAssetBlob(args: { hash: string; dataUrl: string }, options?: ApiCallOptions): Promise<void>;
   getAssetBlob(args: { hash: string }, options?: ApiCallOptions): Promise<{ dataUrl: string | null }>;
+  /** 予定イベントと実行状態の、サーバー上の最新。まだ無ければ空。 */
+  getScheduleEvents(args?: undefined, options?: ApiCallOptions): Promise<ScheduleEventRecord>;
+  /** イベント1件の作成・更新(id が無ければ作成)。処理済み日時・登録日時は、すでにあるイベントのものを保つ。操作後の最新を返す。 */
+  saveScheduleEvent(args: { event: ScheduleEventJson }, options?: ApiCallOptions): Promise<ScheduleEventRecord>;
+  /** イベントを消す(実行状態も一緒に)。操作後の最新を返す。 */
+  deleteScheduleEvents(args: { ids: string[] }, options?: ApiCallOptions): Promise<ScheduleEventRecord>;
+  /** CSV取込の反映: 追加・更新するイベントと、消すイベントの id。操作後の最新を返す。 */
+  importScheduleEvents(args: { upserts: ScheduleEventJson[]; deleteIds: string[] }, options?: ApiCallOptions): Promise<ScheduleEventRecord>;
+  /** 再生で実行状態が変わったイベントの状態遷移。編集とは別の操作として適用するので、互いを上書きしない。操作後の最新を返す。 */
+  markScheduleEvents(args: { ids: string[]; status: ScheduleExecutionStatus }, options?: ApiCallOptions): Promise<ScheduleEventRecord>;
 }
 
 /** `OctopusSchedulerApi` をDI解決するためのトークン。 */

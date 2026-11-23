@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { DataTable, TableImportDialog, TableIoToolbar, UiButton, UiToolbar, toast, useConfirm } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { executeAppEvent, type AppEvent, type AppEventType } from '../../../../control/app-event/app-event';
@@ -233,9 +233,20 @@ async function onDelete(ev: AppEvent) {
     }
 }
 
+// 正はサーバー。開いたとき・タブに戻ったときに最新を取り直す(取れなければ端末のキャッシュを出す)。
+function onVisible() {
+    if (document.visibilityState === 'visible' && !loading.value) void getAllScheduleEvents();
+}
+
 onMounted(async () => {
-    // Only read from IndexedDB on mount — do not auto-sync with GAS
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
     await getAllScheduleEvents();
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('focus', onVisible);
 });
 
 // per-screen sync removed: background sync runs automatically

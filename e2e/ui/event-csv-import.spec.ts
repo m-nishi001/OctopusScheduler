@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { unzipSync } from "fflate";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { makeBadgePng, makeWav, TUNES } from "../../scripts/seed-content.js";
-import { adminRpc, expect, newDevice, test } from "./fixtures";
+import { adminRpc, expect, newDevice, resetScheduleEvents, test } from "./fixtures";
 
 /**
- * 設定>イベントの CSV 一括取込・書き出し(素材つき)。イベントはこの端末(IndexedDB)にだけあり、素材は設定>アセットの一覧にある。
+ * 設定>イベントの CSV 一括取込・書き出し(素材つき)。イベントはサーバーで全端末が共有し、素材は設定>アセットの一覧にある。
  * - 音楽・スクリーン(画像)・ページ遷移の行と素材フォルダを取り込む。素材は設定>アセットに1つずつ増える(同じ画像を2行が使っても1つ)。
  * - 書き出した CSV / ZIP をそのまま取り込み直すと全行「変更なし」。ZIP の素材は使われているものを1つずつ。
  * - 同じ名前で中身が違う素材は、同じアセットの差し替えになり、それを使う行だけが更新になる。
@@ -59,6 +59,10 @@ async function pickCsv(page: Page, file: { name: string; mimeType: string; buffe
 }
 
 test.describe.configure({ mode: "serial" });
+
+// イベントはサーバーで共有するので、前後で空にする
+test.beforeEach(({ request }) => resetScheduleEvents(request));
+test.afterEach(({ request }) => resetScheduleEvents(request));
 
 test.afterAll(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });

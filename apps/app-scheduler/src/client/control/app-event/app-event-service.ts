@@ -1,5 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import { AppEventRepository } from "@model/app-event/app-event-repository";
+import type { AppEventData } from "@model/app-event/app-event-data";
 import type { ExecutionStatus } from "@model/app-event/execution-status";
 import { appEventFromDto, reviveAppEvent, type AppEvent, type AppEventTiming } from "./app-event";
 import type { AppEventDto } from "./dto/app-event-dto";
@@ -13,7 +14,11 @@ export class AppEventService {
   constructor(@inject(AppEventRepository) private repository: AppEventRepository) {}
 
   async getScheduleEvents(): Promise<AppEvent[]> {
-    const raws = await this.repository.getScheduleEvents();
+    return this.revive(await this.repository.getScheduleEvents());
+  }
+
+  /** 読み込めないイベント(以前の版の種類など)は捨てる。 */
+  private revive(raws: readonly AppEventData[]): AppEvent[] {
     const results: AppEvent[] = [];
     for (const raw of raws) {
       try {
@@ -49,10 +54,6 @@ export class AppEventService {
     return { actionType: eventType } as AppEventDto;
   }
 
-  async updateScheduleEvents(events: AppEvent[]): Promise<void> {
-    await this.repository.updateScheduleEvents(events);
-  }
-
   async deleteScheduleEvents(ids: string[]): Promise<void> {
     await this.repository.deleteScheduleEvents(ids);
   }
@@ -62,16 +63,18 @@ export class AppEventService {
     await this.repository.applyImport(upserts, deleteIds);
   }
 
-  async addScheduleEvents(events: AppEvent[]): Promise<string[]> {
-    return await this.repository.addScheduleEvents(events);
+  /** サーバーの最新を、この端末のキャッシュに写す(再生端末の定期取得。サーバーには書かない)。 */
+  async refresh(): Promise<void> {
+    await this.repository.refresh();
   }
 
   async getCurrentScheduleEvent(): Promise<{
     startEvents: AppEvent[];
     endEvents: AppEvent[];
   }> {
-    const events = await this.getScheduleEvents();
-    const executionStatuses = await this.repository.getAllExecutionStatuses();
+    const snapshot = await this.repository.getSnapshot();
+    const events = this.revive(snapshot.events);
+    const executionStatuses = snapshot.status;
     const now = new Date();
     const startEvents: AppEvent[] = [];
     const endEvents: AppEvent[] = [];
@@ -94,32 +97,14 @@ export class AppEventService {
     return { startEvents, endEvents };
   }
 
+  /** 実行を始めたイベントを「実行中」にする(サーバーの操作。編集とは別に適用される)。 */
   async markEventsAsStarted(scheduleEventIds: string[]): Promise<void> {
-    const raws = await this.repository.getScheduleEvents();
-    const now = new Date();
-    const updated = raws.map((raw) =>
-      scheduleEventIds.includes(raw.id)
-        ? { ...raw, processedAt: now, updatedAt: now }
-        : raw
-    );
-    await this.repository.updateScheduleEvents(updated);
-    for (const id of scheduleEventIds) {
-      await this.repository.updateExecutionStatus(id, "running");
-    }
+    await this.repository.markScheduleEvents(scheduleEventIds, "running");
   }
 
+  /** 実行を終えたイベントを「完了」にする。 */
   async markEventsAsEnded(scheduleEventIds: string[]): Promise<void> {
-    const raws = await this.repository.getScheduleEvents();
-    const now = new Date();
-    const updated = raws.map((raw) =>
-      scheduleEventIds.includes(raw.id)
-        ? { ...raw, registeredAt: now, updatedAt: now }
-        : raw
-    );
-    await this.repository.updateScheduleEvents(updated);
-    for (const id of scheduleEventIds) {
-      await this.repository.updateExecutionStatus(id, "completed");
-    }
+    await this.repository.markScheduleEvents(scheduleEventIds, "completed");
   }
 
   /**
@@ -131,7 +116,7 @@ export class AppEventService {
   ): Promise<void> {
     const now = new Date();
     const timing: AppEventTiming = {
-      id: existing?.id ?? "",
+      id: existing?.id ?? crypto.randomUUID(),
       startTime: input.startTime,
       endTime: input.endTime,
       processedAt: existing?.processedAt ?? null,
@@ -139,11 +124,6 @@ export class AppEventService {
       updatedAt: now,
     };
     const { startTime: _s, endTime: _e, ...dto } = input;
-    const ev = appEventFromDto(dto, timing);
-    if (existing) {
-      await this.updateScheduleEvents([ev]);
-    } else {
-      await this.addScheduleEvents([ev]);
-    }
+    await this.repository.saveScheduleEvent(appEventFromDto(dto, timing));
   }
 }

@@ -9,11 +9,18 @@
 import { respond, IKeyValueStorageToken, ILockToken } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import type { IKeyValueStorage, ILock } from "@octopus/infrastructures/interfaces";
-import type { OctopusSchedulerEndpointName } from "./scheduler-api-contract";
+import type { OctopusSchedulerEndpointName, ScheduleEventJson, ScheduleExecutionStatus } from "./scheduler-api-contract";
 import { ASSET_RECORD_FILE, OCTOPUS_SCHEDULER_PREFIX, assetRecordHashes } from "./scheduler-api-contract";
 
 import { createDriveAssets, createHashedBlobStore, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
 import { secure } from "@octopus/accounts/secure";
+import {
+  deleteScheduleEvents,
+  getScheduleEvents,
+  importScheduleEvents,
+  markScheduleEvents,
+  saveScheduleEvent,
+} from "./schedule-events-use-cases";
 
 /** この置き場のファイルの一覧・取得(スライドショーのフォルダ表示用)。 */
 const assets = createDriveAssets(StorageModule.Scheduler, StorageKind.Assets);
@@ -37,6 +44,11 @@ declare let _octopusScheduler_saveAssetRecord: (args: { json: string }) => Promi
 declare let _octopusScheduler_existsAssetBlobs: (args: { hashes: string[] }) => Promise<string>;
 declare let _octopusScheduler_putAssetBlob: (args: { hash: string; dataUrl: string }) => Promise<string>;
 declare let _octopusScheduler_getAssetBlob: (args: { hash: string }) => Promise<string>;
+declare let _octopusScheduler_getScheduleEvents: () => Promise<string>;
+declare let _octopusScheduler_saveScheduleEvent: (args: { event: ScheduleEventJson }) => Promise<string>;
+declare let _octopusScheduler_deleteScheduleEvents: (args: { ids: string[] }) => Promise<string>;
+declare let _octopusScheduler_importScheduleEvents: (args: { upserts: ScheduleEventJson[]; deleteIds: string[] }) => Promise<string>;
+declare let _octopusScheduler_markScheduleEvents: (args: { ids: string[]; status: ScheduleExecutionStatus }) => Promise<string>;
 
 _octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string> => {
   return respond(() => assets.listMetadata(resolveDeps(), folderName));
@@ -60,6 +72,20 @@ _octopusScheduler_putAssetBlob = async (args: { hash: string; dataUrl: string })
 
 _octopusScheduler_getAssetBlob = async (args: { hash: string }): Promise<string> =>
   respond(() => store.get(resolveDeps(), args));
+
+_octopusScheduler_getScheduleEvents = async (): Promise<string> => respond(() => getScheduleEvents(resolveDeps()));
+
+_octopusScheduler_saveScheduleEvent = async (args: { event: ScheduleEventJson }): Promise<string> =>
+  respond(() => saveScheduleEvent(resolveDeps(), args));
+
+_octopusScheduler_deleteScheduleEvents = async (args: { ids: string[] }): Promise<string> =>
+  respond(() => deleteScheduleEvents(resolveDeps(), args));
+
+_octopusScheduler_importScheduleEvents = async (args: { upserts: ScheduleEventJson[]; deleteIds: string[] }): Promise<string> =>
+  respond(() => importScheduleEvents(resolveDeps(), args));
+
+_octopusScheduler_markScheduleEvents = async (args: { ids: string[]; status: ScheduleExecutionStatus }): Promise<string> =>
+  respond(() => markScheduleEvents(resolveDeps(), args));
 
 _octopusScheduler_doGet = (
   _e: GoogleAppsScript.Events.DoGet
@@ -94,6 +120,12 @@ _octopusScheduler_saveAssetRecord = secure("admin", _octopusScheduler_saveAssetR
 _octopusScheduler_existsAssetBlobs = secure("admin", _octopusScheduler_existsAssetBlobs);
 _octopusScheduler_putAssetBlob = secure("admin", _octopusScheduler_putAssetBlob);
 _octopusScheduler_getAssetBlob = secure("admin", _octopusScheduler_getAssetBlob);
+// 予定イベントも管理者のみ(投影用の実行画面も管理者でログインして使うため、再生端末も同じロール)。
+_octopusScheduler_getScheduleEvents = secure("admin", _octopusScheduler_getScheduleEvents);
+_octopusScheduler_saveScheduleEvent = secure("admin", _octopusScheduler_saveScheduleEvent);
+_octopusScheduler_deleteScheduleEvents = secure("admin", _octopusScheduler_deleteScheduleEvents);
+_octopusScheduler_importScheduleEvents = secure("admin", _octopusScheduler_importScheduleEvents);
+_octopusScheduler_markScheduleEvents = secure("admin", _octopusScheduler_markScheduleEvents);
 
 /**
  * Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。
@@ -110,6 +142,11 @@ export const OCTOPUS_SCHEDULER_HANDLERS: Record<
   getAssetRecord: _octopusScheduler_getAssetRecord,
   saveAssetRecord: _octopusScheduler_saveAssetRecord,
   existsAssetBlobs: _octopusScheduler_existsAssetBlobs,
+  getScheduleEvents: _octopusScheduler_getScheduleEvents,
+  saveScheduleEvent: _octopusScheduler_saveScheduleEvent,
+  deleteScheduleEvents: _octopusScheduler_deleteScheduleEvents,
+  importScheduleEvents: _octopusScheduler_importScheduleEvents,
+  markScheduleEvents: _octopusScheduler_markScheduleEvents,
 };
 
 export { OCTOPUS_SCHEDULER_PREFIX };
