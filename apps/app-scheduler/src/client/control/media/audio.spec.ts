@@ -15,6 +15,7 @@ function setup() {
   const audio = {
     loadFromBlob: vi.fn(async (_blob: Blob) => `inst-${++n}`),
     play: vi.fn(async (_id: string, _fadeMs?: number, _loop?: boolean) => undefined),
+    pause: vi.fn(async (_id: string, _fadeMs?: number) => undefined),
     stop: vi.fn(async (_id: string, _fadeMs?: number) => undefined),
     disposeInstance: vi.fn((_id: string) => undefined),
   };
@@ -114,5 +115,84 @@ describe("AudioControl", () => {
     audio.stop.mockRejectedValueOnce(new Error("gone"));
     await expect(control.stop("a")).resolves.toBeUndefined();
     expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
+  });
+
+  describe("suspend / resume", () => {
+    it("suspend は鳴っている曲をフェードアウトして一時停止し、破棄しない。resume は同じ再生を、loop も含めて続きから鳴らす", async () => {
+      const { control, audio } = setup();
+      await control.play("a", true);
+      await control.play("b");
+      await control.suspend(1);
+      expect(audio.pause.mock.calls).toEqual([["inst-1", 1000], ["inst-2", 1000]]);
+      expect(audio.disposeInstance).not.toHaveBeenCalled();
+      expect(audio.stop).not.toHaveBeenCalled();
+      audio.play.mockClear();
+      await control.resume();
+      expect(audio.play).toHaveBeenCalledWith("inst-1", 1000, true);
+      expect(audio.play).toHaveBeenCalledWith("inst-2", 1000, false);
+      expect(audio.loadFromBlob).toHaveBeenCalledTimes(2);
+    });
+
+    it("resume のあとの全停止は、再開した曲を止める。もう一度 resume しても何も鳴らない", async () => {
+      const { control, audio } = setup();
+      await control.play("a");
+      await control.suspend();
+      await control.resume();
+      audio.play.mockClear();
+      await control.stop();
+      expect(audio.stop).toHaveBeenCalledWith("inst-1", 0);
+      await control.resume();
+      expect(audio.play).not.toHaveBeenCalled();
+    });
+
+    it("一時停止中に stop(id) が来た曲は破棄され、resume で戻らない。ほかの曲は戻る", async () => {
+      const { control, audio } = setup();
+      await control.play("a");
+      await control.play("b");
+      await control.suspend();
+      await control.stop("a");
+      expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
+      audio.play.mockClear();
+      await control.resume();
+      expect(audio.play).toHaveBeenCalledOnce();
+      expect(audio.play).toHaveBeenCalledWith("inst-2", 1000, false);
+    });
+
+    it("一時停止中の全停止は、すべて破棄する", async () => {
+      const { control, audio } = setup();
+      await control.play("a");
+      await control.suspend();
+      await control.stop();
+      expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
+      audio.play.mockClear();
+      await control.resume();
+      expect(audio.play).not.toHaveBeenCalled();
+    });
+
+    it("一時停止中に同じ曲が鳴らされていたら、resume は再開せずに古い方を破棄する(二重に鳴らさない)", async () => {
+      const { control, audio } = setup();
+      await control.play("a");
+      await control.suspend();
+      await control.play("a");
+      audio.play.mockClear();
+      await control.resume();
+      expect(audio.play).not.toHaveBeenCalled();
+      expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
+    });
+
+    it("鳴っていないときの suspend / resume は何もしない", async () => {
+      const { control, audio } = setup();
+      await control.suspend();
+      await control.resume();
+      expect(audio.pause).not.toHaveBeenCalled();
+      expect(audio.play).not.toHaveBeenCalled();
+    });
+
+    it("一時停止に失敗しても例外にしない", async () => {
+      const { control, audio } = setup();
+      await control.play("a");
+      audio.pause.mockRejectedValueOnce(new Error("gone"));
+      await expect(control.suspend()).resolves.toBeUndefined();
+    });
   });
 });

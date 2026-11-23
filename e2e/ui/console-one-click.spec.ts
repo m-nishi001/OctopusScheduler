@@ -1,5 +1,6 @@
 import { createSession, expect, isGas, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedJackpot, test, adminRpc, seedQuizzes } from "./fixtures";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
+import { audioProbe, installAudioProbe, PNG_1X1, seedServerAsset, silentWav, uid } from "./helpers/media";
 
 /**
  * コントロール画面の「ワンクリックで始める」と、主ボタン(押すと何が起きるかの予告つき)。
@@ -25,6 +26,73 @@ async function scene(browser: import("@playwright/test").Browser, label: string)
 }
 
 test.describe("コントロール画面: ワンクリック開催", () => {
+  test("開始前にスライドショーとBGMを流していると、クイズ・ジャックポットの開始でBGMを止め、終了後にスライドショーへ戻りBGMを再開する。ロビーから始めたときはロビーへ戻る", async ({ browser, request }) => {
+    test.setTimeout(240_000);
+    const folder = `e2eshow${uid()}`;
+    const slides = [1, 2].map((n) => ({ id: `e2eslide${uid()}`, fileName: `s${n}.png`, mime: "image/png", body: Buffer.concat([PNG_1X1, Buffer.from(`${folder}${n}`)]), directoryId: `octopus-scheduler/assets/${folder}` }));
+    const song = { id: `e2esong${uid()}`, fileName: `e2e-tone-${uid()}.wav`, mime: "audio/wav", body: silentWav() };
+    for (const asset of [...slides, song]) await seedServerAsset(request, asset);
+
+    const admin = await newDevice(browser, { signedIn: true });
+    const { id: sessionId } = await createSession(admin.page, "復元(クイズ/ジャックポット)");
+    sessionIds.push(sessionId);
+    await seedQuizzes(admin.page, [sampleQuiz("oc1", 60)]);
+    await admin.page.reload();
+    const host = await newDevice(browser, { signedIn: true, projector: true });
+    host.page.on("dialog", (d) => void d.dismiss());
+    await installAudioProbe(host.context);
+    await host.page.goto(`/#/session/host/${sessionId}`);
+    await expect(host.page.locator(".host-view__title")).toBeVisible();
+    await seedQuizzes(host.page, [sampleQuiz("oc1", 60)]);
+    await admin.page.getByTestId("media-reload").click();
+
+    // スライドショーとBGM(ループ)を流す
+    await admin.page.getByTestId("media-tab-screen").click();
+    await admin.page.getByTestId("media-folder-input").fill(folder);
+    await admin.page.getByTestId("media-interval").fill("2");
+    await admin.page.getByTestId("media-slideshow-start").click();
+    await expect.poll(() => route(host.page)).toMatch(/^\/execute\/show-slideshow\//);
+    const slideshowRoute = await route(host.page);
+    await expect(host.page.locator(".slideshow-container img.slide")).toBeVisible({ timeout: 20_000 });
+    await admin.page.getByTestId("media-tab-audio").click(); // 曲の再生ボタンは「音楽」タブにある
+    await admin.page.getByTestId(`media-play-${song.id}`).click();
+    await expect.poll(async () => (await audioProbe(host.page)).started, { timeout: 30_000 }).toBe(1);
+
+    // クイズを始める: BGMが止まる(ホストの画面は結果まで進める)
+    await admin.page.getByTestId("quiz-select").selectOption("oc1");
+    await admin.page.getByTestId("start-quiz").click();
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/intro");
+    await expect.poll(async () => (await audioProbe(host.page)).stopped, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+    const startedBefore = (await audioProbe(host.page)).started;
+    for (const path of ["entry", "play"]) {
+      await nextButton(admin.page).click();
+      await expect.poll(() => route(host.page)).toBe(`/execute/quiz/oc1/${path}`);
+    }
+    await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
+    await expect(nextButton(admin.page)).toHaveText(/受付を締め切る/); // 管理端末の表示が出題画面に追いついてから押す
+    await nextButton(admin.page).click(); // 受付を締め切る
+    await expect(admin.page.getByTestId("now")).toContainText("受付終了");
+    await expect(admin.page.getByTestId("next-hint")).toContainText("正解");
+    for (const path of ["answer", "result"]) {
+      await nextButton(admin.page).click();
+      await expect.poll(() => route(host.page)).toBe(`/execute/quiz/oc1/${path}`);
+    }
+    await expect(host.page.getByText("全員不正解").first()).toBeVisible({ timeout: 30_000 });
+    await nextButton(admin.page).click(); // 当選者なし → 開始前の画面へ
+    await expect.poll(() => route(host.page)).toBe(slideshowRoute);
+    await expect(host.page.locator(".slideshow-container img.slide")).toBeVisible({ timeout: 20_000 });
+    // BGMが再開する(止めた曲を続きから鳴らし直す)
+    await expect.poll(async () => (await audioProbe(host.page)).started, { timeout: 15_000 }).toBeGreaterThan(startedBefore);
+
+    // ジャックポットを始める: 同じようにBGMが止まる
+    const stoppedBefore = (await audioProbe(host.page)).stopped;
+    await admin.page.getByTestId("start-jackpot").click();
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|description)$/);
+    await expect.poll(async () => (await audioProbe(host.page)).stopped, { timeout: 15_000 }).toBeGreaterThan(stoppedBefore);
+
+    for (const d of [admin, host]) await d.context.close();
+  });
+
   test("クイズ: 「このクイズを始める」だけでイベントが開催され、主ボタンの「次へ」だけで最後まで進み、ロビーに戻る", async ({ browser }) => {
     test.setTimeout(180_000);
     const { admin, host, sessionId } = await scene(browser, "ワンクリック(クイズ)");

@@ -62,6 +62,22 @@ export class HostAgent {
     return this.active && session ? lobbyPath(session.id) : null;
   }
 
+  private returnSource: (() => string | null) | null = null;
+
+  /** ゲーム開始前の画面のパスを返す関数を登録する(無ければ null を返す)。アプリ側が設定する。 */
+  setReturnPathSource(source: (() => string | null) | null): void {
+    this.returnSource = source;
+  }
+
+  /**
+   * ゲームの終了後に戻る画面のパス。開始前の画面が覚えられていればそこ、無ければロビー。
+   * ホストでなければ null(プレビューなど)。
+   */
+  get returnPath(): string | null {
+    const lobby = this.lobbyPath;
+    return lobby === null ? null : (this.returnSource?.() ?? lobby);
+  }
+
   /**
    * 名前空間 `ns` の状態を更新して公開する。`clientInput` はその名前空間で
    * 参加者から受け付ける操作(key は "game.type"。memberIds で宛先のメンバーに絞れる)。省略時は変更しない。

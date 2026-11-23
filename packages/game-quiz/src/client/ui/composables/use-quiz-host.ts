@@ -17,6 +17,8 @@ export interface QuizHost {
   publish(state: QuizHostState): void;
   /** ホストとして接続中なら、終了後に戻るロビーのパス。ホストでなければ null(プレビューなど)。 */
   lobbyPath(): string | null;
+  /** ホストとして接続中なら、終了後に戻る画面のパス(開始前の画面。無ければロビー)。ホストでなければ null。 */
+  returnPath(): string | null;
 }
 
 const NAMESPACE = QUIZ_NAMESPACE;
@@ -27,7 +29,7 @@ const NAMESPACE = QUIZ_NAMESPACE;
  * 必ずコンポーネントの setup() の同期実行中に呼ぶ(破棄時の後片付けを登録するため)。
  */
 export function useQuizHost(handlers: QuizHostHandlers): QuizHost {
-  if (!container.isRegistered(HostAgent)) return { publish: () => undefined, lobbyPath: () => null };
+  if (!container.isRegistered(HostAgent)) return { publish: () => undefined, lobbyPath: () => null, returnPath: () => null };
   const agent = container.resolve(HostAgent);
   const gateway = container.resolve(QuizRoundGateway);
 
@@ -39,5 +41,5 @@ export function useQuizHost(handlers: QuizHostHandlers): QuizHost {
     off();
     gateway.clear();
   });
-  return { publish: (state) => gateway.publish(state), lobbyPath: () => agent.lobbyPath };
+  return { publish: (state) => gateway.publish(state), lobbyPath: () => agent.lobbyPath, returnPath: () => agent.returnPath };
 }
