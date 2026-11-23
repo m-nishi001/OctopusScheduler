@@ -75,9 +75,9 @@ const noWinner = computed(
     () => rankingFinished.value && !finalResults.value.some((r) => r.userId)
 );
 
-// 終わったらホストはロビーへ戻る。管理画面(/quiz-home)へ出してはいけない。
+// 終わったらホストは開始前の画面(無ければロビー)へ戻る。管理画面(/quiz-home)へ出してはいけない。
 // ホストでない場合(管理者のプレビュー)だけ、従来どおりクイズ管理へ戻る。
-const goHome = () => router.push({ path: host.lobbyPath() ?? '/quiz-home' });
+const goHome = () => router.push({ path: host.returnPath() ?? '/quiz-home' });
 
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog, confirm: confirmPrize } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
