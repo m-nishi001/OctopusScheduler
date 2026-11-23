@@ -61,6 +61,141 @@ test.describe("認証", () => {
   });
 });
 
+test.describe("再読み込み時の通信エラー", () => {
+  const TOKEN_KEY = "octopus-session-token";
+
+  test("通信できないまま再読み込みしても、ログイン画面へ飛ばさず接続待ち画面を出し、復帰したら元の画面へ戻る", async ({ browser }) => {
+    const d = await newDevice(browser, { signedIn: true });
+    await d.page.goto("/#/sessions");
+    await expect(d.page.getByRole("heading", { name: "セッション" })).toBeVisible();
+
+    // ページ本体は取得できる状態で、RPC だけが通信エラーになる状況(圏外・タイムアウト相当)
+    const rpcBodies: string[] = [];
+    await d.context.route("**/rpc", (r) => {
+      rpcBodies.push(r.request().postData() ?? "");
+      return r.abort("internetdisconnected");
+    });
+    await d.page.reload();
+    await expect(d.page.getByTestId("connecting-view")).toBeVisible();
+    await expect(d.page).toHaveURL(/#\/connecting\?redirect=(%2F|\/)sessions/);
+    // 管理画面の中身は出ない。表示するのは文言とリンクだけ
+    await expect(d.page.getByRole("heading", { name: "セッション" })).toHaveCount(0);
+    await expect(d.page.getByTestId("connecting-to-login")).toBeVisible();
+    // トークンは残り、ログイン画面には行かない
+    expect(await d.page.evaluate((k) => localStorage.getItem(k), TOKEN_KEY)).not.toBeNull();
+    await expect(d.page).not.toHaveURL(/#\/login/);
+
+    await d.context.unroute("**/rpc");
+    await expect(d.page.getByRole("heading", { name: "セッション" })).toBeVisible({ timeout: 20_000 });
+    await expect(d.page).toHaveURL(/#\/sessions/);
+    await d.context.close();
+  });
+
+  test("サーバーが無効と判定したトークン(改ざん)は、接続待ちにならずログイン画面へ送られ、トークンが消える", async ({ browser }) => {
+    const d = await newDevice(browser);
+    await d.page.goto("/#/login");
+    await d.page.evaluate((k) => localStorage.setItem(k, "tampered-invalid-token-0000"), TOKEN_KEY);
+    await d.page.goto("/#/sessions");
+    await d.page.reload();
+    await expect(d.page).toHaveURL(/#\/login/);
+    await expect(d.page.getByTestId("connecting-view")).toHaveCount(0);
+    expect(await d.page.evaluate((k) => localStorage.getItem(k), TOKEN_KEY)).toBeNull();
+    await d.context.close();
+  });
+
+  test("別のタブでログアウトしたあと再読み込みすると、ログイン画面になる", async ({ browser }) => {
+    const d = await newDevice(browser);
+    await d.page.goto("/#/login");
+    await d.page.locator('input[autocomplete="username"]').fill(ADMIN_ID);
+    await d.page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
+    await d.page.getByRole("button", { name: "ログイン" }).click();
+    await expect(d.page).toHaveURL(/#\/home/);
+    const token = await d.page.evaluate((k) => localStorage.getItem(k), TOKEN_KEY);
+    // 別タブ相当: 同じトークンをサーバーで失効させる(ログアウト)
+    const res = await d.page.request.post("/rpc", { data: { name: "accounts_logout", args: { token } } });
+    expect(res.ok()).toBe(true);
+    await d.page.reload();
+    await expect(d.page).toHaveURL(/#\/login/);
+    await expect(d.page.getByTestId("connecting-view")).toHaveCount(0);
+    await d.context.close();
+  });
+
+  test("参加者は通信できない状態で管理画面を開いても、中身は表示されない。接続待ちの戻り先も外部へ飛ばない", async ({ browser, request }) => {
+    const adminDev = await newDevice(browser, { signedIn: true });
+    await openSession(adminDev.page, request, "通信エラー確認");
+    const d = await login(browser);
+    await d.context.route("**/rpc", (r) => r.abort("internetdisconnected"));
+    await d.page.goto("/#/sessions");
+    await d.page.reload();
+    await expect(d.page.getByTestId("connecting-view")).toBeVisible();
+    await expect(d.page.getByRole("heading", { name: "セッション" })).toHaveCount(0);
+
+    for (const bad of ["https://example.com", "//example.com"]) {
+      await d.page.goto(`/#/connecting?redirect=${encodeURIComponent(bad)}`);
+      await d.context.unroute("**/rpc");
+      await expect(d.page.getByTestId("home-greeting")).toBeVisible({ timeout: 20_000 });
+      expect(new URL(d.page.url()).origin).toBe(new URL(test.info().project.use.baseURL ?? d.page.url()).origin);
+      await d.context.route("**/rpc", (r) => r.abort("internetdisconnected"));
+    }
+    await d.context.close();
+    await adminDev.context.close();
+  });
+
+  test("セッション上限(1人10件)で追い出された端末は、再読み込みすると接続待ちではなくログイン画面になる", async ({ browser, request }) => {
+    const id = `${PREFIX}-limit`;
+    const key = await addParticipant(request, id, "上限確認");
+    try {
+      const rpc = async (name: string, args: unknown) => (await request.post("/rpc", { data: { name, args } })).json();
+      const d = await loginByQr(browser, id, key);
+      for (let i = 0; i < 11; i++) {
+        const res = await rpc("accounts_loginWithKey", { id, key });
+        expect(res.status).toBe("success");
+      }
+      await d.page.reload();
+      await expect(d.page).toHaveURL(/#\/login/);
+      await expect(d.page.getByTestId("connecting-view")).toHaveCount(0);
+      expect(await d.page.evaluate((k) => localStorage.getItem(k), TOKEN_KEY)).toBeNull();
+      await d.context.close();
+    } finally {
+      await removeParticipant(request, id).catch(() => undefined);
+    }
+  });
+
+  test("管理用のRPCは、無効なトークン・トークン無し・期限切れ相当のトークンでは拒否される", async ({ request }) => {
+    const call = async (auth: unknown) => {
+      const args = auth === undefined ? {} : { __octopusAuth: auth };
+      const res = await request.post("/rpc", { data: { name: "accounts_listAccounts", args } });
+      return res.json();
+    };
+    for (const auth of [undefined, "", "invalid-token-0000", "expired-like-token-9999"]) {
+      const json = await call(auth);
+      expect(json.status).not.toBe("success");
+      expect(JSON.stringify(json)).not.toContain(ADMIN_ID);
+    }
+  });
+
+  test("通信できない間の再試行は10秒間隔までのバックオフで、1タブ1分あたり少ない", async ({ browser }) => {
+    test.setTimeout(90_000);
+    const d = await newDevice(browser, { signedIn: true });
+    await d.page.goto("/#/sessions");
+    await expect(d.page.getByRole("heading", { name: "セッション" })).toBeVisible();
+    const times: number[] = [];
+    await d.context.route("**/rpc", (r) => {
+      times.push(Date.now());
+      return r.abort("internetdisconnected");
+    });
+    await d.page.reload();
+    await expect(d.page.getByTestId("connecting-view")).toBeVisible();
+    await d.page.waitForTimeout(40_000);
+    const gaps = times.slice(1).map((t, i) => t - times[i]);
+    expect(gaps.length).toBeGreaterThanOrEqual(4);
+    expect(Math.min(...gaps.slice(1))).toBeGreaterThanOrEqual(900);
+    expect(gaps.at(-1)!).toBeGreaterThanOrEqual(9000);
+    expect(times.length).toBeLessThanOrEqual(12);
+    await d.context.close();
+  });
+});
+
 /** セッションを作り、参加者ポータルに公開する(参加者のスマホが自動で入る)。 */
 async function openSession(adminPage: import("@playwright/test").Page, request: import("@playwright/test").APIRequestContext, label: string) {
   const created = await createSession(adminPage, label);
