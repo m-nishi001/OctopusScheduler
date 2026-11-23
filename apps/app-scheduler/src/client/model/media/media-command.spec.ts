@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_COMMAND_PAYLOAD_BYTES } from "@octopus/session-hub";
-import { parseMediaCommand } from "./media-command";
+import { DEFAULT_FADE_SEC, MAX_FADE_SEC, parseMediaCommand } from "./media-command";
 
 const SHOW = { kind: "slideshow", folder: "pics", intervalSec: 5, transition: "fade" } as const;
 
@@ -84,6 +84,21 @@ describe("parseMediaCommand: clear と、その他", () => {
   it("clear はペイロードが空でも {} でも通る", () => {
     expect(parseMediaCommand("clear", undefined)).toEqual({ type: "clear" });
     expect(parseMediaCommand("clear", {})).toEqual({ type: "clear" });
+  });
+
+  it("clear と play にも fadeSec を付けられる(0〜10 の数だけ。省略もよい)", () => {
+    expect(parseMediaCommand("clear", { fadeSec: 3 })).toEqual({ type: "clear", fadeSec: 3 });
+    expect(parseMediaCommand("play", { assetId: "a", loop: true, fadeSec: 0 })).toEqual({ type: "play", assetId: "a", loop: true, fadeSec: 0 });
+    for (const type of ["clear", "play"]) {
+      for (const fadeSec of [-1, 10.5, Number.NaN, "2", null]) {
+        expect(parseMediaCommand(type, { assetId: "a", fadeSec })).toBeNull();
+      }
+    }
+  });
+
+  it("フェード秒を省略したときの既定は、2 秒(停止は常にフェードする)", () => {
+    expect(DEFAULT_FADE_SEC).toBe(2);
+    expect(DEFAULT_FADE_SEC).toBeLessThanOrEqual(MAX_FADE_SEC);
   });
 
   it("4種類以外は通さない", () => {

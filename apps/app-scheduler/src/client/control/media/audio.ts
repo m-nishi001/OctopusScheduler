@@ -1,5 +1,6 @@
 import { inject, injectable } from "tsyringe";
 import { AudioService } from "@octopus/client-common/audio/audio-service";
+import { DEFAULT_FADE_SEC } from "@model/media/media-command";
 import { AssetSource } from "./asset-source";
 
 /** 音を鳴らす部品(`AudioService`)を DI で差し替えるためのトークン。 */
@@ -19,8 +20,11 @@ export class AudioControl {
     @inject(AudioServiceToken) private readonly audio: AudioPlayer
   ) {}
 
-  /** 曲を鳴らす。`loop` なら、止めるまで繰り返す。 */
-  async play(id: string, loop = false): Promise<void> {
+  /**
+   * 曲を鳴らす。`loop` なら、止めるまで繰り返す。
+   * 同じ曲がすでに鳴っているときは、古い方を `fadeSec` 秒でフェードアウトしながら、新しい方を鳴らす(クロスフェード)。古い方の完了は待たない。
+   */
+  async play(id: string, loop = false, fadeSec = DEFAULT_FADE_SEC): Promise<void> {
     const mine = (this.seq.get(id) ?? 0) + 1;
     this.seq.set(id, mine);
     const blob = await this.source.ensure(id);
@@ -30,13 +34,17 @@ export class AudioControl {
       this.audio.disposeInstance(instance);
       return;
     }
-    await this.stopInstance(id, 0);
+    const previous = this.playing.get(id);
+    if (previous) {
+      this.playing.delete(id);
+      void this.release(previous, fadeSec);
+    }
     this.playing.set(id, instance);
     await this.audio.play(instance, 0, loop);
   }
 
-  /** 曲を指定するとその曲だけ、省略するとすべて止める。`fadeSec` 秒かけてフェードアウトする。 */
-  async stop(id?: string, fadeSec = 0): Promise<void> {
+  /** 曲を指定するとその曲だけ、省略するとすべて止める。`fadeSec` 秒かけてフェードアウトする(省略は `DEFAULT_FADE_SEC`。0 は即時停止)。 */
+  async stop(id?: string, fadeSec = DEFAULT_FADE_SEC): Promise<void> {
     const ids = id === undefined ? [...new Set([...this.seq.keys(), ...this.playing.keys()])] : [id];
     for (const target of ids) this.seq.set(target, (this.seq.get(target) ?? 0) + 1);
     await Promise.all(ids.map((target) => this.stopInstance(target, fadeSec)));
@@ -46,6 +54,11 @@ export class AudioControl {
     const instance = this.playing.get(id);
     if (!instance) return;
     this.playing.delete(id);
+    await this.release(instance, fadeSec);
+  }
+
+  /** 再生の ID を、`fadeSec` 秒でフェードアウトして止め、片づける。失敗しても片づけて、例外にしない。 */
+  private async release(instance: string, fadeSec: number): Promise<void> {
     try {
       await this.audio.stop(instance, Math.round(Math.max(0, fadeSec) * 1000));
     } catch (error) {

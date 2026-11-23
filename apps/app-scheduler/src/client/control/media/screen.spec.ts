@@ -13,7 +13,8 @@ function deferred<T>() {
 function setup(lobby: string | null = "/session/host/s1") {
   const router = { push: vi.fn(async (_to: unknown) => undefined) };
   const source = { ensure: vi.fn(async (id: string) => new Blob([id])) };
-  return { router, source, screen: new ScreenControl(source, router, () => lobby) };
+  const video = { fadeOut: vi.fn(async (_ms: number) => undefined) };
+  return { router, source, video, screen: new ScreenControl(source, router, () => lobby, video) };
 }
 
 describe("ScreenControl.show", () => {
@@ -91,5 +92,48 @@ describe("ScreenControl.clear", () => {
     const { screen, router } = setup(null);
     await screen.clear();
     expect(router.push).toHaveBeenCalledWith("/execute");
+  });
+});
+
+describe("ScreenControl: 動画の音のフェード", () => {
+  it("clear は、動画の音を指定秒かけて下げてから、ロビーへ戻る(省略は 2 秒)", async () => {
+    const { screen, router, video } = setup("/session/host/abc");
+    const order: string[] = [];
+    video.fadeOut.mockImplementation(async () => void order.push("fade"));
+    router.push.mockImplementation(async () => void order.push("push"));
+    await screen.clear(1.5);
+    expect(video.fadeOut).toHaveBeenLastCalledWith(1500);
+    expect(order).toEqual(["fade", "push"]);
+    await screen.clear();
+    expect(video.fadeOut).toHaveBeenLastCalledWith(2000);
+  });
+
+  it("動画から別の画像・動画・スライドショーへ切り替えるときも、フェードしてから移る", async () => {
+    const { screen, router, video } = setup();
+    const order: string[] = [];
+    video.fadeOut.mockImplementation(async () => void order.push("fade"));
+    router.push.mockImplementation(async () => void order.push("push"));
+    await screen.show({ kind: "image", id: "a" });
+    await screen.show({ kind: "slideshow", folder: "f", intervalSec: 3, transition: "fade" });
+    expect(order).toEqual(["fade", "push", "fade", "push"]);
+    expect(video.fadeOut).toHaveBeenCalledWith(2000);
+  });
+
+  it("フェードの最中に別の指示が来たら、古い指示は画面を変えない", async () => {
+    const { screen, router, video } = setup("/lobby");
+    const fading = deferred<undefined>();
+    video.fadeOut.mockReturnValueOnce(fading.promise);
+    const first = screen.clear(5);
+    await screen.show({ kind: "image", id: "next" });
+    fading.resolve(undefined);
+    await first;
+    expect(router.push).toHaveBeenCalledOnce();
+    expect(router.push).toHaveBeenCalledWith({ name: "show-image", params: { id: "next" } });
+  });
+
+  it("0 秒を指定した消すは、待たずに戻る", async () => {
+    const { screen, video } = setup();
+    await screen.clear(0);
+    expect(video.fadeOut).toHaveBeenCalledWith(0);
   });
 });

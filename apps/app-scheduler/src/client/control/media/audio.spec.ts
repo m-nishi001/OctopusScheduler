@@ -103,9 +103,32 @@ describe("AudioControl", () => {
     const { control, audio } = setup();
     await control.play("a");
     await control.play("a");
-    expect(audio.stop).toHaveBeenCalledWith("inst-1", 0);
+    expect(audio.stop).toHaveBeenCalledWith("inst-1", 2000);
     expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
     expect(audio.play).toHaveBeenLastCalledWith("inst-2", 0, false);
+  });
+
+  it("同じ曲の再生し直しは、古い方の停止の完了を待たずに、新しい方を鳴らす(クロスフェード)。秒数は指定できる", async () => {
+    const { control, audio } = setup();
+    await control.play("a");
+    const fading = deferred<undefined>();
+    audio.stop.mockReturnValueOnce(fading.promise);
+    await control.play("a", false, 3);
+    expect(audio.stop).toHaveBeenCalledWith("inst-1", 3000);
+    expect(audio.play).toHaveBeenLastCalledWith("inst-2", 0, false);
+    expect(audio.disposeInstance).not.toHaveBeenCalledWith("inst-1"); // まだフェードアウト中
+    fading.resolve(undefined);
+    await vi.waitFor(() => expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1"));
+  });
+
+  it("停止は、秒数を省かなければ既定の 2 秒でフェードし、0 を明示したときだけ即時に止める", async () => {
+    const { control, audio } = setup();
+    await control.play("a");
+    await control.play("b");
+    await control.stop("a");
+    expect(audio.stop).toHaveBeenLastCalledWith("inst-1", 2000);
+    await control.stop("b", 0);
+    expect(audio.stop).toHaveBeenLastCalledWith("inst-2", 0);
   });
 
   it("止めるのに失敗しても片づけて、例外にしない", async () => {

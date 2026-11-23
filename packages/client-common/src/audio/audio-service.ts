@@ -10,6 +10,8 @@ interface AudioInstance {
     startOffset: number;      // 再生開始時のバッファオフセット (秒)
     loop: boolean;            // ループ再生するかどうか
     volume: number;           // 現在の音量 (0-1)
+    /** フェードアウト中の停止。あれば、同じ曲への2回目のフェード停止は、これの完了を待つだけにする。 */
+    stopping: { done: Promise<void>; finish: () => void } | null;
 }
 
 /**
@@ -126,6 +128,7 @@ export class AudioService {
                 startOffset: 0,
                 loop: false,
                 volume: 1, // 初期音量
+                stopping: null,
             });
             return id;
         } catch (error) {
@@ -139,10 +142,11 @@ export class AudioService {
      * @param id 再生するオーディオインスタンスのID
      * @param fadeIn フェードイン時間 (ミリ秒)。デフォルトは0 (即時再生)。
      * @param isRepeat ループ再生するかどうか。デフォルトはfalse。
+     * @param onEnded 曲が最後まで再生されて自然に終わったときに呼ぶ(`stop` や `pause` では呼ばない。ループ再生では呼ばれない)。
      * @returns フェードインが完了した時点で解決されるPromise
      * @throws 指定されたIDのオーディオインスタンスが見つからない場合、または再生に失敗した場合
      */
-    public async play(id: string, fadeIn: number = 0, isRepeat: boolean = false): Promise<void> {
+    public async play(id: string, fadeIn: number = 0, isRepeat: boolean = false, onEnded?: () => void): Promise<void> {
         const instance = this._audioInstances.get(id);
         if (!instance) {
             throw new Error(`Audio instance with ID ${id} not found.`);
@@ -174,16 +178,20 @@ export class AudioService {
         }
 
         // 再生開始
-        instance.sourceNode.start(0, instance.startOffset);
+        const source = instance.sourceNode;
+        source.start(0, instance.startOffset);
         instance.startTime = now;
         instance.isPlaying = true;
 
-        // 再生終了時のイベントリスナー
-        instance.sourceNode.onended = () => {
+        // 再生終了時のイベントリスナー。`stop` / `pause` のあとにも呼ばれるが、そのときは
+        // `instance.sourceNode` が別(null や、再生し直した新しいノード)なので、何もしない。
+        source.onended = () => {
+            if (instance.sourceNode !== source) return;
             if (!instance.loop) { // ループ再生でない場合のみ停止状態に
                 instance.isPlaying = false;
                 instance.startOffset = 0; // 再生位置をリセット
                 instance.sourceNode = null; // ソースノードをクリア
+                onEnded?.();
             }
         };
 
@@ -219,6 +227,10 @@ export class AudioService {
 
     /**
      * 指定されたIDのオーディオを停止します。
+     * フェードアウトするときは、いまの音量を起点に置いてから 0 まで下げる
+     * (起点が無いと、Web Audio は直前の予定(再生開始時の設定)から補間するため、長く鳴った曲ほど一瞬で 0 に落ちる)。
+     * フェードアウト中にもう一度フェード付きで呼んでも、下げ直さず、最初の停止の完了を待つ。
+     * フェードなし(0)で呼ぶと、フェードの途中でも即時に止める。
      * @param id 停止するオーディオインスタンスのID
      * @param fadeOut フェードアウト時間 (ミリ秒)。デフォルトは0 (即時停止)。
      * @returns フェードアウトが完了し、再生が完全に停止した時点で解決されるPromise
@@ -232,41 +244,53 @@ export class AudioService {
 
         if (!instance.isPlaying && !instance.sourceNode) {
             // 既に停止している場合は何もしない
-            return Promise.resolve();
+            return;
         }
 
+        const gain = instance.gainNode.gain;
         const now = this._audioContext.currentTime;
-        const fadeDuration = fadeOut / 1000; // msを秒に変換
 
-        return new Promise((resolve) => {
-            if (fadeDuration > 0) {
-                // フェードアウト処理
-                instance.gainNode.gain.linearRampToValueAtTime(0, now + fadeDuration);
+        if (fadeOut > 0) {
+            if (instance.stopping) return instance.stopping.done; // フェードアウト中。下げ直さない
 
-                // フェードアウト完了後に停止
-                setTimeout(() => {
-                    if (instance.sourceNode) {
-                        instance.sourceNode.stop();
-                        instance.sourceNode.disconnect(); // ノードの接続を解除
-                        instance.sourceNode = null;
-                    }
-                    instance.isPlaying = false;
-                    instance.startOffset = 0; // 再生位置をリセット
-                    instance.gainNode.gain.setValueAtTime(instance.volume, this._audioContext.currentTime); // 音量を元に戻す
-                    resolve();
-                }, fadeOut);
-            } else {
-                // 即時停止
-                if (instance.sourceNode) {
-                    instance.sourceNode.stop();
-                    instance.sourceNode.disconnect(); // ノードの接続を解除
-                    instance.sourceNode = null;
-                }
-                instance.isPlaying = false;
-                instance.startOffset = 0; // 再生位置をリセット
-                resolve();
-            }
-        });
+            gain.cancelScheduledValues(now);
+            gain.setValueAtTime(gain.value, now); // 起点。これが無いと、補間が昔の予定から始まる
+            gain.linearRampToValueAtTime(0, now + fadeOut / 1000);
+
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            let resolveDone: () => void = () => undefined;
+            const done = new Promise<void>((resolve) => {
+                resolveDone = resolve;
+            });
+            const finish = () => {
+                clearTimeout(timer);
+                instance.stopping = null;
+                this.haltSource(instance);
+                resolveDone();
+            };
+            instance.stopping = { done, finish };
+            timer = setTimeout(finish, fadeOut);
+            return done;
+        }
+
+        // 即時停止。フェードの途中なら、その完了を待っている呼び出しも終わらせる
+        if (instance.stopping) instance.stopping.finish();
+        else this.haltSource(instance);
+    }
+
+    /** 音を止め、次の再生に備えて状態と音量を戻す。 */
+    private haltSource(instance: AudioInstance): void {
+        if (instance.sourceNode) {
+            instance.sourceNode.stop();
+            instance.sourceNode.disconnect(); // ノードの接続を解除
+            instance.sourceNode = null;
+        }
+        instance.isPlaying = false;
+        instance.startOffset = 0; // 再生位置をリセット
+        const gain = instance.gainNode.gain;
+        const now = this._audioContext.currentTime;
+        gain.cancelScheduledValues(now);
+        gain.setValueAtTime(instance.volume, now); // 音量を元に戻す
     }
 
     /**

@@ -1,6 +1,6 @@
 <template>
     <div class="fullscreen-video">
-        <video v-if="videoUrl" :src="videoUrl" controls autoplay></video>
+        <video v-if="videoUrl" ref="videoEl" :src="videoUrl" controls autoplay></video>
     </div>
 </template>
 
@@ -9,12 +9,19 @@ import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetSource } from '../../../../control/media/asset-source';
+import { VideoOutput } from '../../../../control/media/video-output';
 
 /** 動画を出したままにする。消すのは、スクリーンを消す操作(別の画面へ戻す)だけ。 */
 const route = useRoute();
 const source = container.resolve(AssetSource);
 
+const output = container.resolve(VideoOutput);
+
 const videoUrl = ref('');
+const videoEl = ref<HTMLVideoElement | null>(null);
+
+// 動画の要素を、スクリーンの窓口(`VideoOutput`)に渡す。消す・切り替えるときの音のフェードは、窓口が行う
+watch(videoEl, (el) => (el ? output.attach(el) : output.detach()));
 
 function release() {
     if (videoUrl.value) URL.revokeObjectURL(videoUrl.value);
@@ -36,7 +43,10 @@ onMounted(() => {
     void load();
     watch(() => route.fullPath, () => void load());
 });
-onUnmounted(release);
+onUnmounted(() => {
+    output.detach();
+    release();
+});
 </script>
 
 <style scoped>

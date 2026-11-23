@@ -12,6 +12,11 @@
                 data-testid="media-tab-screen" @click="tab = 'screen'">スクリーン</button>
         </div>
 
+        <label class="media__field media__fade">
+            <span>フェードアウトの秒数(停止・すべて停止・消す・再生し直しで使う。0 で即時)</span>
+            <input v-model.number="fadeSec" type="number" min="0" :max="MAX_FADE_SEC" step="0.5" data-testid="media-fade-sec" />
+        </label>
+
         <p v-if="loadError" class="media__sub is-warn" role="alert" data-testid="media-error">素材の一覧を取得できませんでした。「再読み込み」を押してください。</p>
         <p v-if="playbackError" class="media__sub is-warn" role="alert" data-testid="media-playback-error">ホストで再生・表示できませんでした: {{ playbackError }}</p>
         <p v-if="truncated > 0" class="media__sub is-warn" data-testid="media-truncated">ホストにだけある素材のうち {{ truncated }} 件は、一覧に載せきれていません(アップロードが終わると出ます)。</p>
@@ -87,7 +92,7 @@ import { parseHubErrorCode, stripHubErrorCode } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import type { DriveMetadata } from '@octopus/infrastructures/compositions';
 import { AssetRepository } from '@model/asset/asset-repository';
-import { COMMAND_MAX_INTERVAL_SEC, COMMAND_MIN_INTERVAL_SEC, MAX_FOLDER_LENGTH, MEDIA_NS, parseMediaCommand } from '../../../../model/media/media-command';
+import { COMMAND_MAX_INTERVAL_SEC, COMMAND_MIN_INTERVAL_SEC, DEFAULT_FADE_SEC, MAX_FADE_SEC, MAX_FOLDER_LENGTH, MEDIA_NS, parseMediaCommand } from '../../../../model/media/media-command';
 import { listFolders, mergeCatalog, readMediaSlice, toCatalog, type CatalogItem } from '../../../../model/media/media-catalog';
 import type { ScreenSpec } from '../../../../model/media/screen-spec';
 import { useBusy } from '../use-busy';
@@ -129,6 +134,32 @@ const folderChoice = ref('');
 const folderInput = ref('');
 const intervalSec = ref(5);
 const transition = ref<'fade' | 'slide'>('fade');
+
+/** フェードアウトの秒数。この端末の便利設定として、localStorage に残す(読み書きできなくても動く)。 */
+const FADE_STORAGE_KEY = 'media-panel.fadeSec';
+function readStoredFade(): number {
+    try {
+        const stored = localStorage.getItem(FADE_STORAGE_KEY);
+        if (stored === null) return DEFAULT_FADE_SEC;
+        const value = Number(stored);
+        return Number.isFinite(value) && value >= 0 && value <= MAX_FADE_SEC ? value : DEFAULT_FADE_SEC;
+    } catch {
+        return DEFAULT_FADE_SEC;
+    }
+}
+const fadeSec = ref(readStoredFade());
+/** 入力欄の値を、送れる範囲(0〜`MAX_FADE_SEC`)に収めた秒数。空や数でない入力は既定に戻す。 */
+const effectiveFadeSec = computed(() => {
+    const value = Number(fadeSec.value);
+    return Number.isFinite(value) && fadeSec.value !== ('' as unknown) ? Math.min(MAX_FADE_SEC, Math.max(0, value)) : DEFAULT_FADE_SEC;
+});
+watch(effectiveFadeSec, (value) => {
+    try {
+        localStorage.setItem(FADE_STORAGE_KEY, String(value));
+    } catch {
+        // 保存できなくても、そのまま使える
+    }
+});
 
 function reportError(e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
@@ -183,12 +214,12 @@ watch(() => slice.value?.rev, (rev, previous) => {
     if (rev !== previous) void load();
 });
 
-const playSong = (id: string) => send(`play:${id}`, 'play', { assetId: id, ...(loop.value ? { loop: true } : {}) });
-const stopSong = (id: string) => send(`stop:${id}`, 'stop', { assetId: id, fadeSec: 1 });
-const stopAll = () => send('stop-all', 'stop', { fadeSec: 1 });
+const playSong = (id: string) => send(`play:${id}`, 'play', { assetId: id, ...(loop.value ? { loop: true } : {}), fadeSec: effectiveFadeSec.value });
+const stopSong = (id: string) => send(`stop:${id}`, 'stop', { assetId: id, fadeSec: effectiveFadeSec.value });
+const stopAll = () => send('stop-all', 'stop', { fadeSec: effectiveFadeSec.value });
 const showItem = (item: CatalogItem) => send(`show:${item.id}`, 'show', { spec: { kind: item.kind === 'video' ? 'video' : 'image', id: item.id } });
 const startSlideshow = () => (slideshowSpec.value ? send('slideshow', 'show', { spec: slideshowSpec.value }) : Promise.resolve(false));
-const clearScreen = () => send('clear', 'clear', {});
+const clearScreen = () => send('clear', 'clear', { fadeSec: effectiveFadeSec.value });
 
 onMounted(load);
 </script>
@@ -212,6 +243,7 @@ onMounted(load);
 .media__field { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; min-width: 0; }
 .media__inline .media__field { flex: 1 1 8em; }
 .media__field select, .media__field input { font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-bg, #23252b); color: inherit; border: 1px solid var(--ui-border, #3a4048); min-width: 0; width: 100%; box-sizing: border-box; }
+.media__fade input { max-width: 8em; }
 .media__check { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
 .media__inline { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>

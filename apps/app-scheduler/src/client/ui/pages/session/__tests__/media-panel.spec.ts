@@ -28,6 +28,7 @@ function mountPanel(options: { canSend?: boolean; loadMetas?: () => Promise<Driv
 const find = (wrapper: ReturnType<typeof mount>, id: string) => wrapper.find(`[data-testid="${id}"]`);
 
 beforeEach(() => {
+  localStorage.clear();
   toasts.value = [];
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
@@ -47,11 +48,11 @@ describe("media-panel: 音楽", () => {
     await find(wrapper, "media-loop").setValue(true);
     await find(wrapper, "media-play-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", loop: true });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", loop: true, fadeSec: 2 });
     await find(wrapper, "media-loop").setValue(false);
     await find(wrapper, "media-play-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1" });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", fadeSec: 2 });
   });
 
   it("再生・停止・すべて停止で、media の指示を送る", async () => {
@@ -59,13 +60,13 @@ describe("media-panel: 音楽", () => {
     await flushPromises();
     await find(wrapper, "media-play-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1" });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", fadeSec: 2 });
     await find(wrapper, "media-stop-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song1", fadeSec: 1 });
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song1", fadeSec: 2 });
     await find(wrapper, "media-stop-all").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 1 });
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 2 });
   });
 
   it("送れない間(接続していない)は押せない", async () => {
@@ -106,7 +107,7 @@ describe("media-panel: スクリーン", () => {
     const { wrapper, issue } = await screenTab();
     await find(wrapper, "media-clear").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "clear", {});
+    expect(issue).toHaveBeenLastCalledWith("media", "clear", { fadeSec: 2 });
   });
 
   it("フォルダ(一覧から作る)を選ぶか手で入力して、スライドショーを開始できる", async () => {
@@ -178,7 +179,7 @@ describe("media-panel: ホストが公開した差(アップロード前の素�
     expect(rows[0]).toContain("aaa-new.mp3"); // 名前順
     await find(wrapper, "media-play-newsong").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "newsong" });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "newsong", fadeSec: 2 });
   });
 
   it("ホストが消した素材は出さない。サーバーの一覧にも載った素材は重ねて出さない", async () => {
@@ -265,5 +266,73 @@ describe("media-panel: ホストが公開した差(アップロード前の素�
 
     await wrapper.setProps({ roomData: slice({ lastError: { assetId: "song2", at: 4 } }) });
     expect(find(wrapper, "media-playback-error").text()).toContain("fanfare.wav");
+  });
+});
+
+describe("media-panel: フェード秒", () => {
+  it("入力した秒数を、再生し直し・停止・すべて停止・消すの指示に付けて送る。0 も送れる", async () => {
+    const { wrapper, issue } = mountPanel();
+    await flushPromises();
+    await find(wrapper, "media-fade-sec").setValue("4");
+    await find(wrapper, "media-play-song1").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", fadeSec: 4 });
+    await find(wrapper, "media-stop-song1").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song1", fadeSec: 4 });
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 4 });
+    await find(wrapper, "media-fade-sec").setValue("0");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 0 });
+    await find(wrapper, "media-tab-screen").trigger("click");
+    await find(wrapper, "media-fade-sec").setValue("3");
+    await find(wrapper, "media-clear").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "clear", { fadeSec: 3 });
+  });
+
+  it("範囲外(10 を超える・負)は、0〜10 に収めて送る。空は既定の 2 秒", async () => {
+    const { wrapper, issue } = mountPanel();
+    await flushPromises();
+    await find(wrapper, "media-fade-sec").setValue("99");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 10 });
+    await find(wrapper, "media-fade-sec").setValue("-3");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 0 });
+    await find(wrapper, "media-fade-sec").setValue("");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 2 });
+  });
+
+  it("秒数はこの端末に残り、次に開いたときも使われる。保存先が使えなくても動く", async () => {
+    const first = mountPanel();
+    await flushPromises();
+    await find(first.wrapper, "media-fade-sec").setValue("5");
+    await flushPromises();
+    first.wrapper.unmount();
+    const second = mountPanel();
+    await flushPromises();
+    expect((find(second.wrapper, "media-fade-sec").element as HTMLInputElement).value).toBe("5");
+
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    const third = mountPanel();
+    await flushPromises();
+    await find(third.wrapper, "media-fade-sec").setValue("1");
+    await find(third.wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(third.issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 1 });
+    vi.restoreAllMocks();
   });
 });
