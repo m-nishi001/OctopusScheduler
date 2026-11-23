@@ -6,6 +6,8 @@ import { AssetSource } from "./asset-source";
 
 /** 音を鳴らす部品(`AudioService`)を DI で差し替えるためのトークン。 */
 export const AudioServiceToken = Symbol("AudioService");
+/** 音の中心(`SoundSystem`)のトークン。`AudioService`(AudioContext)を `AudioControl` と共有する。 */
+export const SoundSystemToken = Symbol("SoundSystem");
 export type AudioPlayer = Pick<AudioService, "loadFromBlob" | "play" | "pause" | "stop" | "disposeInstance">;
 
 /** 鳴らした(または一時停止した)曲の、再生の ID と繰り返しの有無。 */

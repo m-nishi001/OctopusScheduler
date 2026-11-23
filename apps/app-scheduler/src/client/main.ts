@@ -9,9 +9,13 @@ import { QuizContainer } from "@octopus/game-quiz";
 import { AccountsContainer } from "@octopus/accounts";
 import { SessionHubContainer } from "@octopus/session-hub";
 import { PARTICIPANT_AUTH_KEY } from "@octopus/participant-portal";
+import { SOUND_KEY } from "@octopus/composables/use-sound";
+import type { SoundSystem } from "@octopus/client-common/audio/sound-system";
+import { exposeSoundProbe } from "@octopus/client-common/audio/sound-probe";
 import router from "./control/router";
 import { useAuthSession } from "./control/auth/auth-session";
 import { ScreenRouterToken } from "./control/media/screen";
+import { SoundSystemToken } from "./control/media/audio";
 import { registerEventHandlers } from "./ui/composables/register-event-handlers";
 import { setupHostAgent } from "./control/session/host-agent-setup";
 import { createSessionDrawPool } from "./control/session/event-host";
@@ -27,6 +31,10 @@ SessionHubContainer.register();
 const app = createApp(App);
 // 参加者ポータルに、ログイン中のメンバーとログアウト操作を渡す(ログインの実装はアプリ側にある)。
 app.provide(PARTICIPANT_AUTH_KEY, useAuthSession());
+// 音の中心を、ゲームの画面に渡す(ゲームのパッケージは DI を知らずに `useSound()` で受け取る)。e2e のときだけ、状態を読める窓口(`window.__sound`)を付ける。
+const sound = container.resolve<SoundSystem>(SoundSystemToken);
+app.provide(SOUND_KEY, sound);
+exposeSoundProbe(sound);
 app.use(router).mount("#app");
 
 container.registerInstance(ScreenRouterToken, router);

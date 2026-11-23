@@ -342,6 +342,19 @@ export class AudioService {
     }
 
     /**
+     * 指定されたIDのオーディオの、いまの実際の音量(ゲイン)を取得します。フェードの途中は途中の値です。
+     * `getVolume` は設定した音量(フェードしても変わらない)です。
+     * @throws 指定されたIDのオーディオインスタンスが見つからない場合
+     */
+    public getGain(id: string): number {
+        const instance = this._audioInstances.get(id);
+        if (!instance) {
+            throw new Error(`Audio instance with ID ${id} not found.`);
+        }
+        return instance.gainNode.gain.value;
+    }
+
+    /**
      * 指定されたIDのオーディオの現在の再生位置を取得します。
      * @param id 再生位置を取得するオーディオインスタンスのID
      * @returns 現在の再生位置 (秒)

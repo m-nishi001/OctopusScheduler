@@ -5,3 +5,4 @@ export * from './use-debounce';
 export * from './use-cached-resource';
 export * from './use-cached-collection';
 export * from './use-background-sync-core';
+export * from './use-sound';

@@ -172,6 +172,17 @@ describe("AudioService.stop", () => {
     expect(context.sources[0].stop).toHaveBeenCalledOnce();
   });
 
+  it("getGain は、設定した音量(getVolume)ではなく、いまの実際の音量(フェードの途中は途中の値)を返す", async () => {
+    const service = new AudioService();
+    const id = await load(service);
+    await service.play(id);
+    expect(service.getGain(id)).toBe(1);
+    context.gains[0].value = 0.4; // フェードの途中
+    expect(service.getGain(id)).toBe(0.4);
+    expect(service.getVolume(id)).toBe(1);
+    expect(() => service.getGain("none")).toThrow(/not found/);
+  });
+
   it("自然に終わったときだけ onEnded を呼ぶ。stop のあとの ended や、ループ再生では呼ばない", async () => {
     const service = new AudioService();
     const id = await load(service);
