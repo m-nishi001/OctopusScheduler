@@ -13,9 +13,11 @@ const QUIZ_ID = `qz-bgm-${stamp}`;
 const INTRO_BGM = `qz-intro-${stamp}.wav`;
 const RANKING_BGM = `qz-ranking-${stamp}.wav`;
 const sessionIds: string[] = [];
+const WINNER_ID = `qz-bgm-win-${stamp}`;
 
 test.afterAll(async ({ request }) => {
   for (const sessionId of sessionIds) await adminRpc(request, "sessionHub_closeSession", { sessionId }).catch(() => undefined);
+  await adminRpc(request, "accounts_deleteMember", { id: WINNER_ID }).catch(() => undefined);
 });
 
 type AudioEvent = { e: "play" | "pause"; id: number; loop: boolean };
@@ -132,4 +134,101 @@ test("@motion クイズの開始BGM・ランキングBGMは、その画面で1�
   await expect.poll(async () => (await audioLog(host.page)).some((x) => x.e === "pause" && x.id === ranking.id), { message: "ランキングを離れたら止まる" }).toBe(true);
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host]) await d.context.close();
+});
+
+test("@motion 当選者がいると、景品のダイアログが開いた時点でランキングBGMが止まり、景品BGMが流れる", async ({ browser, request }) => {
+  test.setTimeout(240_000);
+  const prizeQuizId = `qz-prize-${stamp}`;
+  const prizeBgm = `qz-prize-${stamp}.wav`;
+  const rankingBgm = `qz-prize-ranking-${stamp}.wav`;
+  const zip = {
+    name: "quizzes.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(
+      zipSync({
+        "quizzes.csv": strToU8(
+          `ID,タイトル,問題,制限時間(秒),正解(選択肢の番号),景品名,景品BGM,ランキングBGM,選択肢1,選択肢2\r\n` +
+            `${prizeQuizId},景品BGMクイズ,みかんはどれ?,30,2,テスト景品,${prizeBgm},${rankingBgm},りんご,みかん\r\n`
+        ),
+        [`media/${prizeBgm}`]: makeWav(TUNES.opening),
+        [`media/${rankingBgm}`]: makeWav(TUNES.ending),
+      })
+    ),
+  };
+  await adminRpc(request, "accounts_addMember", { id: WINNER_ID, name: "当選者" });
+  const { key } = await adminRpc<{ key: string }>(request, "accounts_issueLoginKey", { id: WINNER_ID });
+
+  const admin = await newDevice(browser, { signedIn: true });
+  const { id: sessionId } = await createSession(admin.page, "景品BGM");
+  sessionIds.push(sessionId);
+  const host = await newDevice(browser, { signedIn: true, projector: true });
+  host.page.on("dialog", (d) => void d.dismiss());
+  await installAudioLog(host.page);
+  for (const page of [admin.page, host.page]) {
+    await page.goto("/#/quiz-admin");
+    await expect(page.getByTestId("table-export")).toBeVisible();
+    await page.getByTestId("table-import-open").click();
+    await page.getByTestId("table-import-table").setInputFiles(zip);
+    await expect(page.getByTestId("table-import-counts")).toContainText("エラー 0");
+    const apply = page.getByRole("dialog").getByRole("button", { name: "取り込む" });
+    if (await apply.isEnabled()) {
+      await apply.click();
+      await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
+      await page.getByTestId("table-import-close").click();
+    } else {
+      await page.getByRole("button", { name: "閉じる" }).click();
+    }
+  }
+  await host.page.goto(`/#/session/host/${sessionId}`);
+  await expect(host.page.locator(".host-view__title")).toBeVisible();
+  await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
+  const winner = await newDevice(browser, { mobile: true });
+  await winner.page.goto(`/#/login?id=${encodeURIComponent(WINNER_ID)}&key=${encodeURIComponent(key)}`);
+  await expect(winner.page.locator(".pp-tabs")).toBeVisible();
+  await expect(winner.page.getByTestId("portal-conn")).toContainText("接続中");
+
+  await admin.page.goto(`/#/session/console/${sessionId}`);
+  await expect(admin.page.getByTestId("quiz-select")).toBeVisible({ timeout: 30_000 });
+  await admin.page.getByTestId("quiz-select").selectOption(prizeQuizId);
+  await openAdvanced(admin.page);
+  await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
+  await expect.poll(() => route(host.page)).toBe(`/execute/quiz/${prizeQuizId}/play`);
+  await winner.page.getByRole("button", { name: /みかん/ }).click(); // 正解
+  await expect(winner.page.getByTestId("quiz-answered")).toContainText("2. みかん");
+
+  const next = nextButton(admin.page);
+  await next.click(); // 受付を締め切る
+  await expect(next).not.toContainText("締め切る");
+  await next.click(); // → 正解
+  await expect.poll(() => route(host.page)).toBe(`/execute/quiz/${prizeQuizId}/answer`);
+  await next.click(); // → ランキング
+  await expect.poll(() => route(host.page)).toBe(`/execute/quiz/${prizeQuizId}/result`);
+  await expect
+    .poll(async () => (await audioLog(host.page)).filter((x) => x.e === "play").length, { message: "ランキングBGMが流れる", timeout: 30_000 })
+    .toBe(1);
+  const ranking = (await audioLog(host.page)).find((x) => x.e === "play")!;
+
+  // 発表が終わったら「次へ」で景品のダイアログへ(演出の途中の「次へ」は何も起きないので、出るまで押し直す)
+  await expect(async () => {
+    await next.click();
+    await expect(host.page.getByText("おめでとうございます")).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 60_000 });
+
+  // 景品のダイアログが出た時点で、ランキングBGMは止まり、景品BGMが流れている
+  await expect
+    .poll(
+      async () => {
+        const log = await audioLog(host.page);
+        const prize = log.find((x) => x.e === "play" && x.id !== ranking.id);
+        const rankingStopped = log.some((x) => x.e === "pause" && x.id === ranking.id);
+        const prizeStopped = prize ? log.some((x) => x.e === "pause" && x.id === prize.id) : false;
+        return rankingStopped && !!prize && !prizeStopped;
+      },
+      { message: "ランキングBGMが止まり、景品BGMが流れる", timeout: 30_000 }
+    )
+    .toBe(true);
+  expect((await audioLog(host.page)).filter((x) => x.e === "play" && x.id === ranking.id), "ランキングBGMは再開しない").toHaveLength(1);
+
+  await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: false });
+  for (const d of [admin, host, winner]) await d.context.close();
 });
