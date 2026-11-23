@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, newDevice, test } from "./fixtures";
+import { expect, newDevice, resetScheduleEvents, test } from "./fixtures";
 
 /** 設定の「イベント」タブ: 予定イベントを追加・編集・削除でき、再読み込みしても残る。 */
 
@@ -22,6 +22,10 @@ const row = (page: Page, typeLabel: string) => page.getByRole("row").filter({ ha
 const confirmDelete = (page: Page) => page.getByRole("contentinfo").getByRole("button", { name: "削除" }).click();
 
 test.describe("予定イベント(設定 > イベント)", () => {
+  // イベントはサーバーで共有するので、前後で空にする
+  test.beforeEach(({ request }) => resetScheduleEvents(request));
+  test.afterEach(({ request }) => resetScheduleEvents(request));
+
   test("どの種類の追加画面も、開始・終了の初期値(開始〜1分後)つきで開く", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;

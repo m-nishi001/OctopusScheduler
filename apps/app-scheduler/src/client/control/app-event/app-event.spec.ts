@@ -144,17 +144,9 @@ describe("AppEventService.saveScheduledEvent", () => {
   const makeService = () => {
     const stored = new Map<string, AppEventData>();
     const repository = {
-      addScheduleEvents: vi.fn(async (events: AppEventData[]) =>
-        events.map((e) => {
-          const id = `new-${stored.size + 1}`;
-          stored.set(id, { ...e, id });
-          return id;
-        })
-      ),
-      updateScheduleEvents: vi.fn(async (events: AppEventData[]) => {
-        for (const e of events) stored.set(e.id, e);
+      saveScheduleEvent: vi.fn(async (e: AppEventData) => {
+        stored.set(e.id, e);
       }),
-      getScheduleEvents: vi.fn(async () => [...stored.values()]),
     } as unknown as AppEventRepository;
     return { service: new AppEventService(repository), stored, repository };
   };
@@ -167,7 +159,7 @@ describe("AppEventService.saveScheduledEvent", () => {
     await service.saveScheduledEvent({ ...FULL_DTOS.TransitionPageEvent, id: undefined, startTime: start, endTime: end });
     const [saved] = [...stored.values()];
     expect(saved).toMatchObject({ type: "TransitionPageEvent", transitionUrl: "/p", startTime: start, endTime: end, processedAt: null });
-    expect(saved.id).toBe("new-1");
+    expect(saved.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("編集は id・処理済み日時・登録日時を引き継ぎ、時刻と中身だけ更新する", async () => {
