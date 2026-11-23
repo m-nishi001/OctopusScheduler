@@ -54,6 +54,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect.poll(() => route(host.page)).toMatch(/^\/execute\/show-slideshow\//);
     const slideshowRoute = await route(host.page);
     await expect(host.page.locator(".slideshow-container img.slide")).toBeVisible({ timeout: 20_000 });
+    await admin.page.getByTestId("media-tab-audio").click(); // 曲の再生ボタンは「音楽」タブにある
     await admin.page.getByTestId(`media-play-${song.id}`).click();
     await expect.poll(async () => (await audioProbe(host.page)).started, { timeout: 30_000 }).toBe(1);
 
