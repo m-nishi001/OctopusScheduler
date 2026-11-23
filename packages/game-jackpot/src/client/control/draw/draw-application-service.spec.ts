@@ -150,8 +150,8 @@ describe("DrawApplicationService", () => {
       await service.initializeStateIfNeeded(prizes);
       const next = await service.drawNext(REQUEST);
       if (next.kind !== "drawn") throw new Error("finished");
-      const pending = await store.pending();
-      const resumed = await service.resumeDraw(pending!);
+      const pending = (await store.unrevealed())[0];
+      const resumed = await service.resumeDraw(pending);
       expect(resumed.prizeCounts).toEqual(next.outcome.prizeCounts);
     });
   });
@@ -165,7 +165,7 @@ describe("DrawApplicationService", () => {
       expect(commit).toHaveBeenCalledTimes(1);
       expect(prizeRes.isKakuhen).toBe(false);
       expect(await store.results()).toHaveLength(1);
-      expect((await store.pending())?.drawId).toBe(result.drawId);
+      expect((await store.unrevealed())[0]?.drawId).toBe(result.drawId);
     });
 
     it("確変の回は、取り置いた景品を新しい drawId で commit する", async () => {
@@ -182,13 +182,14 @@ describe("DrawApplicationService", () => {
       expect(second.result.drawId).not.toBe(first.result.drawId);
     });
 
-    it("前の抽選が未公開のまま残っていれば、先に公開してから引く", async () => {
+    it("前の抽選が未公開のままでも公開せずに次を確定する(演出中に先読みするため)。未公開は古い順に並ぶ", async () => {
       const { service, store, prizes } = setup();
       await service.initializeStateIfNeeded(prizes);
       const first = await service.executeDraw(REQUEST);
       const reveal = vi.spyOn(store, "reveal");
-      await service.executeDraw(REQUEST);
-      expect(reveal).toHaveBeenCalledWith(first.result.drawId);
+      const second = await service.executeDraw(REQUEST);
+      expect(reveal).not.toHaveBeenCalled();
+      expect((await store.unrevealed()).map((r) => r.drawId)).toEqual([first.result.drawId, second.result.drawId]);
     });
 
     it("commit が矛盾(別の端末の操作など)で断られたら、1回だけ引き直す。2回続けば例外", async () => {
@@ -218,12 +219,33 @@ describe("DrawApplicationService", () => {
     });
   });
 
+  describe("restoreUnrevealed(ホストの再読み込み)", () => {
+    it("未公開が無ければ null", async () => {
+      const { service, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes);
+      expect(await service.restoreUnrevealed()).toBeNull();
+    });
+
+    it("複数あれば、古い分を古い順に公開し、最後の1件だけ返す", async () => {
+      const { service, store, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes);
+      const a = await service.executeDraw(REQUEST);
+      const b = await service.executeDraw(REQUEST);
+      const c = await service.executeDraw(REQUEST);
+      const reveal = vi.spyOn(store, "reveal");
+      const resume = await service.restoreUnrevealed();
+      expect(resume?.drawId).toBe(c.result.drawId);
+      expect(reveal.mock.calls.map((x) => x[0])).toEqual([a.result.drawId, b.result.drawId]);
+      expect((await store.unrevealed()).map((r) => r.drawId)).toEqual([c.result.drawId]);
+    });
+  });
+
   describe("resumeDraw", () => {
     it("引き直さず、確定済みの当選者・景品のまま、ダミーだけを作り直す", async () => {
       const { service, store, prizes } = setup();
       await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
       const { result } = await service.executeDraw(REQUEST);
-      const pending = (await store.pending())!;
+      const pending = (await store.unrevealed())[0];
       const commit = vi.spyOn(store, "commit");
       const resumed = await service.resumeDraw(pending);
       expect(commit).not.toHaveBeenCalled();
@@ -239,7 +261,7 @@ describe("DrawApplicationService", () => {
       const { service, store, prizes } = setup();
       await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [1] });
       const { result } = await service.executeDraw(REQUEST);
-      const resumed = await service.resumeDraw((await store.pending())!);
+      const resumed = await service.resumeDraw((await store.unrevealed())[0]);
       expect(resumed.result.isKakuhen).toBe(true);
       expect(resumed.prizeRes.isKakuhen).toBe(true);
       expect(resumed.prizeRes.winnerPrizeId).toBe(result.wonPrize!.id);
@@ -252,7 +274,7 @@ describe("DrawApplicationService", () => {
       const { service, store } = setup({ prizes });
       await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [1] });
       const { result } = await service.executeDraw(REQUEST);
-      const resumed = await service.resumeDraw((await store.pending())!);
+      const resumed = await service.resumeDraw((await store.unrevealed())[0]);
       expect(resumed.prizeRes.isKakuhen).toBe(true);
       expect(resumed.prizeRes.dummyWinnerPrizeId).toBe(result.wonPrize!.id === "p1" ? "p5" : "p4");
     });
@@ -262,7 +284,7 @@ describe("DrawApplicationService", () => {
       const { service, store } = setup({ prizes });
       await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [1] });
       const { result } = await service.executeDraw(REQUEST);
-      const resumed = await service.resumeDraw((await store.pending())!);
+      const resumed = await service.resumeDraw((await store.unrevealed())[0]);
       const dummy = resumed.prizeRes.dummyWinnerPrizeId;
       expect(dummy).toBeTruthy();
       expect(dummy).not.toBe("ghost");
@@ -293,7 +315,7 @@ describe("DrawApplicationService", () => {
       expect(skipped.memberRes.dummyIds).not.toContain(skipped.result.wonMember!.id);
       expect(skipped.memberRes.dummyIds).not.toContain(result.wonMember!.id);
       expect(await store.excludedMemberIds()).toEqual([result.wonMember!.id]);
-      expect(await store.pending()).toMatchObject({ drawId: result.drawId, wonMember: { id: skipped.result.wonMember!.id }, wonPrize: { id: result.wonPrize!.id } });
+      expect((await store.unrevealed())[0]).toMatchObject({ drawId: result.drawId, wonMember: { id: skipped.result.wonMember!.id }, wonPrize: { id: result.wonPrize!.id } });
       expect(await store.results()).toHaveLength(1);
     });
 
@@ -343,10 +365,10 @@ describe("DrawApplicationService", () => {
       const next = await service.drawNext(REQUEST);
       if (next.kind !== "drawn") throw new Error("drawn のはず");
       expect(next.outcome.spareMembers).toBe(3);
-      expect((await service.resumeDraw((await store.pending())!)).spareMembers).toBe(3);
+      expect((await service.resumeDraw((await store.unrevealed())[0])).spareMembers).toBe(3);
       const skipped = await service.skipWinner(next.outcome.result.drawId, REQUEST);
       expect(skipped.spareMembers).toBe(2); // 元の人と替わりの人を除いた残り
-      expect((await service.resumeDraw((await store.pending())!)).spareMembers).toBe(2);
+      expect((await service.resumeDraw((await store.unrevealed())[0])).spareMembers).toBe(2);
     });
 
     it("再開(別セッションの読み直し)後も除外が残る: 別のサービスが同じ保存先を読んでも、飛ばした人は引かれない", async () => {
@@ -355,7 +377,7 @@ describe("DrawApplicationService", () => {
       const { result } = await service.executeDraw(REQUEST);
       await service.skipWinner(result.drawId, REQUEST);
       await store.load();
-      const resumed = await service.resumeDraw((await store.pending())!);
+      const resumed = await service.resumeDraw((await store.unrevealed())[0]);
       expect(resumed.memberRes.dummyIds).not.toContain(result.wonMember!.id);
       expect(await store.excludedMemberIds()).toEqual([result.wonMember!.id]);
     });

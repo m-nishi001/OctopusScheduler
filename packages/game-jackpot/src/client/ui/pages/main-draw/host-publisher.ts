@@ -11,11 +11,6 @@ export interface HostPublisherDeps {
    */
   reveal(drawId: string): Promise<boolean>;
   /**
-   * 公開に成功した(サーバーが、次の抽選の確定を受け付けられる状態になった)。次のサイクルの下ごしらえを裏で始める合図。
-   * 公開は drawId ごとに成功するまで試すので、成功した drawId につき1回だけ呼ぶ。
-   */
-  onRevealed?(drawId: string): void;
-  /**
    * デモ抽選(練習抽選)か。そうなら「デモ抽選」のページ名だけを公開し、当選者・景品・止める操作は載せない。
    * 結果の確定・公開(reveal)の先は、呼び出し側が渡すメモリだけの置き場(練習の結果は記録しない)。
    */
@@ -33,9 +28,7 @@ export interface HostPublisherDeps {
 export interface HostPublisher {
   (): void;
   /**
-   * 公開(reveal)の通信中のものがすべて終わる(onRevealed の呼び出しまで済む)のを待つ。
-   * 次のサイクルの用意の前に呼ぶ: 通信中のまま先へ進むと、公開が済む前の「その場の用意」と、公開が済んだ後の「先読み」が
-   * 同時に抽選・確定してしまう。
+   * 公開(reveal)の通信中のものがすべて終わるのを待つ。当選者を飛ばす前に呼ぶ(公開の通信中に当選者を置き換えない)。
    */
   settled(): Promise<void>;
 }
@@ -74,7 +67,6 @@ export function createHostPublisher(deps: HostPublisherDeps): HostPublisher {
       .reveal(drawId)
       .then((ok) => {
         if (!ok) revealedDrawIds.delete(revealKey);
-        else deps.onRevealed?.(drawId);
       })
       .finally(() => inflight.delete(run));
     inflight.add(run);

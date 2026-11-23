@@ -194,7 +194,7 @@ test("(a)(c) 確変の回(メンバー発表後)と通常の回(景品の結果�
   await closeAll(s);
 });
 
-test("(b) 飛ばしたあと、公開する前にホストを再読み込みしても、置き換え後の当選者で演出し直す。飛ばした人は戻らない", async ({ browser, request }) => {
+test("(b) 飛ばしたあと、公開する前にホストを再読み込みしても、置き換え後の抽選は公開済みになり、最後の1件(先読み分)を演出し直す。飛ばした人は戻らない", async ({ browser, request }) => {
   test.setTimeout(420_000);
   const s = await scene(browser, request, "飛ばし会場B");
   const admin = s.admin.page;
@@ -204,19 +204,24 @@ test("(b) 飛ばしたあと、公開する前にホストを再読み込みし�
   await stepUntil(admin, () => memberShown(admin), "当選者が見える");
   const { before, after } = await skipCurrentWinner(s, request, 0);
   expect(after.revealedAtMs).toBeNull();
+  // 先読みで確定済みの次の抽選(未公開)が、飛ばしたあとも残っている(捨てない)
+  await expect.poll(async () => (await serverState(request, sessionId)).draws.length, { timeout: 60_000 }).toBe(2);
+  const next = (await serverState(request, sessionId)).draws[1];
+  expect(next.revealedAtMs).toBeNull();
 
   await host.page.reload();
   await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
   await expect(admin.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
 
-  // 演出し直し: 置き換え後の当選者が見える(飛ばした人は見えない)。引き直されていない(同じ抽選・景品)
-  await stepUntil(admin, async () => (await stateText(admin)).includes(`当選者: ${after.memberName}`), "置き換え後の当選者が見える(再読み込み後)");
+  // 古い分(置き換え後の1件目)は公開済み。最後の1件(先読み分)が演出し直される。引き直されていない(同じ抽選・景品)
+  await expect.poll(async () => (await serverState(request, sessionId)).draws[0].revealedAtMs, { timeout: 30_000 }).not.toBeNull();
+  await stepUntil(admin, async () => (await stateText(admin)).includes(`当選者: ${next.memberName}`), "先読み分の当選者が見える(再読み込み後)");
   expect(await stateText(admin)).not.toContain(before.memberName);
-  await stepUntil(admin, async () => (await revealedCount(request, sessionId)) === 1, "景品が見えて公開される");
+  await stepUntil(admin, async () => (await revealedCount(request, sessionId)) === 2, "景品が見えて公開される");
   const state = await serverState(request, sessionId);
   expect(state.excludedMemberIds).toEqual([before.memberId]);
   expect(state.draws[0]).toMatchObject({ drawId: before.drawId, memberId: after.memberId, prizeId: before.prizeId });
-  expect(state.draws[0].revealedAtMs).not.toBeNull();
+  expect(state.draws[1]).toMatchObject({ drawId: next.drawId, memberId: next.memberId, prizeId: next.prizeId });
 
   // 最後まで通しても、飛ばした人は当選しない。重複は0
   await stepUntil(admin, async () => host.page.getByTestId("end-dialog").isVisible().catch(() => false), "終了の画面が出る", 200);

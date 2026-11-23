@@ -44,7 +44,6 @@ export class RehearsalDrawStore implements DrawStore {
     }
     if (this.rows.some((r) => r.result.wonMember?.id === memberId)) throw new DrawConflictError("このメンバーはすでに当選しています");
     if (this.rows.some((r) => r.result.wonPrize?.id === prizeId)) throw new DrawConflictError("この景品はすでに当選済みです");
-    if (this.rows.some((r) => !r.revealed)) throw new DrawConflictError("公開されていない抽選結果があります");
     if (this.currentPlan) {
       const reserved = this.currentPlan.reservedPrizeIds.includes(prizeId);
       if (result.isKakuhen && !reserved) throw new DrawConflictError("確変の抽選に、取り置いた景品以外が選ばれました");
@@ -75,9 +74,8 @@ export class RehearsalDrawStore implements DrawStore {
     row.revealed = false;
   }
 
-  async pending(): Promise<DrawResultDto | null> {
-    const row = this.rows.find((r) => !r.revealed);
-    return row ? { ...row.result } : null;
+  async unrevealed(): Promise<DrawResultDto[]> {
+    return this.rows.filter((r) => !r.revealed).map((r) => ({ ...r.result }));
   }
 
   async reset(): Promise<void> {

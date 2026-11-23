@@ -17,7 +17,7 @@ import {
   readPortalEvent,
 } from "@octopus/session-hub";
 import type { HostAgent, PortalEvent } from "@octopus/session-hub";
-import { MemberRepository, filterEligibleIds } from "@octopus/game-jackpot/eligibility";
+import { MemberRepository, filterEligibleIds, notifyEntrantsChanged } from "@octopus/game-jackpot/eligibility";
 import type { DrawPoolProvider } from "@octopus/game-jackpot";
 import { QUIZ_NAMESPACE } from "@octopus/game-quiz";
 import { container } from "tsyringe";
@@ -182,6 +182,8 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
       }
       // 抽選のときに保存する「直近のエントリー者の一覧」も、取り消し後の状態にしておく(取得できなくても取り消しは済んでいる)
       await snapshotEntrants(event);
+      // 抽選画面に知らせる(先読みで確定済みの抽選が、サーバーで削除されていることがある)
+      notifyEntrantsChanged();
       // 本人のスマホに「取り消された」ことを知らせる(エントリーしたときの回数と違えば、もう一度エントリーできる)
       const cancelled = { ...event.entry.cancelled, [parsed.memberId]: cancelCountOf(event.entry, parsed.memberId) + 1 };
       await save(sessionId, { ...event, entry: { ...event.entry, cancelled } });

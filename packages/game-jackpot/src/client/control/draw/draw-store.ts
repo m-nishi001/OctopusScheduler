@@ -19,6 +19,7 @@ export interface DrawPlan {
  *
  * 読み出し(results / plan / pending)は、読み込んだ内容をメモリから返す(通信しない)。
  * 通信するのは load / ensurePlan / commit / reveal / skipWinner / reset だけ。
+ * 未公開(確定済みでまだ見せていない)の抽選は何件あってもよい(演出中の抽選のあいだに、次の抽選を先読みで確定するため)。
  */
 export interface DrawStore {
   /** 保存先が結果を残すか。rehearsal のときは画面に「リハーサル」と出す。 */
@@ -33,7 +34,7 @@ export interface DrawStore {
   ensurePlan(kakuhenTimings: number[], reservedPrizeIds: string[]): Promise<DrawPlan>;
   /**
    * 抽選結果を未公開で確定する。演出を始める前に呼び、成功してから演出する。
-   * 当選済みのメンバー・景品、公開されていない別の結果などは DrawConflictError(状態は読み直し済み)。
+   * 当選済みのメンバー・景品などは DrawConflictError(状態は読み直し済み)。未公開の抽選が残っていても確定できる。
    * 同じ内容の再送は成功。
    */
   commit(result: DrawResultDto): Promise<void>;
@@ -47,8 +48,8 @@ export interface DrawStore {
    * すでに `newWinner` に置き換え済みなら成功。
    */
   skipWinner(drawId: string, newWinner: MemberDto): Promise<void>;
-  /** 確定済みだが公開されていない抽選(ホストの再読み込みなどで演出が途中だったもの)。無ければ null。 */
-  pending(): Promise<DrawResultDto | null>;
+  /** 確定済みだが公開されていない抽選。確定の古い順(一番古いものが演出中、2件目以降は先読みで確定した次の抽選)。 */
+  unrevealed(): Promise<DrawResultDto[]>;
   /** 抽選の結果と確変の予定を消す。 */
   reset(): Promise<void>;
 }
