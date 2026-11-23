@@ -206,23 +206,42 @@ export class AudioService {
     }
 
     /**
-     * 指定されたIDのオーディオを一時停止します。
+     * 指定されたIDのオーディオを一時停止します。再生位置(startOffset)は残り、次の play で続きから鳴ります。
+     * ループ再生の曲は、位置を曲の長さで割った余りにします。
      * @param id 一時停止するオーディオインスタンスのID
-     * @throws 指定されたIDのオーディオインスタンスが見つからない場合、または一時停止に失敗した場合
+     * @param fadeOut フェードアウト時間 (ミリ秒)。デフォルトは0 (即時一時停止)。
+     * @returns フェードアウトが完了し、一時停止した時点で解決されるPromise
+     * @throws 指定されたIDのオーディオインスタンスが見つからない場合
      */
-    public pause(id: string): void {
+    public async pause(id: string, fadeOut: number = 0): Promise<void> {
         const instance = this._audioInstances.get(id);
         if (!instance) {
             throw new Error(`Audio instance with ID ${id} not found.`);
         }
+        if (!instance.isPlaying || !instance.sourceNode) return;
 
-        if (instance.isPlaying && instance.sourceNode) {
-            instance.sourceNode.stop();
-            instance.isPlaying = false;
-            // 現在の再生位置を保存
-            instance.startOffset += this._audioContext.currentTime - instance.startTime;
-            instance.sourceNode = null; // ソースノードをクリア
+        if (fadeOut > 0) {
+            const source = instance.sourceNode;
+            const now = this._audioContext.currentTime;
+            instance.gainNode.gain.setValueAtTime(instance.volume, now);
+            instance.gainNode.gain.linearRampToValueAtTime(0, now + fadeOut / 1000);
+            await new Promise<void>((resolve) => setTimeout(resolve, fadeOut));
+            // 待っている間に止められた・鳴らし直された場合は、何もしない
+            if (instance.sourceNode !== source) return;
         }
+
+        const source = instance.sourceNode;
+        source.stop();
+        source.disconnect();
+        instance.isPlaying = false;
+        // 現在の再生位置を保存
+        let offset = instance.startOffset + (this._audioContext.currentTime - instance.startTime);
+        const duration = instance.audioBuffer.duration;
+        if (instance.loop && duration > 0) offset %= duration;
+        instance.startOffset = offset;
+        instance.sourceNode = null; // ソースノードをクリア
+        // フェードアウトで絞った音量を戻す(次の再生は play が設定する)
+        instance.gainNode.gain.setValueAtTime(instance.volume, this._audioContext.currentTime);
     }
 
     /**

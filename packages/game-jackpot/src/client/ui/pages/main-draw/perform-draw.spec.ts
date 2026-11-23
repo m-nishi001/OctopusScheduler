@@ -32,6 +32,7 @@ const drawn = (over: Record<string, unknown> = {}): any => ({
     result: { drawId: "d", wonPrize: { id: "p2" }, wonMember: { id: "m" } },
     prizeRes: prizeRes({ winnerPrizeId: "p2" }),
     memberRes: { winnerId: "m" },
+    prizeCounts: { total: 6, before: 4, after: 3 },
     ...over,
   },
 });
@@ -53,6 +54,7 @@ describe("performNext", () => {
     expect(next.outcome.winner).toBe(prizes[1]);
     expect(next.outcome.result.wonPrize).toBe(prizes[1]);
     expect(next.outcome.prizeItems).toEqual([{ id: "item" }]);
+    expect(next.outcome.prizeCounts).toEqual({ total: 6, before: 4, after: 3 });
     expect(d.buildPrizeItems).toHaveBeenCalledTimes(1);
   });
 

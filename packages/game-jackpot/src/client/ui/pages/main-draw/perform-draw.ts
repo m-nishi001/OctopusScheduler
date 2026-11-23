@@ -1,8 +1,9 @@
-import type { DrawApplicationService } from "@control/draw/draw-application-service";
+import type { DrawApplicationService, DrawOutcomeParts } from "@control/draw/draw-application-service";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
+import type { PrizeCounts } from "@model/draw/half-remaining";
 import { DrawStateError } from "./draw-context";
 import type { DrawProgress } from "@control/draw/dto/draw-progress";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
@@ -52,6 +53,8 @@ export interface DrawOutcome {
   prizeItems: RouletteItem[];
   /** 当選者を飛ばして引き直せる、ほかの候補の人数(分かるときだけ)。 */
   spareMembers?: number;
+  /** この抽選を確定した時点の、当選対象の景品の数。 */
+  prizeCounts: PrizeCounts;
 }
 
 /** 続けられるかの確認と、続けられるなら抽選・確定・ルーレットの材料まで済ませた結果。 */
@@ -78,12 +81,12 @@ export async function performResume(deps: PerformDrawDeps, pending: DrawResultDt
 
 async function prepareOutcome(
   deps: PerformDrawDeps,
-  { result, prizeRes, memberRes, spareMembers }: { result: DrawResultDto; prizeRes: DrawPrizeResponse; memberRes: DrawMemberResponse; spareMembers?: number }
+  { result, prizeRes, memberRes, spareMembers, prizeCounts }: DrawOutcomeParts
 ): Promise<DrawOutcome> {
   const winnerId = result.wonPrize?.id;
   const winner = winnerId ? deps.prizes.value.find((p) => p.id === winnerId) : undefined;
   if (!winner) throw new DrawStateError("当選した景品が景品一覧に見つかりません");
 
   const prizeItems = await deps.buildPrizeItems(buildPrizesToPrepare(deps.prizes.value, prizeRes));
-  return { result: { ...result, wonPrize: winner }, prizeRes, memberRes, winner, prizeItems, spareMembers };
+  return { result: { ...result, wonPrize: winner }, prizeRes, memberRes, winner, prizeItems, spareMembers, prizeCounts };
 }

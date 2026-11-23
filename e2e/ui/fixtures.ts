@@ -50,6 +50,20 @@ export async function adminRpc<T = unknown>(request: APIRequestContext, name: st
   return json.data as T;
 }
 
+/** サーバーに保存されている予定イベントとその実行状態(`ScheduleEventRecord`)。 */
+export interface ScheduleEventRecordView {
+  events: Array<{ id: string; type: string; [field: string]: unknown }>;
+  status: Record<string, "running" | "completed">;
+}
+
+export const scheduleEventsOnServer = (request: APIRequestContext) => adminRpc<ScheduleEventRecordView>(request, "octopusScheduler_getScheduleEvents", {});
+
+/** 予定イベントはサーバーで全端末が共有するので、テストの前後で空にする(他のテストのイベントと混ざらないように)。 */
+export async function resetScheduleEvents(request: APIRequestContext): Promise<void> {
+  const { events } = await scheduleEventsOnServer(request);
+  if (events.length) await adminRpc(request, "octopusScheduler_deleteScheduleEvents", { ids: events.map((e) => e.id) });
+}
+
 /** 管理端末でセッションを作成し、id と名前を返す。 */
 export async function createSession(page: Page, label: string, options: { demo?: boolean } = {}): Promise<{ id: string; name: string }> {
   // 同じ wrangler 上で他のテストが作ったセッションと取り違えないよう、名前は毎回ユニークにする。

@@ -4,6 +4,8 @@ import { AccountsRepository } from "@octopus/accounts";
 import type { Member } from "@octopus/accounts";
 import { getSessionToken, setSessionToken } from "@octopus/client-common/auth/session-token-store";
 import type { Role } from "../router/auth-guard";
+import { UNVERIFIED } from "../router/auth-guard";
+import type { SessionCheck } from "../router/auth-guard";
 
 /**
  * ログイン(管理者・参加者)のセッション状態。トークン自体は client-common の store に保持され、
@@ -12,14 +14,18 @@ import type { Role } from "../router/auth-guard";
 const currentMember = ref<Member | null>(null);
 let restoring: Promise<void> | null = null;
 
-/** 保存済みトークンが有効か一度だけサーバーに確認する(失敗時は次回また試す)。 */
+/**
+ * 保存済みトークンが有効か一度だけサーバーに確認する(例外で失敗したら次回また試す)。
+ * サーバーが null を返したとき(期限切れ・追い出し・ログアウト済み・削除)だけトークンを消す。
+ * 例外(通信エラー・タイムアウト・5xx・429)ではトークンを残す。
+ */
 function restoreSession(): Promise<void> {
   if (!restoring) {
     restoring = (async () => {
       const token = getSessionToken();
       if (!token) return;
       try {
-        const member = await container.resolve(AccountsRepository).getSession(token);
+        const member = await container.resolve(AccountsRepository).getSession(token, { retries: 0 });
         currentMember.value = member;
         if (!member) setSessionToken(null);
       } catch (e) {
@@ -36,12 +42,12 @@ export function roleOf(member: Member): Role {
   return member.isAdmin === true ? "admin" : "participant";
 }
 
-/** 今ログインしている人の役割。未ログイン、または通信エラー等で確認できない場合は null。 */
-export async function ensureRole(): Promise<Role | null> {
+/** 今ログインしている人の役割。未ログインなら null、通信エラー等で確認できなければ UNVERIFIED(トークンは残る)。 */
+export async function ensureRole(): Promise<SessionCheck> {
   try {
     await restoreSession();
   } catch {
-    return null;
+    return UNVERIFIED;
   }
   return currentMember.value ? roleOf(currentMember.value) : null;
 }

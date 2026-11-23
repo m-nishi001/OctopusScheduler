@@ -4,6 +4,8 @@ import { container } from "tsyringe";
 
 import HostAgentBadge from "../components/host-agent-badge.vue";
 import { setupHostAgent } from "../../../../control/session/host-agent-setup";
+import type { HostAgentSetupDeps } from "../../../../control/session/host-agent-setup";
+import { EventReturn } from "../../../../control/session/event-return";
 import { makeDevice, makeRouter, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
 import type { SessionEnv } from "./session-test-kit";
 
@@ -17,12 +19,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-async function hostedScene() {
+async function hostedScene(deps?: HostAgentSetupDeps) {
   const meta = await env.repo.create({ name: "x" });
   const { agent, device } = registerHostAgent(env);
   const router = makeRouter("/session/host/" + meta.id);
   await router.isReady();
-  setupHostAgent(router);
+  setupHostAgent(router, deps);
   await agent.connection.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   const admin = makeDevice(env.hub, { memberId: "admin2" });
   await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
@@ -185,13 +187,84 @@ describe("setupHostAgent: ゲーム終了からロビーへ戻るとイベント
     expect(await eventOf(meta)).toMatchObject({ title: "乾杯" });
   });
 
-  it("終了画面から、ロビー以外へ遷移してもイベントは続く", async () => {
+  it("終了画面から、ロビー以外(ゲーム以外の画面)へ遷移しても、イベントを終了する(開始前の画面へ戻る場合)", async () => {
     const { router, meta } = await startedEvent();
     await router.push("/execute/jackpot-ending");
     await settle(5000);
     await router.push("/home");
     await settle(5000);
-    expect(await eventOf(meta)).toMatchObject({ title: "乾杯" });
+    expect(await eventOf(meta)).toBeUndefined();
+  });
+});
+
+describe("setupHostAgent: 開始前の画面とBGMの復元", () => {
+  function fakeDeps() {
+    const audio = { suspend: vi.fn(async () => undefined), resume: vi.fn(async () => undefined) };
+    const eventReturn = new EventReturn();
+    return { audio, eventReturn, deps: { audio: () => audio, eventReturn } satisfies HostAgentSetupDeps };
+  }
+  const addMediaRoute = (router: ReturnType<typeof makeRouter>) => {
+    router.addRoute({ path: "/execute/show-slideshow/:data", name: "show-slideshow", component: { render: () => null } });
+    router.addRoute({ path: "/execute/quiz/:id/result", name: "quiz-result", component: { render: () => null } });
+    router.addRoute({ path: "/execute/quiz/:id/play", component: { render: () => null } });
+  };
+
+  it("メディア画面からゲームへ入ると、その画面を覚えてBGMを一時停止し、終了画面から出るとBGMを再開して忘れる", async () => {
+    const { audio, eventReturn, deps } = fakeDeps();
+    const { router, agent } = await hostedScene(deps);
+    addMediaRoute(router);
+    await router.push("/execute/show-slideshow/abc");
+    await settle();
+    expect(audio.suspend).not.toHaveBeenCalled();
+    await router.push("/execute/jackpot-opening");
+    await settle();
+    expect(eventReturn.take()).toBe("/execute/show-slideshow/abc");
+    expect(agent.returnPath).toBe("/execute/show-slideshow/abc");
+    expect(audio.suspend).toHaveBeenCalledOnce();
+    expect(audio.resume).not.toHaveBeenCalled();
+    await router.push("/execute/jackpot-ending"); // ゲームの中の移動では何もしない
+    await settle();
+    expect(audio.suspend).toHaveBeenCalledOnce();
+    await router.push(agent.returnPath as string);
+    await settle();
+    expect(router.currentRoute.value.fullPath).toBe("/execute/show-slideshow/abc");
+    expect(audio.resume).toHaveBeenCalledOnce();
+    expect(eventReturn.take()).toBeNull();
+  });
+
+  it("ロビーから始めたら、戻り先はロビー", async () => {
+    const { audio, deps } = fakeDeps();
+    const { router, agent, meta } = await hostedScene(deps);
+    await router.push("/execute/jackpot-opening");
+    await settle();
+    expect(agent.returnPath).toBe(`/session/host/${meta.id}`);
+    await router.push(agent.returnPath as string);
+    await settle();
+    expect(audio.resume).toHaveBeenCalledOnce();
+  });
+
+  it("終了画面を通らずにゲームを抜けても、BGMを再開して覚えた画面を捨てる", async () => {
+    const { audio, eventReturn, deps } = fakeDeps();
+    const { router } = await hostedScene(deps);
+    addMediaRoute(router);
+    await router.push("/execute/show-slideshow/abc");
+    await router.push("/execute/quiz/q1/play");
+    await settle();
+    expect(audio.suspend).toHaveBeenCalledOnce();
+    await router.push("/home");
+    await settle();
+    expect(audio.resume).toHaveBeenCalledOnce();
+    expect(eventReturn.take()).toBeNull();
+  });
+
+  it("ゲームの外どうしの移動では、BGMに触れない", async () => {
+    const { audio, deps } = fakeDeps();
+    const { router } = await hostedScene(deps);
+    await router.push("/home");
+    await router.push("/sessions");
+    await settle();
+    expect(audio.suspend).not.toHaveBeenCalled();
+    expect(audio.resume).not.toHaveBeenCalled();
   });
 });
 

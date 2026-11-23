@@ -59,6 +59,11 @@ export class PrizeDrawService {
     return prizes.filter((p) => isDrawablePrize(p) && !won.has(p.id));
   }
 
+  /** 当選対象の景品の数(当選済みを含む)。「あと半分」の全体の数。 */
+  countDrawablePrizes(prizes: Prize[]): number {
+    return prizes.filter(isDrawablePrize).length;
+  }
+
   pickRandomPrizeFrom(prizes: Prize[]): Prize | null {
     if (!prizes || prizes.length === 0) return null;
     return prizes[this.rand.nextInt(prizes.length)];

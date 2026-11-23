@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createAuthGuard, isParticipantPath, isPublicPath, landingPath, resolveLoginRedirect } from "./auth-guard";
-import type { Role } from "./auth-guard";
+import { createAuthGuard, isSafeRedirect, retryDelayMs, UNVERIFIED, isParticipantPath, isPublicPath, landingPath, resolveLoginRedirect } from "./auth-guard";
+import type { SessionCheck } from "./auth-guard";
 
 describe("isPublicPath", () => {
   it.each(["/login"])("%s は公開", (path) => {
@@ -74,7 +74,7 @@ describe("resolveLoginRedirect", () => {
 });
 
 describe("createAuthGuard", () => {
-  const guardFor = (role: Role | null) => createAuthGuard({ getRole: async () => role });
+  const guardFor = (role: SessionCheck) => createAuthGuard({ getRole: async () => role });
   const settings = { path: "/settings", fullPath: "/settings?tab=members" };
 
   it("旧い匿名ポータル(/portal)も、未ログインならログイン画面へ。参加者は参加者ポータルへ戻される", async () => {
@@ -112,5 +112,51 @@ describe("createAuthGuard", () => {
     expect(await guardFor(null)(login)).toBe(true);
     expect(await guardFor("admin")(login)).toEqual({ path: "/home" });
     expect(await guardFor("participant")(login)).toEqual({ path: "/p" });
+  });
+
+  it("確認できない(通信エラー等)ときは、保護されたルートへ進ませず接続待ち画面へ送る(戻り先付き)", async () => {
+    const guard = guardFor(UNVERIFIED);
+    expect(await guard(settings)).toEqual({ path: "/connecting", query: { redirect: "/settings?tab=members" } });
+    expect(await guard({ path: "/p", fullPath: "/p" })).toEqual({ path: "/connecting", query: { redirect: "/p" } });
+    expect(await guard({ path: "/execute/quiz/q1/play", fullPath: "/execute/quiz/q1/play" })).toEqual({
+      path: "/connecting",
+      query: { redirect: "/execute/quiz/q1/play" },
+    });
+  });
+
+  it("確認できなくても、ログイン画面と接続待ち画面そのものは開ける", async () => {
+    const guard = guardFor(UNVERIFIED);
+    expect(await guard({ path: "/login", fullPath: "/login" })).toBe(true);
+    expect(await guard({ path: "/connecting", fullPath: "/connecting?redirect=/home", query: { redirect: "/home" } })).toBe(true);
+  });
+
+  it("接続待ち画面: 確認できたら戻り先へ(参加者は参加者ポータルだけ)。未ログインならログイン画面へ", async () => {
+    const to = (redirect: unknown) => ({ path: "/connecting", fullPath: "/connecting", query: { redirect } });
+    expect(await guardFor("admin")(to("/settings"))).toEqual({ path: "/settings" });
+    expect(await guardFor("participant")(to("/settings"))).toEqual({ path: "/p" });
+    expect(await guardFor(null)(to("/settings"))).toEqual({ path: "/login", query: { redirect: "/settings" } });
+  });
+
+  it.each(["https://example.com", "//example.com", "/\\example.com", "javascript:alert(1)", "/x:y", undefined])(
+    "接続待ち画面: 不正な戻り先 %s は外部へ飛ばさない",
+    async (redirect) => {
+      const to = { path: "/connecting", fullPath: "/connecting", query: { redirect } };
+      expect(await guardFor("admin")(to)).toEqual({ path: "/home" });
+      expect(await guardFor(null)(to)).toEqual({ path: "/login", query: {} });
+    },
+  );
+});
+
+describe("isSafeRedirect", () => {
+  it("アプリ内のパスだけ許可する", () => {
+    expect(isSafeRedirect("/home?x=1#a")).toBe(true);
+    for (const bad of ["//a.com", "http://a.com", "a", "", null, undefined, ["/a"], "/\\a.com"]) expect(isSafeRedirect(bad)).toBe(false);
+  });
+});
+
+describe("retryDelayMs", () => {
+  it("1→2→4→8→10秒(最大)。10秒を超えず、1秒未満にもならない", () => {
+    expect([0, 1, 2, 3, 4, 5, 20].map(retryDelayMs)).toEqual([1000, 2000, 4000, 8000, 10000, 10000, 10000]);
+    expect(retryDelayMs(-1)).toBe(1000);
   });
 });

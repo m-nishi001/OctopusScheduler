@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { effectScope } from "vue";
 
-const audio = vi.hoisted(() => ({ load: vi.fn().mockResolvedValue(undefined), play: vi.fn().mockResolvedValue(undefined) }));
+const audio = vi.hoisted(() => ({ load: vi.fn().mockResolvedValue(undefined), play: vi.fn().mockResolvedValue(undefined), stop: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@octopus/composables", () => ({ useAudio: () => audio }));
 
 import { useScreenBgm } from "./use-screen-bgm";
@@ -31,5 +31,23 @@ describe("useScreenBgm", () => {
     scope.stop();
     await pending;
     expect(audio.play).not.toHaveBeenCalled();
+  });
+
+  it("stop で再生中の曲を止める。読み込みの途中で止めたら鳴らさない", async () => {
+    vi.clearAllMocks();
+    const bgm = effectScope().run(() => useScreenBgm())!;
+    await bgm.stop();
+    expect(audio.stop).toHaveBeenCalledTimes(1);
+
+    vi.clearAllMocks();
+    const pending = bgm.playOnce(new Blob(["x"]));
+    await bgm.stop();
+    await pending;
+    expect(audio.play).not.toHaveBeenCalled();
+
+    // 止めたあとに改めて流せば鳴る
+    vi.clearAllMocks();
+    await bgm.playOnce(new Blob(["x"]));
+    expect(audio.play).toHaveBeenCalledTimes(1);
   });
 });
