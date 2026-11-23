@@ -1,6 +1,7 @@
 import { inject, injectable } from "tsyringe";
 import { IAccountsApiToken } from "../../server/accounts-api-contract";
 import type { ApplyRosterArgs, ApplyRosterResult, LoginResult, Member, AccountsApi, RosterUsage } from "../../server/accounts-api-contract";
+import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
 
 /** アカウント・名簿の API(ログイン・ログアウト・メンバーの一覧と変更・ログインキーの発行)への窓口。 */
 @injectable()
@@ -78,7 +79,8 @@ export class AccountsRepository {
     return this.accountsApi.logout({ token });
   }
 
-  async getSession(token: string): Promise<Member | null> {
-    return this.accountsApi.getSession({ token });
+  /** `options.retries: 0` で内部の再試行を切れる(呼び出し側がバックオフを持つとき)。 */
+  async getSession(token: string, options?: ApiCallOptions): Promise<Member | null> {
+    return this.accountsApi.getSession({ token }, options);
   }
 }
