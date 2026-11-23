@@ -1,5 +1,6 @@
 import { gamePathRedirectRoutes } from "../../../../control/router/execute-path";
 import "reflect-metadata";
+import { AudioControl } from "../../../../control/media/audio";
 import { vi } from "vitest";
 import { container } from "tsyringe";
 import { createMemoryHistory, createRouter } from "vue-router";
@@ -67,6 +68,15 @@ export function registerHostAgent(env: SessionEnv, memberId = "admin1", faults?:
   const device = makeDevice(env.hub, { memberId, faults });
   const agent = new HostAgent(device.conn);
   container.register(HostAgent, { useValue: agent });
+  // ホストになると、鳴っている曲の公開・一時停止のために AudioControl を取り出す。音の部品(AudioContext)は作らず、何も鳴らない部品を渡した本物の AudioControl にする
+  const silent = {
+    loadFromBlob: async () => "silent",
+    play: async () => undefined,
+    pause: async () => undefined,
+    stop: async () => undefined,
+    disposeInstance: () => undefined,
+  };
+  container.register(AudioControl, { useValue: new AudioControl({ ensure: async () => new Blob() }, silent) });
   return { agent, device };
 }
 

@@ -22,6 +22,7 @@ import { SyncService } from "../sync/sync-service";
 import { AssetSource } from "../media/asset-source";
 import { AudioControl, AudioServiceToken } from "../media/audio";
 import { LobbyPathToken, ScreenControl } from "../media/screen";
+import { VideoOutput } from "../media/video-output";
 import { AudioService } from "@octopus/client-common/audio/audio-service";
 import { HostAgent } from "@octopus/session-hub";
 
@@ -60,6 +61,7 @@ export class Container {
     container.register(LobbyPathToken, {
       useValue: () => (container.isRegistered(HostAgent) ? container.resolve(HostAgent).lobbyPath : null),
     });
+    container.registerSingleton(VideoOutput);
     container.registerSingleton(ScreenControl);
     container.register(SyncRunner, { useClass: SyncRunner });
     container.register(SyncService, { useClass: SyncService });

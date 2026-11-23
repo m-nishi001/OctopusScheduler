@@ -28,6 +28,7 @@ function mountPanel(options: { canSend?: boolean; loadMetas?: () => Promise<Driv
 const find = (wrapper: ReturnType<typeof mount>, id: string) => wrapper.find(`[data-testid="${id}"]`);
 
 beforeEach(() => {
+  localStorage.clear();
   toasts.value = [];
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
@@ -47,11 +48,11 @@ describe("media-panel: 音楽", () => {
     await find(wrapper, "media-loop").setValue(true);
     await find(wrapper, "media-play-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", loop: true });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", loop: true, fadeSec: 2 });
     await find(wrapper, "media-loop").setValue(false);
     await find(wrapper, "media-play-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1" });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", fadeSec: 2 });
   });
 
   it("再生・停止・すべて停止で、media の指示を送る", async () => {
@@ -59,13 +60,13 @@ describe("media-panel: 音楽", () => {
     await flushPromises();
     await find(wrapper, "media-play-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1" });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", fadeSec: 2 });
     await find(wrapper, "media-stop-song1").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song1", fadeSec: 1 });
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song1", fadeSec: 2 });
     await find(wrapper, "media-stop-all").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 1 });
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 2 });
   });
 
   it("送れない間(接続していない)は押せない", async () => {
@@ -106,7 +107,7 @@ describe("media-panel: スクリーン", () => {
     const { wrapper, issue } = await screenTab();
     await find(wrapper, "media-clear").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "clear", {});
+    expect(issue).toHaveBeenLastCalledWith("media", "clear", { fadeSec: 2 });
   });
 
   it("フォルダ(一覧から作る)を選ぶか手で入力して、スライドショーを開始できる", async () => {
@@ -178,7 +179,7 @@ describe("media-panel: ホストが公開した差(アップロード前の素�
     expect(rows[0]).toContain("aaa-new.mp3"); // 名前順
     await find(wrapper, "media-play-newsong").trigger("click");
     await flushPromises();
-    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "newsong" });
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "newsong", fadeSec: 2 });
   });
 
   it("ホストが消した素材は出さない。サーバーの一覧にも載った素材は重ねて出さない", async () => {
@@ -265,5 +266,154 @@ describe("media-panel: ホストが公開した差(アップロード前の素�
 
     await wrapper.setProps({ roomData: slice({ lastError: { assetId: "song2", at: 4 } }) });
     expect(find(wrapper, "media-playback-error").text()).toContain("fanfare.wav");
+  });
+});
+
+describe("media-panel: フェード秒", () => {
+  it("入力した秒数を、再生し直し・停止・すべて停止・消すの指示に付けて送る。0 も送れる", async () => {
+    const { wrapper, issue } = mountPanel();
+    await flushPromises();
+    await find(wrapper, "media-fade-sec").setValue("4");
+    await find(wrapper, "media-play-song1").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "play", { assetId: "song1", fadeSec: 4 });
+    await find(wrapper, "media-stop-song1").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song1", fadeSec: 4 });
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 4 });
+    await find(wrapper, "media-fade-sec").setValue("0");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 0 });
+    await find(wrapper, "media-tab-screen").trigger("click");
+    await find(wrapper, "media-fade-sec").setValue("3");
+    await find(wrapper, "media-clear").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "clear", { fadeSec: 3 });
+  });
+
+  it("範囲外(10 を超える・負)は、0〜10 に収めて送る。空は既定の 2 秒", async () => {
+    const { wrapper, issue } = mountPanel();
+    await flushPromises();
+    await find(wrapper, "media-fade-sec").setValue("99");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 10 });
+    await find(wrapper, "media-fade-sec").setValue("-3");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 0 });
+    await find(wrapper, "media-fade-sec").setValue("");
+    await find(wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 2 });
+  });
+
+  it("秒数はこの端末に残り、次に開いたときも使われる。保存先が使えなくても動く", async () => {
+    const first = mountPanel();
+    await flushPromises();
+    await find(first.wrapper, "media-fade-sec").setValue("5");
+    await flushPromises();
+    first.wrapper.unmount();
+    const second = mountPanel();
+    await flushPromises();
+    expect((find(second.wrapper, "media-fade-sec").element as HTMLInputElement).value).toBe("5");
+
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    const third = mountPanel();
+    await flushPromises();
+    await find(third.wrapper, "media-fade-sec").setValue("1");
+    await find(third.wrapper, "media-stop-all").trigger("click");
+    await flushPromises();
+    expect(third.issue).toHaveBeenLastCalledWith("media", "stop", { fadeSec: 1 });
+    vi.restoreAllMocks();
+  });
+});
+
+describe("media-panel: いま流れている・映っているもの", () => {
+  const playing = (audio: Array<{ assetId: string; loop: boolean }>, path = "/session/host/s1") => ({ playback: { audio }, session: { path } });
+  const allText = (wrapper: ReturnType<typeof mount>, id: string) => wrapper.findAll(`[data-testid="${id}"]`).map((r) => r.text());
+
+  it("何も無ければ「なし」と出す(公開が無い古いホストでも)", async () => {
+    for (const roomData of [undefined, null, {}, playing([])]) {
+      const { wrapper } = mountPanel({ roomData });
+      await flushPromises();
+      expect(find(wrapper, "media-now-audio-none").text()).toContain("なし");
+      expect(find(wrapper, "media-now-screen-none").text()).toContain("なし");
+      expect(wrapper.findAll('[data-testid="media-now-audio"]')).toHaveLength(0);
+      expect(wrapper.findAll('[data-testid="media-song-playing"]')).toHaveLength(0);
+    }
+  });
+
+  it("鳴っている曲を、名前・ループの印・停止ボタンで並べ、曲の一覧の行にも「再生中」を付ける", async () => {
+    const { wrapper } = mountPanel({ roomData: playing([{ assetId: "song1", loop: true }, { assetId: "song2", loop: false }]) });
+    await flushPromises();
+    const rows = allText(wrapper, "media-now-audio");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain("bgm.mp3");
+    expect(rows[0]).toContain("ループ");
+    expect(rows[1]).toContain("fanfare.wav");
+    expect(rows[1]).not.toContain("ループ");
+    expect(wrapper.findAll('[data-testid="media-now-loop"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid="media-song-playing"]')).toHaveLength(2);
+    expect(find(wrapper, "media-now-audio-none").exists()).toBe(false);
+  });
+
+  it("欄の「停止」は、その曲だけを、指定したフェード秒で止める", async () => {
+    const { wrapper, issue } = mountPanel({ roomData: playing([{ assetId: "song1", loop: false }, { assetId: "song2", loop: false }]) });
+    await flushPromises();
+    await find(wrapper, "media-fade-sec").setValue("3");
+    await find(wrapper, "media-now-stop-song2").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "stop", { assetId: "song2", fadeSec: 3 });
+  });
+
+  it("一覧に無い曲も、行は出す。ホストが公開していない曲の「再生中」は付かない", async () => {
+    const { wrapper } = mountPanel({ roomData: playing([{ assetId: "ghost", loop: false }]) });
+    await flushPromises();
+    expect(allText(wrapper, "media-now-audio")[0]).toContain("名前の分からない素材");
+    expect(wrapper.findAll('[data-testid="media-song-playing"]')).toHaveLength(0);
+  });
+
+  it("画面は session.path から、種類と名前を出す。「消す」で clear を送る", async () => {
+    const { wrapper, issue } = mountPanel({ roomData: playing([], "/execute/show-image/img1") });
+    await flushPromises();
+    expect(find(wrapper, "media-now-screen").text()).toContain("画像");
+    expect(find(wrapper, "media-now-screen").text()).toContain("photo.png");
+    expect(find(wrapper, "media-now-screen-none").exists()).toBe(false);
+    await find(wrapper, "media-now-clear").trigger("click");
+    await flushPromises();
+    expect(issue).toHaveBeenLastCalledWith("media", "clear", { fadeSec: 2 });
+  });
+
+  it("動画とスライドショーの画面も出る。ロビーや別の画面なら「なし」", async () => {
+    const video = mountPanel({ roomData: playing([], "/execute/show-video/vid1") });
+    await flushPromises();
+    expect(find(video.wrapper, "media-now-screen").text()).toContain("動画");
+    expect(find(video.wrapper, "media-now-screen").text()).toContain("clip.mp4");
+
+    const spec = encodeURIComponent(JSON.stringify({ kind: "slideshow", folder: "show1", intervalSec: 5, transition: "fade" }));
+    const slideshow = mountPanel({ roomData: playing([], `/execute/show-slideshow/${spec}`) });
+    await flushPromises();
+    expect(find(slideshow.wrapper, "media-now-screen").text()).toContain("スライドショー");
+    expect(find(slideshow.wrapper, "media-now-screen").text()).toContain("show1");
+
+    const quiz = mountPanel({ roomData: playing([], "/execute/quiz/q1/entry") });
+    await flushPromises();
+    expect(find(quiz.wrapper, "media-now-screen-none").exists()).toBe(true);
+  });
+
+  it("送れない間は、欄のボタンも押せない", async () => {
+    const { wrapper } = mountPanel({ canSend: false, roomData: playing([{ assetId: "song1", loop: false }], "/execute/show-image/img1") });
+    await flushPromises();
+    expect(find(wrapper, "media-now-stop-song1").attributes("disabled")).toBeDefined();
+    expect(find(wrapper, "media-now-clear").attributes("disabled")).toBeDefined();
   });
 });

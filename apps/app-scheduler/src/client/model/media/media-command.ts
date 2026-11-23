@@ -6,22 +6,29 @@ export const MEDIA_NS = "media";
 
 /** 指示は4種類だけ。ペイロードは、関数の引数をそのまま送る。 */
 export type MediaCommand =
-  | { type: "play"; assetId: string; loop?: boolean }
+  | { type: "play"; assetId: string; loop?: boolean; fadeSec?: number }
   | { type: "stop"; assetId?: string; fadeSec?: number }
   | { type: "show"; spec: ScreenSpec }
-  | { type: "clear" };
+  | { type: "clear"; fadeSec?: number };
 
 export const MEDIA_COMMAND_TYPES = ["play", "stop", "show", "clear"] as const;
 
 export const ASSET_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 export const MAX_FOLDER_LENGTH = 100;
 export const MAX_FADE_SEC = 10;
+/**
+ * フェード秒を指定しない停止(止める・消す・同じ曲の再生し直し)の既定。停止は常にフェードし、即時停止(0 秒)は明示したときだけ。
+ * 管理端末が指示に `fadeSec` を付けなかったときと、予定イベントなど操作画面以外から呼んだときに使う。
+ */
+export const DEFAULT_FADE_SEC = 2;
 /** 指示で受け付けるスライドショーの1枚あたりの表示時間(秒)。 */
 export const COMMAND_MIN_INTERVAL_SEC = 1;
 export const COMMAND_MAX_INTERVAL_SEC = 60;
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isAssetId = (v: unknown): v is string => typeof v === "string" && ASSET_ID_PATTERN.test(v);
+/** `fadeSec` は、省略(undefined)か、0〜`MAX_FADE_SEC` の数。 */
+const isFadeSec = (v: unknown): v is number | undefined => v === undefined || (typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_FADE_SEC);
 
 function payloadBytes(payload: unknown): number {
   try {
@@ -52,25 +59,28 @@ export function parseMediaCommand(type: string, payload: unknown): MediaCommand 
   const body = payload === undefined || payload === null ? {} : payload;
   if (!isRecord(body)) return null;
   switch (type) {
-    case "play":
-    {
-      const { assetId, loop } = body;
+    case "play": {
+      const { assetId, loop, fadeSec } = body;
       if (!isAssetId(assetId)) return null;
       if (loop !== undefined && typeof loop !== "boolean") return null;
-      return { type, assetId, ...(loop !== undefined ? { loop } : {}) };
+      if (!isFadeSec(fadeSec)) return null;
+      return { type, assetId, ...(loop !== undefined ? { loop } : {}), ...(fadeSec !== undefined ? { fadeSec } : {}) };
     }
     case "stop": {
       const { assetId, fadeSec } = body;
       if (assetId !== undefined && !isAssetId(assetId)) return null;
-      if (fadeSec !== undefined && (typeof fadeSec !== "number" || !Number.isFinite(fadeSec) || fadeSec < 0 || fadeSec > MAX_FADE_SEC)) return null;
+      if (!isFadeSec(fadeSec)) return null;
       return { type, ...(assetId !== undefined ? { assetId } : {}), ...(fadeSec !== undefined ? { fadeSec } : {}) };
     }
     case "show": {
       const spec = parseShowSpec(body.spec);
       return spec ? { type, spec } : null;
     }
-    case "clear":
-      return { type };
+    case "clear": {
+      const { fadeSec } = body;
+      if (!isFadeSec(fadeSec)) return null;
+      return { type, ...(fadeSec !== undefined ? { fadeSec } : {}) };
+    }
     default:
       return null;
   }

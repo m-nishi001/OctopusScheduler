@@ -16,8 +16,8 @@ const defaultControls = (): MediaControls => ({
 
 /**
  * ホストが `media` 名前空間の指示を受けて、音楽とスクリーンを動かす。
- *   - `media.play { assetId, loop? }` / `media.stop { assetId?, fadeSec? }` : 音楽
- *   - `media.show { spec }` / `media.clear` : スクリーン
+ *   - `media.play { assetId, loop?, fadeSec? }` / `media.stop { assetId?, fadeSec? }` : 音楽。`fadeSec` は、止める曲のフェードアウト秒(省略は既定)
+ *   - `media.show { spec }` / `media.clear { fadeSec? }` : スクリーン。`fadeSec` は、動画の音のフェードアウト秒
  * 信頼境界はホスト側。参加者(client)からの指示は捨て、検証に通らないペイロードは警告を出して捨てる。
  * 素材の取得を待たない(待つと、あとに来た「消す」「止める」が取得の完了まで処理されないため)。
  * 取得を待つ間に別の指示が来たときの扱いは、`AudioControl` / `ScreenControl` が決める。
@@ -39,13 +39,13 @@ export function registerMediaCommands(
     const task = (() => {
       switch (parsed.type) {
         case "play":
-          return audio.play(parsed.assetId, parsed.loop ?? false);
+          return audio.play(parsed.assetId, parsed.loop ?? false, parsed.fadeSec);
         case "stop":
           return audio.stop(parsed.assetId, parsed.fadeSec);
         case "show":
           return screen.show(parsed.spec);
         case "clear":
-          return screen.clear();
+          return screen.clear(parsed.fadeSec);
       }
     })();
     task.catch((error) => {
