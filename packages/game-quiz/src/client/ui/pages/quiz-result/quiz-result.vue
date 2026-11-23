@@ -213,7 +213,11 @@ function advance(): void {
     if (isPrizeDialogVisible.value) confirmPrize();
     else if (rankingFinished.value) {
         if (noWinner.value) goHome();
-        else showPrizeDialog();
+        else {
+            // ランキングBGMは景品のダイアログに進む前に止める(景品BGMは景品側で流れる)
+            void screenBgm.stop();
+            showPrizeDialog();
+        }
     }
 }
 
