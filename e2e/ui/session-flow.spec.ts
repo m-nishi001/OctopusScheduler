@@ -65,6 +65,7 @@ test.describe("再読み込み時の通信エラー", () => {
   const TOKEN_KEY = "octopus-session-token";
 
   test("通信できないまま再読み込みしても、ログイン画面へ飛ばさず接続待ち画面を出し、復帰したら元の画面へ戻る", async ({ browser }) => {
+    test.skip(isGas, "Cloudflare 専用(GAS 版は /rpc を使わず google.script.run で通信するため、/rpc の遮断では通信エラーを再現できない)");
     const d = await newDevice(browser, { signedIn: true });
     await d.page.goto("/#/sessions");
     await expect(d.page.getByRole("heading", { name: "セッション" })).toBeVisible();
@@ -97,9 +98,11 @@ test.describe("再読み込み時の通信エラー", () => {
     await d.page.evaluate((k) => localStorage.setItem(k, "tampered-invalid-token-0000"), TOKEN_KEY);
     await d.page.goto("/#/sessions");
     await d.page.reload();
+    // GAS 版は応答に遅延があるので、確認が終わってログイン画面が出るまで待ってから確かめる
+    await expect(d.page.locator('input[autocomplete="username"]')).toBeVisible();
     await expect(d.page).toHaveURL(/#\/login/);
     await expect(d.page.getByTestId("connecting-view")).toHaveCount(0);
-    expect(await d.page.evaluate((k) => localStorage.getItem(k), TOKEN_KEY)).toBeNull();
+    await expect.poll(() => d.page.evaluate((k) => localStorage.getItem(k), TOKEN_KEY)).toBeNull();
     await d.context.close();
   });
 
@@ -115,12 +118,14 @@ test.describe("再読み込み時の通信エラー", () => {
     const res = await d.page.request.post("/rpc", { data: { name: "accounts_logout", args: { token } } });
     expect(res.ok()).toBe(true);
     await d.page.reload();
+    await expect(d.page.locator('input[autocomplete="username"]')).toBeVisible();
     await expect(d.page).toHaveURL(/#\/login/);
     await expect(d.page.getByTestId("connecting-view")).toHaveCount(0);
     await d.context.close();
   });
 
   test("参加者は通信できない状態で管理画面を開いても、中身は表示されない。接続待ちの戻り先も外部へ飛ばない", async ({ browser, request }) => {
+    test.skip(isGas, "Cloudflare 専用(GAS 版は /rpc を使わず google.script.run で通信するため、/rpc の遮断では通信エラーを再現できない)");
     const adminDev = await newDevice(browser, { signedIn: true });
     await openSession(adminDev.page, request, "通信エラー確認");
     const d = await login(browser);
@@ -146,7 +151,10 @@ test.describe("再読み込み時の通信エラー", () => {
     const key = await addParticipant(request, id, "上限確認");
     try {
       const rpc = async (name: string, args: unknown) => (await request.post("/rpc", { data: { name, args } })).json();
-      const d = await loginByQr(browser, id, key);
+      // ポータルの公開に依存しないよう、受付QRでログインして挨拶が出るところまでで足りる
+      const d = await newDevice(browser, { mobile: true });
+      await d.page.goto(`/#/login?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}`);
+      await expect(d.page.getByTestId("home-greeting")).toBeVisible();
       for (let i = 0; i < 11; i++) {
         const res = await rpc("accounts_loginWithKey", { id, key });
         expect(res.status).toBe("success");
@@ -175,6 +183,7 @@ test.describe("再読み込み時の通信エラー", () => {
   });
 
   test("通信できない間の再試行は10秒間隔までのバックオフで、1タブ1分あたり少ない", async ({ browser }) => {
+    test.skip(isGas, "Cloudflare 専用(GAS 版は /rpc を使わず google.script.run で通信するため、/rpc の遮断では通信エラーを再現できない)");
     test.setTimeout(90_000);
     const d = await newDevice(browser, { signedIn: true });
     await d.page.goto("/#/sessions");
