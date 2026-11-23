@@ -68,8 +68,11 @@ test.describe("コントロール画面: ワンクリック開催", () => {
       await nextButton(admin.page).click();
       await expect.poll(() => route(host.page)).toBe(`/execute/quiz/oc1/${path}`);
     }
+    await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
+    await expect(nextButton(admin.page)).toHaveText(/受付を締め切る/); // 管理端末の表示が出題画面に追いついてから押す
     await nextButton(admin.page).click(); // 受付を締め切る
     await expect(admin.page.getByTestId("now")).toContainText("受付終了");
+    await expect(admin.page.getByTestId("next-hint")).toContainText("正解");
     for (const path of ["answer", "result"]) {
       await nextButton(admin.page).click();
       await expect.poll(() => route(host.page)).toBe(`/execute/quiz/oc1/${path}`);
