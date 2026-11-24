@@ -126,3 +126,6 @@ export const activeSounds = (page: Page): Promise<ActiveSound[]> => page.evaluat
 
 /** 履歴のうち、指定した種類(media / source)の play・start だけを、曲の長さ・ループの有無・順番で取り出す。 */
 export const starts = (log: SoundEvent[], kind: "media" | "source") => log.filter((x) => x.kind === kind && (x.e === "play" || x.e === "start"));
+
+/** 履歴のうち、仕組み(media / source)を問わず、鳴らし始めたものだけ。 */
+export const allStarts = (log: SoundEvent[]) => log.filter((x) => (x.kind === "media" && x.e === "play") || (x.kind === "source" && x.e === "start"));

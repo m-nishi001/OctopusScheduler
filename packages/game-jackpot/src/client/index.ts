@@ -9,3 +9,5 @@ export { DrawPoolProviderToken } from "./model/draw/draw-pool";
 export type { DrawPoolProvider } from "./model/draw/draw-pool";
 export { NoEligibleMembersError } from "./model/errors";
 export { setDrawPoolProvider } from "./control/draw/set-draw-pool-provider";
+// ジャックポットの画面BGM(同じ曲なら流し続ける)。アプリが router に取り付ける。
+export { installScreenBgmGuard } from "./ui/composables/screen-bgm-guard";

@@ -4,7 +4,7 @@ import { createApp } from "vue";
 import "./style.css";
 import App from "./App.vue";
 import { Container } from "./control/container/index";
-import { JackpotContainer, setDrawPoolProvider } from "@octopus/game-jackpot";
+import { JackpotContainer, installScreenBgmGuard, setDrawPoolProvider } from "@octopus/game-jackpot";
 import { QuizContainer } from "@octopus/game-quiz";
 import { AccountsContainer } from "@octopus/accounts";
 import { SessionHubContainer } from "@octopus/session-hub";
@@ -35,6 +35,8 @@ app.provide(PARTICIPANT_AUTH_KEY, useAuthSession());
 const sound = container.resolve<SoundSystem>(SoundSystemToken);
 app.provide(SOUND_KEY, sound);
 exposeSoundProbe(sound);
+// ジャックポットの画面が切り替わるとき、行き先と同じ曲なら流し続け、違えば止める。
+installScreenBgmGuard(router, sound);
 app.use(router).mount("#app");
 
 container.registerInstance(ScreenRouterToken, router);

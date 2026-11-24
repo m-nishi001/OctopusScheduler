@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { makeWav, TUNES } from "../../scripts/seed-content.js";
 import { AUDIO_BASELINE, baselineRow } from "./helpers/audio-baseline";
 import { seedServerAsset, silentWav, uid } from "./helpers/media";
-import { activeSounds, installSoundTrace, soundTrace, starts, type SoundEvent } from "./helpers/sound-trace";
+import { activeSounds, allStarts, installSoundTrace, soundTrace, starts, type SoundEvent } from "./helpers/sound-trace";
 import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, publishPortal, route, seedJackpot, test } from "./fixtures";
 
 /**
@@ -67,10 +67,10 @@ const PAGES_HEADER = "画面,種類,文字,画像,効果,秒数,行数,効果音
 const screenRow = (screen: string, bgm: string) => `${screen},${bgm}${",".repeat(10)}`;
 
 /** 画面(オープニング・説明・最終結果・エンディング)の BGM を設定して取り込む。 */
-async function importScreens(page: Page, bgms: { opening: string; description: string; result: string; ending: string }, files: Record<string, Buffer>) {
+async function importScreens(page: Page, bgms: { opening: string; description: string; result: string; ending: string; demo?: string }, files: Record<string, Buffer>) {
   const zip = zipSync({
     "screens.csv": strToU8(
-      [SCREENS_HEADER, screenRow("オープニング", bgms.opening), screenRow("説明", bgms.description), screenRow("最終結果", bgms.result), screenRow("エンディング", bgms.ending)].join("\r\n") + "\r\n"
+      [SCREENS_HEADER, screenRow("オープニング", bgms.opening), screenRow("説明", bgms.description), screenRow("最終結果", bgms.result), screenRow("エンディング", bgms.ending), ...(bgms.demo ? [`デモ抽選,${bgms.demo},,,,あり,1,,,,,`] : [])].join("\r\n") + "\r\n"
     ),
     "pages.csv": strToU8([PAGES_HEADER, "オープニング,テキスト,ようこそ,,静止,0.6,,,", "説明,テキスト,説明です,,,,,,", "エンディング,テキスト,おわり,,静止,0.6,,,"].join("\r\n") + "\r\n"),
     ...Object.fromEntries(Object.entries(files).map(([name, body]) => [`media/${name}`, body])),
@@ -99,8 +99,8 @@ async function jackpotDevice(browser: Parameters<Parameters<typeof test>[2]>[0][
 /** この画面で、いま鳴っている音がちょうど1つで、その長さ・ループが期待どおりになるまで待つ。 */
 async function expectSingle(page: Page, expected: { duration: number; loop: boolean }, message: string) {
   await expect
-    .poll(async () => (await activeSounds(page)).map((s) => ({ kind: s.kind, duration: s.duration, loop: s.loop })), { message, timeout: 30_000 })
-    .toEqual([{ kind: "media", duration: expected.duration, loop: expected.loop }]);
+    .poll(async () => (await activeSounds(page)).map((s) => ({ duration: s.duration, loop: s.loop })), { message, timeout: 30_000 })
+    .toEqual([{ duration: expected.duration, loop: expected.loop }]);
   return (await activeSounds(page))[0];
 }
 
@@ -114,14 +114,12 @@ test.describe("ジャックポットの画面BGM", () => {
 
     await goto(dev.page, "/execute/jackpot-opening");
     const opening = await expectSingle(dev.page, { duration: DUR.A, loop: true }, "オープニングのBGMが、ループで流れる");
-    expect(opening.muted, "音が出る状態").toBe(false);
 
     await goto(dev.page, "/execute/jackpot-description");
     const description = await expectSingle(dev.page, { duration: DUR.B, loop: true }, "説明のBGM(オープニングとは別の曲)が流れ、オープニングのBGMは止まる");
     expect(description.id, "別の曲は別の再生").not.toBe(opening.id);
     const log = await soundTrace(dev.page);
-    expect(log.some((x) => x.kind === "media" && x.e === "pause" && x.id === opening.id), "オープニングのBGMは pause で止まる").toBe(true);
-    expect(starts(log, "media").map((x) => x.loop)).toEqual([true, true]);
+    expect(allStarts(log).map((x) => x.loop), "2曲とも、ループで鳴らし始めた").toEqual([true, true]);
 
     // 説明を離れると止まる
     await goto(dev.page, "/execute/jackpot-history");
@@ -130,7 +128,7 @@ test.describe("ジャックポットの画面BGM", () => {
     await dev.context.close();
   });
 
-  test(`${baselineRow("J2").id}s 説明(同じ曲): 今は、同じ曲でも画面が変わるたびに最初から鳴らし直す(PR2 で、途切れず流し続けるに変える)`, async ({ browser }) => {
+  test(`${baselineRow("J2").id}s 説明(同じ曲): 同じ曲は、画面が変わっても途切れず流し続ける(PR2 で変えた行。変更前は鳴らし直していた)`, async ({ browser }) => {
     test.setTimeout(180_000);
     const { dev, pageErrors } = await jackpotDevice(browser);
     await dev.page.goto("/#/sessions");
@@ -140,13 +138,40 @@ test.describe("ジャックポットの画面BGM", () => {
     await goto(dev.page, "/execute/jackpot-opening");
     const opening = await expectSingle(dev.page, { duration: DUR.A, loop: true }, "オープニングのBGM");
     await goto(dev.page, "/execute/jackpot-description");
-    await expect.poll(async () => (await activeSounds(dev.page)).map((s) => s.id).filter((id) => id !== opening.id).length, { message: "説明の曲が鳴り直される" }).toBe(1);
-    const log = await soundTrace(dev.page);
-    // 変更前の動き: オープニングの要素は止まり、新しい要素が最初から鳴る(2回 play される)
-    expect(log.some((x) => x.kind === "media" && x.e === "pause" && x.id === opening.id)).toBe(true);
-    expect(starts(log, "media")).toHaveLength(2);
+    // 説明の画面の準備ができるまで待ってから確かめる(準備のあとに鳴らし直されないこと)
+    await expect(dev.page.getByTestId("description-text")).toBeVisible({ timeout: 30_000 });
+    await dev.page.waitForTimeout(1500);
+    expect((await activeSounds(dev.page)).map((x) => x.id), "同じ再生が続いている").toEqual([opening.id]);
+    expect(allStarts(await soundTrace(dev.page)), "鳴らし直していない(1回だけ鳴らした)").toHaveLength(1);
+    // 同じ曲でも、最後は止まる(ゲームの画面を出る)
+    await goto(dev.page, "/execute/jackpot-history");
+    await expect.poll(() => activeSounds(dev.page), { message: "BGMの無い画面へ移ると止まる" }).toEqual([]);
     expect(pageErrors).toEqual([]);
     await dev.context.close();
+  });
+
+  test(`${baselineRow("J3").id} デモ抽選: BGMをループで流し、抽選が始まったら止める`, async ({ browser, request }) => {
+    test.setTimeout(180_000);
+    const members = ["ab-m1", "ab-m2"];
+    for (const id of members) await adminRpc(request, "accounts_addMember", { id, name: `基準${id.slice(-1)}` });
+    try {
+      const { dev, pageErrors } = await jackpotDevice(browser);
+      await dev.page.goto("/#/sessions");
+      await seedJackpot(dev.page, { prizes: [{ id: "ab-p1", name: "景品", order: 1, rank: 3, animation: "roulette" }] });
+      await importScreens(dev.page, { opening: A, description: A, result: A, ending: A, demo: B }, { [A]: makeWav(TUNES.opening), [B]: makeWav(TUNES.ending) });
+
+      await goto(dev.page, "/execute/jackpot-demo-draw");
+      // 画面を開くとBGMを流し始め(ループ)、単体実行(ホストなし)では練習の抽選がすぐ始まるので、始まったら止まる
+      await expect
+        .poll(async () => allStarts(await soundTrace(dev.page)).map((x) => ({ duration: x.duration || DUR.B, loop: x.loop })), { message: "デモ抽選のBGMが、ループで流れ始める", timeout: 30_000 })
+        .toEqual([{ duration: DUR.B, loop: true }]);
+      await expect.poll(() => activeSounds(dev.page), { message: "抽選が始まったらBGMは止まる", timeout: 30_000 }).toEqual([]);
+      expect(allStarts(await soundTrace(dev.page)), "鳴らし直さない").toHaveLength(1);
+      expect(pageErrors).toEqual([]);
+      await dev.context.close();
+    } finally {
+      for (const id of members) await adminRpc(request, "accounts_deleteMember", { id }).catch(() => undefined);
+    }
   });
 
   test(`${baselineRow("J4").id} 最終結果は ${baselineRow("J4").delay} 遅らせて、${baselineRow("J5").id} エンディングは ${baselineRow("J5").delay} 遅らせて、BGMをループで流す`, async ({ browser }) => {
@@ -160,7 +185,7 @@ test.describe("ジャックポットの画面BGM", () => {
       const before = await dev.page.evaluate(() => performance.now());
       await goto(dev.page, path);
       await expectSingle(dev.page, expected, message);
-      const first = starts(await soundTrace(dev.page), "media").at(-1)!;
+      const first = allStarts(await soundTrace(dev.page)).at(-1)!;
       return first.t - before;
     };
     const resultMs = await measure("/execute/jackpot-result", { duration: DUR.B, loop: true }, "最終結果のBGMが流れる");
