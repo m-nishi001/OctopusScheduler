@@ -18,8 +18,23 @@ import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, p
 
 const stamp = Date.now();
 const sessionIds: string[] = [];
+/** このファイルが書き換えるサーバー上のデータ(ジャックポット・クイズの設定)。ほかの spec は「何も設定されていない」ことを前提にするので、終わったら元に戻す。 */
+const RECORDS = [
+  { get: "jackpotGame_getRecord", save: "jackpotGame_saveRecord", empty: { schemaVersion: 2, prizes: [], screens: [], media: {} } },
+  { get: "quizGame_getRecord", save: "quizGame_saveRecord", empty: { quizzes: [], media: {} } },
+] as const;
+const originals = new Map<string, string | null>();
+
+test.beforeAll(async ({ request }) => {
+  for (const r of RECORDS) originals.set(r.get, (await adminRpc<{ json: string | null }>(request, r.get, {})).json);
+});
 test.afterAll(async ({ request }) => {
   for (const sessionId of sessionIds) await adminRpc(request, "sessionHub_closeSession", { sessionId }).catch(() => undefined);
+  for (const r of RECORDS) {
+    const before = originals.get(r.get);
+    const data = before ? (JSON.parse(before) as { data: unknown }).data : r.empty;
+    await adminRpc(request, r.save, { json: JSON.stringify({ updatedAt: Date.now(), data }) });
+  }
 });
 
 test("表の行は、ID が重複せず、すべて確かめ方が書かれている", () => {
@@ -272,6 +287,7 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
   await expect(admin.page.getByTestId("now")).toContainText("回答受付中", { timeout: 30_000 });
   await next.click();
   await expect(host.page.getByText("受付を終了しました")).toBeVisible({ timeout: 30_000 });
+  await expect(next).not.toContainText("締め切る");
   await expect.poll(async () => (await activeSounds(host.page)).some((s) => s.id === play.id), { message: "締め切ると出題中のBGMは止まる" }).toBe(false);
 
   // Q3: 正解 → 正解BGM が1回だけ(ループしない)流れ、離れると止まる
