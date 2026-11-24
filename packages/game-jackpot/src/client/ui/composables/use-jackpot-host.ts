@@ -58,6 +58,9 @@ export function useJackpotHost(handlers: JackpotHostHandlers, options: JackpotHo
   const agent = container.resolve(HostAgent);
   let canStop = false;
   let last: JackpotPublished | null = null;
+  /** 受け付けた進行の操作の数(hold のたびに増える)。公開する状態に載せて、管理端末が受け付けられたかを確かめられるようにする。 */
+  let acks = 0;
+  const withAck = (state: JackpotPublished): JackpotPublished => (acks > 0 ? { ...state, ack: acks } : state);
   const self = Symbol("jackpot-host");
   /** 画面を離れた後。破棄された画面の進行が遅れて公開しても、次の画面の公開を上書きしない。 */
   let disposed = false;
@@ -92,8 +95,9 @@ export function useJackpotHost(handlers: JackpotHostHandlers, options: JackpotHo
   });
 
   return {
-    publish(state) {
+    publish(published) {
       if (disposed) return;
+      const state = withAck(published);
       last = state;
       owner = self;
       if (state.page !== "main-draw") {
@@ -109,7 +113,8 @@ export function useJackpotHost(handlers: JackpotHostHandlers, options: JackpotHo
     hold() {
       if (disposed || !last) return;
       canStop = false;
-      last = { ...last, busy: true, canStop: false };
+      acks++;
+      last = withAck({ ...last, busy: true, canStop: false });
       void agent.publishSlice(NAMESPACE, last, []);
     }
   };

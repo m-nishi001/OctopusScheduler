@@ -188,19 +188,43 @@ test.describe("再読み込み時の通信エラー", () => {
     const d = await newDevice(browser, { signedIn: true });
     await d.page.goto("/#/sessions");
     await expect(d.page.getByRole("heading", { name: "セッション" })).toBeVisible();
-    const times: number[] = [];
-    await d.context.route("**/rpc", (r) => {
-      times.push(Date.now());
-      return r.abort("internetdisconnected");
+    // 時間は偽の時計で進める(実時間で40秒待って間隔を測ると、CI の負荷で試行の回数がぶれる)。
+    // 通信の試行ごとに、ページの中の時刻(偽の時計)を記録する。時計は、通信が1つも進行中でないときだけ少しずつ進める
+    // (通信の失敗の処理が遅れても、次の再試行の予定の時刻が、その分ずれない)。
+    await d.page.clock.install({ time: 0 });
+    await d.page.clock.pauseAt(1_000); // 時計を止める(実時間では進まない)。以降は runFor だけで進む
+    await d.page.addInitScript(() => {
+      const w = window as unknown as { __rpcTimes: number[]; __rpcInflight: number };
+      w.__rpcTimes = [];
+      w.__rpcInflight = 0;
+      const original = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+        if (!url.includes("/rpc")) return original(input, init);
+        w.__rpcTimes.push(Date.now());
+        w.__rpcInflight++;
+        return original(input, init).finally(() => {
+          // 失敗の処理(再試行の予約)が終わってから、進行中でなくなったことにする
+          queueMicrotask(() => void w.__rpcInflight--);
+        });
+      };
     });
+    await d.context.route("**/rpc", (r) => r.abort("internetdisconnected"));
     await d.page.reload();
     await expect(d.page.getByTestId("connecting-view")).toBeVisible();
-    await d.page.waitForTimeout(40_000);
+    const probe = () => d.page.evaluate(() => { const w = window as unknown as { __rpcTimes: number[]; __rpcInflight: number }; return { n: w.__rpcTimes.length, inflight: w.__rpcInflight }; });
+    for (let guard = 0; guard < 400 && (await probe()).n < 8; guard++) {
+      await expect.poll(async () => (await probe()).inflight, { message: "通信が1つも進行中でない" }).toBe(0);
+      await d.page.clock.runFor(250);
+    }
+    const times = await d.page.evaluate(() => (window as unknown as { __rpcTimes: number[] }).__rpcTimes);
     const gaps = times.slice(1).map((t, i) => t - times[i]);
     expect(gaps.length).toBeGreaterThanOrEqual(4);
     expect(Math.min(...gaps.slice(1))).toBeGreaterThanOrEqual(900);
     expect(gaps.at(-1)!).toBeGreaterThanOrEqual(9000);
-    expect(times.length).toBeLessThanOrEqual(12);
+    expect(Math.max(...gaps), "間隔の上限").toBeLessThanOrEqual(10_500);
+    // 最初の試行から1分(偽の時計)の間の試行は少ない
+    expect(times.filter((t) => t - times[0] <= 60_000).length).toBeLessThanOrEqual(12);
     await d.context.close();
   });
 });

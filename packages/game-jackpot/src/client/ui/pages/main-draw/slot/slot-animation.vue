@@ -179,6 +179,8 @@ export default {
             const totalMs = durationSec && durationSec > 0 ? durationSec * 1000 : DEFAULT_STOP_TOTAL_MS;
             const schedule = stopSchedule(totalMs);
             clearStopTimers();
+            // 止め始めた時刻の印(テストが、止まり方の長さを、描画のコマ落ちに左右されずに測れる)
+            if (typeof performance !== 'undefined' && typeof performance.mark === 'function') performance.mark('slot-stop-spin');
             return new Promise<string | null>((resolve) => {
                 let stoppedCount = 0;
                 const beginDecel = (index: number) => {
