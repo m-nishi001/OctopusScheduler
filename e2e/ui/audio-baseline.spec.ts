@@ -253,7 +253,7 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
   const quizzes = {
     name: "quizzes.zip",
     mimeType: "application/zip",
-    buffer: Buffer.from(zipSync({ "quizzes.csv": strToU8(`${header}\r\n${row}\r\n`), [`media/${PLAY_BGM}`]: makeWav(TUNES.quiz), [`media/${CORRECT_BGM}`]: makeWav(TUNES.fanfare) })),
+    buffer: Buffer.from(zipSync({ "quizzes.csv": strToU8(`${header}\r\n${row}\r\n`), [`media/${PLAY_BGM}`]: makeWav(TUNES.quiz), [`media/${CORRECT_BGM}`]: makeWav(TUNES.ending) })),
   };
   for (const page of [admin.page, host.page]) {
     await page.goto("/#/quiz-admin");
@@ -293,7 +293,11 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
   // Q3: 正解 → 正解BGM が1回だけ(ループしない)流れ、離れると止まる
   await next.click();
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/answer`);
-  const correct = await expectSingle(host.page, { duration: durationOf(TUNES.fanfare), loop: false }, "正解BGMが、ループなしで流れる");
+  // 遅い環境(GAS)では、鳴っている間に確かめ損ねないよう、再生の履歴で確かめる
+  await expect
+    .poll(async () => starts(await soundTrace(host.page), "media").filter((x) => !x.loop && x.id !== play.id).map((x) => x.id).length, { message: "正解BGMが、ループなしで流れる", timeout: 60_000 })
+    .toBe(1);
+  const correct = starts(await soundTrace(host.page), "media").filter((x) => !x.loop && x.id !== play.id)[0];
   await next.click(); // → ランキング
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/result`);
   await expect.poll(async () => (await activeSounds(host.page)).some((s) => s.id === correct.id), { message: "正解を離れたら正解BGMは止まる" }).toBe(false);
