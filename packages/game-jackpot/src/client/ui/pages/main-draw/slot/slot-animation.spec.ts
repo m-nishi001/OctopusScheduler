@@ -2,18 +2,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { FakeSoundBackend } from "@octopus/client-common/audio/fake-sound-backend";
+import { SoundSystem } from "@octopus/client-common/audio/sound-system";
 import SlotAnimation from "./slot-animation.vue";
 import type { AnimationRef } from "../animation-types";
 import { WIN_ROW } from "./reel-model";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
 
-vi.mock("@octopus/composables/use-audio", () => ({
-  useAudio: () => ({
-    load: vi.fn(() => Promise.resolve()),
-    play: vi.fn(() => Promise.resolve()),
-    stop: vi.fn(() => Promise.resolve()),
-  }),
-}));
+// リール音は、音の中心(SoundSystem)の effect チャンネルで鳴らす。偽の音の部品で、鳴っているかを見る
+const sound = vi.hoisted(() => ({ system: null as unknown as SoundSystem, backend: null as unknown as FakeSoundBackend }));
+vi.mock("@octopus/composables/use-sound", () => ({ useSound: () => sound.system }));
 
 const prizes: PrizeDto[] = [
   { id: "p1", name: "賞1", order: 1 },
@@ -22,6 +20,8 @@ const prizes: PrizeDto[] = [
 ];
 
 beforeEach(() => {
+  sound.backend = new FakeSoundBackend();
+  sound.system = new SoundSystem(sound.backend);
   vi.useFakeTimers();
   // アニメーションのループは手動で回さない(回転量ではなく、親から操作できるかを見る)
   vi.stubGlobal("requestAnimationFrame", () => 0);
@@ -493,10 +493,27 @@ describe("SlotAnimation", () => {
       await expect(api.stopSpin(3, null)).rejects.toThrow("指定なし");
     });
 
-    it("音源つきで回し始めても、回る", async () => {
+    it("音源つきで回し始めると、リール音をループで流す(effect チャンネル)。止めたときと、画面を離れたときに止まる", async () => {
       const wrapper = mount(SlotAnimation, { props: { prizes } });
-      await (wrapper.vm as unknown as Required<AnimationRef>).startSpin(new Blob(["x"], { type: "audio/mpeg" }));
+      const api = wrapper.vm as unknown as Required<AnimationRef>;
+      await api.startSpin(new Blob(["x"], { type: "audio/mpeg" }));
       expect(wrapper.classes()).toContain("spinning");
+      expect(sound.system.effect.state.tracks).toMatchObject([{ key: "slot-reel", status: "playing", loop: true }]);
+
+      await api.startSpin(new Blob(["y"], { type: "audio/mpeg" })); // 回し直しても、1つだけ(前の音は止めてから)
+      expect(sound.system.effect.state.tracks).toHaveLength(1);
+      expect(sound.backend.playingIds).toHaveLength(1);
+
+      wrapper.unmount();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(sound.system.effect.state.tracks).toEqual([]);
+      expect(sound.backend.playingIds).toEqual([]);
+    });
+
+    it("音源が無ければ、リール音は鳴らさない(いまの抽選は音源を渡さない)", async () => {
+      const wrapper = mount(SlotAnimation, { props: { prizes } });
+      await (wrapper.vm as unknown as Required<AnimationRef>).startSpin();
+      expect(sound.system.effect.state.tracks).toEqual([]);
     });
   });
 

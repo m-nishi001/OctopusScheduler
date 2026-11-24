@@ -79,6 +79,17 @@ describe("installScreenBgmGuard", () => {
     vi.restoreAllMocks();
   });
 
+  it("抽選の画面から出るときも、画面の曲を止める(抽選画面は BGM を持たないので、行き先の曲名だけが残る)", async () => {
+    const { router, sound, backend, song } = setup({ result: "res.wav" });
+    await router.push("/execute/jackpot-draw");
+    await sound.screen.play(song("lottery.wav"));
+    await router.push("/execute/jackpot-result");
+    expect(sound.screen.state.tracks).toEqual([]);
+    await sound.screen.play(song("lottery.wav"));
+    await router.push("/home"); // ジャックポットの画面から、BGM の無い場所へ
+    expect(backend.playingIds).toEqual([]);
+  });
+
   it("設定の読み込みが遅くても、遷移は待たされない(止めずに進む)", async () => {
     vi.useFakeTimers();
     const { router, sound, backend, song, load } = setup({});

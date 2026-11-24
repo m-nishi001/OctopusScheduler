@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bgmNameFor, bgmScreenOf } from "./screen-bgm";
+import { bgmNameFor, bgmScreenOf, isJackpotGamePath } from "./screen-bgm";
 
 describe("bgmScreenOf", () => {
   it.each([
@@ -45,5 +45,20 @@ describe("bgmNameFor", () => {
     expect(bgmNameFor("/execute/jackpot-opening", { opening: null })).toBeNull();
     expect(bgmNameFor("/execute/jackpot-opening", { opening: { bgm: 3 } })).toBeNull();
     expect(bgmNameFor("/execute/jackpot-result", { result: { bgm: "x.wav" } })).toBeNull();
+  });
+});
+
+describe("isJackpotGamePath", () => {
+  it.each([
+    ["/execute/jackpot-opening", true],
+    ["/execute/jackpot-entry", true],
+    ["/execute/jackpot-draw", true], // BGM を持たないが、ここから出るときも曲を止める
+    ["/execute/jackpot-history?demo=1", true],
+    ["/execute/jackpot-ending/", true],
+    ["/execute/jackpot-admin/screens/opening", false],
+    ["/execute/quiz/q1/intro", false],
+    ["/session/host/s1", false],
+  ])("%s → %s", (path, expected) => {
+    expect(isJackpotGamePath(path)).toBe(expected);
   });
 });

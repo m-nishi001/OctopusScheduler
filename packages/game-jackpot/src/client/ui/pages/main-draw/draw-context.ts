@@ -2,6 +2,7 @@ import type { PrizeCounts } from "@model/draw/half-remaining";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
+import type { SoundSystem } from "@octopus/client-common/audio/sound-system";
 import type { LotteryBgmPlayer } from "./use-lottery-bgm";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
 import type { RoulettePrizeDto } from "./roulette/roulette-prize-preparer";
@@ -31,6 +32,8 @@ export interface DrawContext {
   setSelectedPrize(prize: PrizeDto | null): void;
   preparePrizes(prizes: RoulettePrizeDto[]): Promise<RouletteItem[]>;
   loadBgmBlob(name: string | null): Promise<Blob | null>;
+  /** 音の中心。景品の当選BGM(確変の当選BGMも)を、`screen` チャンネルで鳴らす。 */
+  sound: Pick<SoundSystem, "screen">;
   /** メンバー抽選・景品抽選の演出コンポーネント(テンプレート ref)。 */
   memberAnim: Readable<any>;
   prizeAnim: Readable<any>;

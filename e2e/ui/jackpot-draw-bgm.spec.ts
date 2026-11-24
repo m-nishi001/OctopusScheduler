@@ -14,7 +14,7 @@ import { allStarts, installSoundTrace, soundFade, soundTrace, type SoundEvent } 
  */
 
 /** 抽選の演出より長い曲(止める・フェードアウトするときに、まだ鳴っているように。短い曲は、止める前に自然に終わる)。 */
-const longWav = (notes: Parameters<typeof makeWav>[0]) => makeWav(Array.from({ length: 8 }, () => notes).flat() as Parameters<typeof makeWav>[0]);
+const longWav = (notes: Parameters<typeof makeWav>[0]) => makeWav(Array.from({ length: 20 }, () => notes).flat() as Parameters<typeof makeWav>[0]);
 
 const MEMBER = { id: "jp-bgm-e2e-01", name: "音楽太郎" };
 const sessionIds: string[] = [];
@@ -165,7 +165,7 @@ for (const kind of ["roulette", "slot"] as const) {
 
     await expect.poll(async () => stops(await audioLog(host.page)).length, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
     const prizeId = soundIds(await audioLog(host.page))[2];
-    await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), prizeId); return f.startAt !== undefined && f.stopAt !== undefined; }, { timeout: 15_000 }).toBe(true);
+    await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), prizeId); return f.startAt !== undefined && f.stopAt !== undefined; }, { timeout: 15_000, message: `履歴: ${JSON.stringify((await audioLog(host.page)).map((x) => [x.kind, x.e, x.id, Math.round(x.t), x.v]))}、ログ: ${JSON.stringify(logs)}` }).toBe(true);
     const log = await audioLog(host.page);
     const plays = allStarts(log);
     expect(plays.filter((x) => x.loop), "どの曲もループしない").toEqual([]);

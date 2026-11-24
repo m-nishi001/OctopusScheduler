@@ -26,10 +26,23 @@ const SCREEN_OF_SUFFIX: Readonly<Record<string, BgmScreen>> = {
   "jackpot-ending": "ending",
 };
 
+const GAME_SCREEN_SUFFIXES = new Set(["jackpot-opening", "jackpot-entry", "jackpot-description", "jackpot-demo-draw", "jackpot-draw", "jackpot-result", "jackpot-history", "jackpot-ending"]);
+
+/**
+ * ジャックポットのゲームの画面(BGM を持たない抽選・エントリー・履歴も含む)のパスか。
+ * 画面が切り替わるとき、行き先か元がこれなら、行き先の曲名以外の `screen` の曲を止める(抽選の画面から出たときも、BGM を残さない)。
+ */
+export function isJackpotGamePath(path: string): boolean {
+  return GAME_SCREEN_SUFFIXES.has(lastSegment(path));
+}
+
+function lastSegment(path: string): string {
+  return path.split(/[?#]/)[0].replace(/\/+$/, "").split("/").pop() ?? "";
+}
+
 /** ルートのパス(`/execute/jackpot-opening` など。末尾の `/` や、クエリ・ハッシュは無視)から、BGM を持つ画面を引く。該当しなければ null。 */
 export function bgmScreenOf(path: string): BgmScreen | null {
-  const last = path.split(/[?#]/)[0].replace(/\/+$/, "").split("/").pop() ?? "";
-  return SCREEN_OF_SUFFIX[last] ?? null;
+  return SCREEN_OF_SUFFIX[lastSegment(path)] ?? null;
 }
 
 /** その画面で流す曲名。BGM を持たない画面・未設定・空(空白だけ)は null(止める)。 */
