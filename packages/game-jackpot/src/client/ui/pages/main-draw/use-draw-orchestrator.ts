@@ -21,7 +21,7 @@ import type { DrawEndReason } from "@control/draw/dto/draw-progress";
 import { RevealTracker } from "@model/jackpot-host-state";
 import { useJackpotHost } from "../../composables/use-jackpot-host";
 import { useJackpotSession } from "../../composables/use-jackpot-session";
-import { useScreenBgm } from "../../composables/use-screen-media";
+import { useScreenSound } from "../../composables/use-screen-sound";
 import { usePrizeDrawState } from "./prize-animation-state";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
@@ -59,7 +59,7 @@ export function useDrawOrchestrator() {
   const demoRound = ref(0);
   const demoRoundTotal = ref(DEFAULT_DEMO_DRAW.rounds);
   /** デモ抽選を始めるまで流す BGM。最初の進行操作で止める(抽選中は、メンバー抽選・景品の BGM に任せる)。 */
-  const demoBgm = useScreenBgm();
+  const demoBgm = useScreenSound();
   /** 景品抽選BGM(開始から停止開始まで)。当選BGM(RouletteBgmManager)とは別に鳴らす。 */
   const prizeLotteryBgm = useLotteryBgm("prizeLotteryBgms");
 
@@ -381,7 +381,7 @@ export function useDrawOrchestrator() {
     // 終了後の「次へ」・Enter・OK は、次の画面へ進む(本抽選は結果の画面。エンディングへは結果の画面から進む。デモ抽選は本抽選)
     onLeave: () => leaveToNext(),
     onStarted: () => {
-      demoBgm.bgm.value?.pause();
+      void demoBgm.stop();
       host.hold();
     },
     onSettled: publishHostState,
@@ -420,8 +420,7 @@ export function useDrawOrchestrator() {
         const demo = parseDemoDrawSettings(await container.resolve(ScreenSettingsService).fetchScreenSetting("demo", "demo-screen-settings"));
         demoRounds = demo.rounds;
         demoRoundTotal.value = demo.rounds;
-        await demoBgm.load(demo.bgm);
-        demoBgm.play();
+        await demoBgm.play(demo.bgm); // 読み込んで鳴らし始めるまで待つ(以前と同じ。抽選が始まって止めるのは、そのあと)
       }
       await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
       // 確定済みで公開されていない抽選(再読み込み前に演出の途中だったもの)は、引き直さずに同じ結果で演出し直す

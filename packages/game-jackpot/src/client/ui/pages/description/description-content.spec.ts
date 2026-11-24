@@ -7,6 +7,9 @@ import { HostAgent } from "@octopus/session-hub";
 import { makeDevice, makeHub } from "@octopus/session-hub/testing";
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
+import { FakeSoundBackend } from "@octopus/client-common/audio/fake-sound-backend";
+import { SoundSystem } from "@octopus/client-common/audio/sound-system";
+import { SOUND_KEY } from "@octopus/composables/use-sound";
 import DescriptionContent from "./description-content.vue";
 import { buildJackpotDescriptionState } from "@model/jackpot-host-state";
 
@@ -45,7 +48,7 @@ async function scene(pageCount: number, demo: { enabled?: boolean } = {}) {
   });
   await router.push("/jackpot-description");
   await router.isReady();
-  const wrapper = mount(DescriptionContent, { global: { plugins: [router] } });
+  const wrapper = mount(DescriptionContent, { global: { plugins: [router], provide: { [SOUND_KEY as symbol]: new SoundSystem(new FakeSoundBackend()) } } });
   await flushPromises();
   await tick(4000);
   const published = () => admin.conn.state.roomState?.data?.jackpot;

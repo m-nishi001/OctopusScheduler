@@ -41,7 +41,7 @@ import { ScreenSettingsService } from '@control/screen-config/screen-settings-se
 import { MemberPhotoCache } from '@octopus/accounts';
 import { nextScreen, SCREEN_PATH } from '@model/screen-flow';
 import { ResultScreenSetting } from '@model/screen-config/result-screen-setting';
-import { useScreenBgm } from '../../composables/use-screen-media';
+import { useScreenSound } from '../../composables/use-screen-sound';
 import '../../theme/jackpot-theme.css';
 
 export default {
@@ -57,7 +57,7 @@ export default {
     const lowestWinner = ref<any | undefined>(undefined);
     const resultConfig = ref<ResultScreenSetting | null>(null);
 
-    const bgm = useScreenBgm();
+    const screenSound = useScreenSound();
     /** 画面が出てから BGM を鳴らし始めるまでの待ち（ミリ秒）。 */
     const BGM_DELAY_MS = 1200;
 
@@ -69,7 +69,7 @@ export default {
         const results = await drawStores.current().results();
         const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
         resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("");
-        void bgm.load(resultConfig.value.resultBgm).then(() => bgm.play(BGM_DELAY_MS));
+        void screenSound.play(resultConfig.value.resultBgm, BGM_DELAY_MS);
 
         // 当選者の写真は、共通の名簿の写真キャッシュから(まとめて読む。取れなければ頭文字のアバター)
         await photoCache.ensure(results.map(r => r.wonMember?.photo));

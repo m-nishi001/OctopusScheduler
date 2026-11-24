@@ -128,7 +128,7 @@ test.describe("ジャックポットの画面BGM", () => {
     await dev.context.close();
   });
 
-  test(`${baselineRow("J2").id}s 説明(同じ曲): 今は、同じ曲でも画面が変わるたびに最初から鳴らし直す(PR2 で、途切れず流し続けるに変える)`, async ({ browser }) => {
+  test(`${baselineRow("J2").id}s 説明(同じ曲): 同じ曲は、画面が変わっても途切れず流し続ける(PR2 で変えた行。変更前は鳴らし直していた)`, async ({ browser }) => {
     test.setTimeout(180_000);
     const { dev, pageErrors } = await jackpotDevice(browser);
     await dev.page.goto("/#/sessions");
@@ -138,11 +138,14 @@ test.describe("ジャックポットの画面BGM", () => {
     await goto(dev.page, "/execute/jackpot-opening");
     const opening = await expectSingle(dev.page, { duration: DUR.A, loop: true }, "オープニングのBGM");
     await goto(dev.page, "/execute/jackpot-description");
-    await expect.poll(async () => (await activeSounds(dev.page)).map((s) => s.id).filter((id) => id !== opening.id).length, { message: "説明の曲が鳴り直される" }).toBe(1);
-    const log = await soundTrace(dev.page);
-    // 変更前の動き: オープニングの要素は止まり、新しい要素が最初から鳴る(2回 play される)
-    expect((await activeSounds(dev.page)).some((x) => x.id === opening.id)).toBe(false);
-    expect(allStarts(log)).toHaveLength(2);
+    // 説明の画面の準備ができるまで待ってから確かめる(準備のあとに鳴らし直されないこと)
+    await expect(dev.page.getByTestId("description-text")).toBeVisible({ timeout: 30_000 });
+    await dev.page.waitForTimeout(1500);
+    expect((await activeSounds(dev.page)).map((x) => x.id), "同じ再生が続いている").toEqual([opening.id]);
+    expect(allStarts(await soundTrace(dev.page)), "鳴らし直していない(1回だけ鳴らした)").toHaveLength(1);
+    // 同じ曲でも、最後は止まる(ゲームの画面を出る)
+    await goto(dev.page, "/execute/jackpot-history");
+    await expect.poll(() => activeSounds(dev.page), { message: "BGMの無い画面へ移ると止まる" }).toEqual([]);
     expect(pageErrors).toEqual([]);
     await dev.context.close();
   });
