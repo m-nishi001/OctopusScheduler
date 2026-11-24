@@ -5,7 +5,7 @@ import "./style.css";
 import App from "./App.vue";
 import { Container } from "./control/container/index";
 import { JackpotContainer, installScreenBgmGuard, setDrawPoolProvider } from "@octopus/game-jackpot";
-import { QuizContainer } from "@octopus/game-quiz";
+import { QuizContainer, installQuizBgmGuard } from "@octopus/game-quiz";
 import { AccountsContainer } from "@octopus/accounts";
 import { SessionHubContainer } from "@octopus/session-hub";
 import { PARTICIPANT_AUTH_KEY } from "@octopus/participant-portal";
@@ -37,6 +37,8 @@ app.provide(SOUND_KEY, sound);
 exposeSoundProbe(sound);
 // ジャックポットの画面が切り替わるとき、行き先と同じ曲なら流し続け、違えば止める。
 installScreenBgmGuard(router, sound);
+// クイズの画面が切り替わるとき、画面の曲を止める。
+installQuizBgmGuard(router, sound);
 app.use(router).mount("#app");
 
 container.registerInstance(ScreenRouterToken, router);
