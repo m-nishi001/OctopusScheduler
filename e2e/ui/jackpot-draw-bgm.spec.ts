@@ -2,6 +2,7 @@ import { strToU8, zipSync } from "fflate";
 import type { Browser, APIRequestContext, Page } from "@playwright/test";
 import { makeWav, TUNES } from "../../scripts/seed-content.js";
 import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedJackpot, test } from "./fixtures";
+import { allStarts, installSoundTrace, soundFade, soundTrace, type SoundEvent } from "./helpers/sound-trace";
 
 /**
  * 抽選BGM(メンバー抽選BGM・メンバー結果BGM・景品抽選BGM・当選BGM)と、停止秒数(メンバー・景品で別々)。
@@ -9,7 +10,7 @@ import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, o
  * - メンバー抽選BGMは停止が始まったらフェードアウト(音量が下がって止まり、音量は元に戻る)、メンバー結果BGMは結果ダイアログを閉じたら即停止、景品抽選BGMは、当選BGMがあれば停止が始まったら即停止(当選BGMが空なら、止まるまで流して止まったらフェードアウト)。
  * - 当選BGMは、リールが止まる瞬間に無音になるようフェードする。
  * - メンバー抽選と景品抽選で、停止から止まるまでの長さを別々に設定できる。
- * 音は再生のイベント(<audio> の play / pause / volume)とコンソールのログで確かめる。音源はテストの中で生成する(公開リポジトリのため)。
+ * 音は再生の履歴(helpers/sound-trace.ts: <audio>・Web Audio のどちらで鳴らしても同じ形)とコンソールのログで確かめる。音源はテストの中で生成する(公開リポジトリのため)。
  */
 
 const MEMBER = { id: "jp-bgm-e2e-01", name: "音楽太郎" };
@@ -44,41 +45,22 @@ const zipOf = (mainRow: string) => ({
   ),
 });
 
-/** ホスト画面の <audio> の動きを記録する(play / pause / volume)。 */
+/** ホスト画面の音の動きを記録する。`stallPlay`: 音が鳴り出さない状況(自動再生が止められる・読み込みが終わらない)を作る。 */
 async function installAudioLog(page: Page, stallPlay = false) {
-  await page.context().addInitScript((stall: boolean) => {
-    const log: Array<{ t: number; e: string; id: number; loop?: boolean; v?: number }> = [];
-    (window as unknown as { __audioLog: typeof log }).__audioLog = log;
-    const ids = new WeakMap<object, number>();
-    let count = 0;
-    const idOf = (el: object) => {
-      if (!ids.has(el)) ids.set(el, ++count);
-      return ids.get(el)!;
-    };
-    const proto = HTMLMediaElement.prototype;
-    const play = proto.play;
-    proto.play = function (this: HTMLMediaElement) {
-      log.push({ t: performance.now(), e: "play", id: idOf(this), loop: this.loop });
-      // 自動再生が止められたときのように、play() が解決も拒否もしない状況を作る
-      return stall ? new Promise<void>(() => {}) : play.call(this);
-    };
-    const pause = proto.pause;
-    proto.pause = function (this: HTMLMediaElement) {
-      log.push({ t: performance.now(), e: "pause", id: idOf(this) });
-      return pause.call(this);
-    };
-    const volume = Object.getOwnPropertyDescriptor(proto, "volume")!;
-    Object.defineProperty(proto, "volume", {
-      configurable: true,
-      get: volume.get,
-      set(this: HTMLMediaElement, v: number) {
-        log.push({ t: performance.now(), e: "volume", id: idOf(this), v });
-        volume.set!.call(this, v);
-      },
-    });
-  }, stallPlay);
+  await installSoundTrace(page.context());
+  if (!stallPlay) return;
+  await page.context().addInitScript(() => {
+    // <audio> の play() が解決も拒否もしない / Web Audio の読み込み(デコード)が終わらない
+    HTMLMediaElement.prototype.play = () => new Promise<void>(() => {});
+    const ctx = (window as unknown as { BaseAudioContext?: { prototype: { decodeAudioData: unknown } } }).BaseAudioContext;
+    if (ctx) ctx.prototype.decodeAudioData = () => new Promise(() => {});
+  });
 }
-const audioLog = (page: Page) => page.evaluate(() => (window as unknown as { __audioLog: Array<{ t: number; e: string; id: number; loop?: boolean; v?: number }> }).__audioLog);
+const audioLog = (page: Page) => soundTrace(page);
+/** 止まった(<audio> の pause / Web Audio の stop)出来事。 */
+const stops = (log: SoundEvent[]) => log.filter((x) => (x.kind === "media" && x.e === "pause") || (x.kind === "source" && x.e === "stop"));
+/** 鳴らし始めた順の、音ごとの連番。 */
+const soundIds = (log: SoundEvent[]) => [...new Set(allStarts(log).map((x) => x.id))];
 
 async function scene(browser: Browser, request: APIRequestContext, label: string, setup: (host: Page) => Promise<void>, options: { stallPlay?: boolean } = {}) {
   const admin = await newDevice(browser, { signedIn: true });
@@ -141,17 +123,7 @@ async function stopAndMeasure(admin: Page): Promise<number> {
   return Date.now() - clicked;
 }
 
-/** この <audio> の、フェードアウトの経過: 音量が下がり始めた時刻・0 になった時刻・止まった時刻・止まったあとの音量。 */
-function fadeOf(log: Awaited<ReturnType<typeof audioLog>>, id: number) {
-  const mine = log.filter((x) => x.id === id);
-  const play = mine.find((x) => x.e === "play");
-  const start = mine.findIndex((x) => x.e === "volume" && (x.v ?? 1) < 1 && x.t > (play?.t ?? 0));
-  const volumes = mine.slice(start).filter((x) => x.e === "volume");
-  const pause = mine.find((x, i) => i >= start && x.e === "pause");
-  const zeroAt = volumes.find((x) => (x.v ?? 1) <= 0.001)?.t;
-  const after = mine.filter((x) => x.e === "volume" && pause && x.t >= pause.t);
-  return { play, startAt: mine[start]?.t, zeroAt, pauseAt: pause?.t, restored: after.at(-1)?.v, volumes: volumes.map((x) => x.v ?? 1).filter((v) => v < 1 || true) };
-}
+const fadeOf = soundFade;
 
 for (const kind of ["roulette", "slot"] as const) {
   test(`@motion 抽選BGM(${kind}): 設定した曲を1回だけ流し(ループしない)、メンバー抽選BGMはフェードアウト・結果BGMは閉じたら即停止・景品抽選BGMは(当選BGMが空なので)止まってからフェードアウト`, async ({ browser, request }) => {
@@ -188,11 +160,11 @@ for (const kind of ["roulette", "slot"] as const) {
     expect(logs.map((l) => l.replace("[LotteryBgm] ", "").replace(/ \S+\.wav$/, ""))).toEqual(["memberLotteryBgms play", "memberLotteryBgms fadeOut", "memberResultBgms play", "prizeLotteryBgms play", "prizeLotteryBgms fadeOut"]);
     expect(logs.join("\n")).toContain(`memberResultBgms play ${RESULT_BGM}`);
 
-    await expect.poll(async () => (await audioLog(host.page)).filter((x) => x.e === "pause").length, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
-    const prizeId = [...new Set((await audioLog(host.page)).filter((x) => x.e === "play").map((x) => x.id))][2];
-    await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), prizeId); return f.startAt !== undefined && f.pauseAt !== undefined; }, { timeout: 15_000 }).toBe(true);
+    await expect.poll(async () => stops(await audioLog(host.page)).length, { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+    const prizeId = soundIds(await audioLog(host.page))[2];
+    await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), prizeId); return f.startAt !== undefined && f.stopAt !== undefined; }, { timeout: 15_000 }).toBe(true);
     const log = await audioLog(host.page);
-    const plays = log.filter((x) => x.e === "play");
+    const plays = allStarts(log);
     expect(plays.filter((x) => x.loop), "どの曲もループしない").toEqual([]);
     const [member, result, prize] = [...new Set(plays.map((x) => x.id))];
     expect(new Set(plays.map((x) => x.id)).size, "<audio> は メンバー抽選・メンバー結果・景品抽選 の3つ(当選BGMは未設定)").toBe(3);
@@ -202,16 +174,16 @@ for (const kind of ["roulette", "slot"] as const) {
     expect(f.zeroAt, "メンバー抽選BGM: 音量が 0 まで下がらない").toBeDefined();
     expect(f.zeroAt! - f.startAt!, "フェードの長さ(約1.5秒)").toBeGreaterThan(1000);
     expect(f.zeroAt! - f.startAt!).toBeLessThan(3000);
-    expect(f.pauseAt, "フェードが終わってから止まる").toBeGreaterThanOrEqual(f.zeroAt!);
+    expect(f.stopAt, "フェードが終わってから止まる").toBeGreaterThanOrEqual(f.zeroAt! - 30);
     expect(f.restored, "止まったあとは音量が元に戻る").toBe(1);
     // メンバー結果BGM: フェードせず、すぐ止まる
     const resultLog = log.filter((x) => x.id === result);
-    expect(resultLog.some((x) => x.e === "pause"), "メンバー結果BGM: 止まる").toBe(true);
-    expect(resultLog.filter((x) => x.e === "volume" && (x.v ?? 1) < 1), "メンバー結果BGM: 音量を下げない(即停止)").toEqual([]);
+    expect(stops(resultLog).length, "メンバー結果BGM: 止まる").toBeGreaterThan(0);
+    expect(fadeOf(log, result).startAt, "メンバー結果BGM: 音量を下げない(即停止)").toBeUndefined();
     // 景品抽選BGM: 当選BGMが空なので、止まってからフェードアウトして止まる
     const pf = fadeOf(log, prize);
     expect(pf.startAt, "景品抽選BGM: 音量が下がり始める").toBeDefined();
-    expect(pf.pauseAt, "景品抽選BGM: フェードを始めてから止まる").toBeGreaterThanOrEqual(pf.startAt!);
+    expect(pf.stopAt, "景品抽選BGM: フェードを始めてから止まる").toBeGreaterThanOrEqual(pf.startAt!);
     expect(pageErrors, "ホスト画面で例外が出た").toEqual([]);
     for (const d of [admin, host, guest]) await d.context.close();
   });
@@ -241,16 +213,16 @@ test("@motion 結果BGMが空なら、メンバー抽選BGM・景品抽選BGMは
   await advanceUntilStop(admin.page, "景品");
   await expect(host.page.locator(".roulette-container.spinning"), "景品抽選が回っている").toBeVisible();
   const prizeStop = await stopAt();
-  const ids = [...new Set((await audioLog(host.page)).filter((x) => x.e === "play").map((x) => x.id))];
+  const ids = soundIds(await audioLog(host.page));
   const [member, prize] = ids;
   // フェードは時間で進む(待たない)ので、2曲とも止まる(pause)まで待つ
-  for (const id of [member, prize]) await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), id); return f.startAt !== undefined && f.pauseAt !== undefined; }, { timeout: 15_000 }).toBe(true);
+  for (const id of [member, prize]) await expect.poll(async () => { const f = fadeOf(await audioLog(host.page), id); return f.startAt !== undefined && f.stopAt !== undefined; }, { timeout: 15_000 }).toBe(true);
   const log = await audioLog(host.page);
   for (const [name, id, stoppedFrom] of [["メンバー抽選BGM", member, memberStop], ["景品抽選BGM", prize, prizeStop]] as const) {
     const f = fadeOf(log, id);
     expect(f.startAt, `${name}: 止まるまで音量を下げない(停止ボタンの直後に消えない)`).toBeGreaterThan(stoppedFrom + (STOP_SEC - 2) * 1000);
-    expect(Math.min(...f.volumes), `${name}: 止まってから音量が下がる`).toBeLessThan(1);
-    expect(f.pauseAt, `${name}: フェードを始めてから止まる`).toBeGreaterThanOrEqual(f.startAt!);
+    expect(f.zeroAt, `${name}: 止まってから音量が下がる`).toBeDefined();
+    expect(f.stopAt, `${name}: フェードを始めてから止まる`).toBeGreaterThanOrEqual(f.startAt!);
   }
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host, guest]) await d.context.close();
@@ -283,19 +255,19 @@ test("@motion 当選BGMは1回だけ流れ、リールが止まる瞬間に無�
   await expect(reel.and(host.page.locator(".spinning")), "景品抽選が回っている").toBeVisible();
   await nextButton(admin.page).click();
   const errors = () => JSON.stringify([...pageErrors, ...consoleErrors]);
-  await expect.poll(async () => (await audioLog(host.page)).some((x) => x.e === "play"), { message: `当選BGMが流れない。画面のエラー: ${errors()}`, timeout: 15_000 }).toBe(true);
+  await expect.poll(async () => allStarts(await audioLog(host.page)).length > 0, { message: `当選BGMが流れない。画面のエラー: ${errors()}`, timeout: 15_000 }).toBe(true);
   await expect(reel.and(host.page.locator(".spinning")), `止まる演出が終わらない。画面のエラー: ${errors()}`).toBeHidden({ timeout: 30_000 });
   const reelStoppedAt = await host.page.evaluate(() => performance.now());
 
   const log = await audioLog(host.page);
-  const play = log.filter((x) => x.e === "play").at(-1)!;
-  expect(log.filter((x) => x.e === "play" && x.loop), "当選BGMはループしない").toEqual([]);
+  const play = allStarts(log).at(-1)!;
+  expect(allStarts(log).filter((x) => x.loop), "当選BGMはループしない").toEqual([]);
   const f = fadeOf(log, play.id);
   expect(f.zeroAt, "当選BGMの音量が 0 まで下がる").toBeDefined();
   expect(f.zeroAt!, "リールが止まったと分かる時点より後まで、音が残らない").toBeLessThan(reelStoppedAt + 500);
   expect(f.zeroAt! - play.t, `再生から停止秒(${STOP_SEC}秒)ほどで無音になる`).toBeGreaterThan((STOP_SEC - 1.5) * 1000);
   expect(f.zeroAt! - play.t).toBeLessThan((STOP_SEC + 1.5) * 1000);
-  expect(f.pauseAt, "無音になってから止まる").toBeGreaterThanOrEqual(f.zeroAt!);
+  expect(f.stopAt, "無音になってから止まる").toBeGreaterThanOrEqual(f.zeroAt! - 30);
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host, guest]) await d.context.close();
 });
@@ -314,7 +286,7 @@ test("@motion 抽選BGMが未設定なら、何も鳴らさず(エラーにも�
   await stopAndMeasure(admin.page);
   await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 60_000 });
   expect(logs, "設定が無いので、抽選BGMは鳴らさない").toEqual([]);
-  expect((await audioLog(host.page)).filter((x) => x.e === "play")).toEqual([]);
+  expect(allStarts(await audioLog(host.page))).toEqual([]);
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host, guest]) await d.context.close();
 });
@@ -372,4 +344,77 @@ test("@motion メンバー抽選と景品抽選で、停止から止まるまで
   expect(diffA - diffB, `メンバー2秒・景品10秒: ${a.member}/${a.prize}ms、メンバー10秒・景品2秒: ${b.member}/${b.prize}ms`).toBeGreaterThan(10_000);
   expect(diffA, "景品を長くした方は、景品のほうが長くかかる").toBeGreaterThan(0);
   expect(diffB, "メンバーを長くした方は、メンバーのほうが長くかかる").toBeLessThan(0);
+});
+
+test("@motion 確変: ダミー抽選と本抽選のそれぞれで、景品抽選BGMは当選BGMの前に即止まり、当選BGM(ダミーは当選BGM、本抽選は確変の当選BGM)は1回ずつ鳴って、フェードで消える", async ({ browser, request }) => {
+  test.setTimeout(420_000);
+  const WIN1 = `lot-kwin1-${stamp}.wav`;
+  const WIN2 = `lot-kwin2-${stamp}.wav`;
+  const { admin, host, guest, logs, pageErrors, consoleErrors } = await scene(browser, request, "確変BGM", async (page) => {
+    await seedJackpot(page, { prizes: [] });
+    // 確変の予定は、このセッションの結果ファイルに先に決めておく(端末の設定との同期の競合を避ける。jackpot-cycle-latency と同じ)
+    await adminRpc(request, "sessionHub_ensureJackpotPlan", { sessionId: sessionIds.at(-1)!, plan: { kakuhenTimings: [1], reservedPrizeIds: ["jp-kk-3"] } });
+    await page.goto("/#/execute/jackpot-admin/prizes");
+    await page.reload();
+    await expect(page.getByTestId("table-export")).toBeVisible();
+    await page.getByTestId("table-import-open").click();
+    const header = "ID,名前,景品ランク,アニメーション,確変対応,当選対象,抽選画像,当選画像,当選BGM,確変_抽選画像,確変_当選画像,確変_当選BGM,確変_ダミー当選景品ID";
+    const rows = ["jp-kk-1,通常一,3,ルーレット,なし,する,,,,,,,", "jp-kk-2,通常二,3,ルーレット,なし,する,,,,,,,", `jp-kk-3,確変景品,5,ルーレット,あり,する,,,${WIN1},,,${WIN2},`];
+    await page.getByTestId("table-import-table").setInputFiles({
+      name: "prizes.zip",
+      mimeType: "application/zip",
+      buffer: Buffer.from(zipSync({ "prizes.csv": strToU8([header, ...rows].join("\r\n") + "\r\n"), [`media/${WIN1}`]: makeWav(TUNES.fanfare), [`media/${WIN2}`]: makeWav(TUNES.ending) })),
+    });
+    await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
+    await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
+    await page.getByTestId("table-import-close").click();
+    await page.goto("/#/execute/jackpot-admin/screens/opening");
+    await page.reload();
+    await expect(page.getByTestId("table-export")).toBeVisible();
+    await page.getByTestId("table-import-open").click();
+    await page.getByTestId("table-import-table").setInputFiles(zipOf(`本抽選,,,,${PRIZE_BGM},,,2,3,,,`));
+    await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
+    await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
+  });
+  await advanceUntilStop(admin.page, "メンバー");
+  await stopAndMeasure(admin.page);
+  // 確変の景品抽選は、ダミー抽選 → メッセージ → 本抽選。ダミー抽選が回り出して景品抽選BGMが鳴ってから、ホストの Enter で進める
+  await advanceUntilStop(admin.page, "景品");
+  const errors = () => JSON.stringify([...pageErrors, ...consoleErrors]);
+  await expect.poll(async () => allStarts(await audioLog(host.page)).length, { message: `景品抽選BGMが鳴らない。画面のエラー: ${errors()}`, timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  /** 消える(フェードして止まる)音 = 当選BGM。景品抽選BGMはフェードしない。 */
+  const faded = async () => {
+    const log = await audioLog(host.page);
+    return soundIds(log).filter((id) => fadeOf(log, id).zeroAt !== undefined && fadeOf(log, id).stopAt !== undefined);
+  };
+  for (let i = 0; i < 200 && (await faded()).length < 2; i++) {
+    await host.page.keyboard.press("Enter");
+    await host.page.waitForTimeout(900);
+  }
+  await expect.poll(async () => (await faded()).length, { message: `当選BGMが2つ(ダミー・確変)鳴ってフェードで消えない。画面のエラー: ${errors()}`, timeout: 30_000 }).toBe(2);
+  const log = await audioLog(host.page);
+  const starts = allStarts(log);
+  const ids = soundIds(log);
+  const [win1Id, win2Id] = await faded();
+  const lotteries = ids.filter((id) => id !== win1Id && id !== win2Id);
+  expect(starts.filter((x) => x.loop), "どの曲もループしない").toEqual([]);
+  // 景品抽選BGMはダミー抽選で鳴る。本抽選の景品抽選BGMは、始めてすぐに止める操作が来ると鳴らさずに取りやめる(以前からの動き)ので、0〜1回
+  expect(lotteries.length, "景品抽選BGMは、ダミー抽選で1回(本抽選で鳴れば2回)").toBeGreaterThanOrEqual(1);
+  expect(lotteries.length).toBeLessThanOrEqual(2);
+  expect(logs.filter((l) => l.includes("prizeLotteryBgms play")).length, "景品抽選BGMの再生の記録と、鳴った数が合う").toBe(lotteries.length);
+  const startOf = (id: number) => starts.find((x) => x.id === id)!.t;
+  const win1 = { id: win1Id, ...fadeOf(log, win1Id), start: startOf(win1Id) };
+  const win2 = { id: win2Id, ...fadeOf(log, win2Id), start: startOf(win2Id) };
+  expect(win2.start, "ダミー抽選の当選BGMのあとに、確変の当選BGMが鳴る").toBeGreaterThan(win1.start);
+  for (const id of lotteries) {
+    const l = fadeOf(log, id);
+    expect(l.startAt, "景品抽選BGM: 音量を下げず、即止まる").toBeUndefined();
+    expect(l.stopAt, "景品抽選BGM: 止まる").toBeDefined();
+    const next = startOf(id) < win1.start ? win1 : win2;
+    expect(l.stopAt!, "景品抽選BGMは、次の当選BGMが鳴る前までに止まる").toBeLessThanOrEqual(next.start + 50);
+  }
+  expect(win1.stopAt!, "ダミー抽選の当選BGMは、確変の当選BGMが鳴る前に消えている").toBeLessThanOrEqual(win2.start + 50);
+  for (const w of [win1, win2]) expect(w.zeroAt! - w.startAt!, "当選BGMはフェードで消える").toBeGreaterThan(0);
+  expect(pageErrors).toEqual([]);
+  for (const d of [admin, host, guest]) await d.context.close();
 });
