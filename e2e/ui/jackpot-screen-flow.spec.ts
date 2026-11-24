@@ -155,6 +155,44 @@ test.describe("画面の流れ", () => {
   });
 });
 
+/** オープニングの再生で見えたもの(ページの中で記録する)。 */
+interface SeqSeen {
+  pages: string[];
+  indexes: string[];
+  windowLines: number;
+  escaped: boolean;
+  imageShown: boolean;
+  pageCount: number;
+}
+
+/** オープニングの項目(行送りのページ・番号・画像)を、DOM が変わるたびにページの中で記録する。外から繰り返し読む方式だと、端末が忙しいと読み逃す。 */
+async function installSeqRecorder(context: Device["context"]): Promise<void> {
+  await context.addInitScript(() => {
+    const seen = { pages: [] as string[], indexes: [] as string[], windowLines: 0, escaped: false, imageShown: false, pageCount: 0 };
+    (window as unknown as { __seqSeen: unknown }).__seqSeen = seen;
+    const add = (list: string[], v: string | null) => {
+      if (v !== null && !list.includes(v)) list.push(v);
+    };
+    const sample = () => {
+      const item = document.querySelector('[data-testid="seq-item"]');
+      if (!item) return;
+      add(seen.indexes, item.getAttribute("data-index"));
+      if (document.querySelector('[data-testid="seq-image"]')) seen.imageShown = true;
+      if (item.getAttribute("data-effect") !== "行送り") return;
+      add(seen.pages, item.getAttribute("data-page"));
+      const win = document.querySelector(".seq-window") as HTMLElement | null;
+      const text = document.querySelector('[data-testid="seq-text"]') as HTMLElement | null;
+      if (!win || !text) return;
+      seen.pageCount = Math.max(seen.pageCount, Number(item.getAttribute("data-pages")) || 0);
+      seen.windowLines = Math.round(win.clientHeight / parseFloat(getComputedStyle(text).lineHeight));
+      seen.escaped = (text.textContent?.includes("<b>一行目</b>") ?? false) && !text.querySelector("b");
+    };
+    document.addEventListener("DOMContentLoaded", () => {
+      new MutationObserver(sample).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+    });
+  });
+}
+
 test.describe("オープニングの行送り・画像・効果音(管理画面で作って再生)", () => {
   test("行送りで3行ずつ上へ送られ、途中に画像(フェード)が出て、項目の始めに効果音が鳴る。本文は文字として表示される", async ({ browser }) => {
     test.setTimeout(180_000);
@@ -162,6 +200,7 @@ test.describe("オープニングの行送り・画像・効果音(管理画面�
     const { page } = dev;
     // 音の再生を数える(<audio>・Web Audio のどちらで鳴らしても同じ形の記録器)。ヘッドレスでは音は聞こえないので、鳴らし始めた回数で確かめる
     await installSoundTrace(dev.context);
+    await installSeqRecorder(dev.context);
     const stamp = Date.now();
     const PIC = { name: `flow-${stamp}.png`, mimeType: "image/png", buffer: makeBadgePng("#10b981", "#064e3b", { width: 64, height: 64 }) };
     const SE = { name: `flow-se-${stamp}.wav`, mimeType: "audio/wav", buffer: makeWav(TUNES.prize) };
@@ -203,39 +242,16 @@ test.describe("オープニングの行送り・画像・効果音(管理画面�
       await expect(page.getByText("保存しました")).toBeVisible();
 
       // 再生: 行送りの各ページ → 画像 → 続きの文章 → 説明へ
+      // 画面の変化は、ページの中で DOM の変化のたびに記録する(外から繰り返し読むと、端末が忙しいとき中間のページを読み逃し、読む回数にも時間を取られる)
       await page.goto("/#/execute/jackpot-opening");
-      const seen = { pages: new Set<string>(), indexes: new Set<string>(), windowLines: 0, escaped: false, imageShown: false };
-      for (let i = 0; i < 300 && (await route(page)) === "/execute/jackpot-opening"; i++) {
-        const item = page.getByTestId("seq-item");
-        if (await item.count()) {
-          const index = await item.getAttribute("data-index").catch(() => null);
-          if (index !== null) seen.indexes.add(index);
-          if ((await item.getAttribute("data-effect").catch(() => null)) === "行送り") {
-            seen.pages.add((await item.getAttribute("data-page").catch(() => null)) ?? "");
-            const m = await page
-              .evaluate(() => {
-                const win = document.querySelector(".seq-window") as HTMLElement | null;
-                const text = document.querySelector('[data-testid="seq-text"]') as HTMLElement | null;
-                if (!win || !text) return null;
-                return { pages: Number(document.querySelector('[data-testid="seq-item"]')?.getAttribute("data-pages")), lines: win.clientHeight / parseFloat(getComputedStyle(text).lineHeight), bold: !!text.querySelector("b"), literal: text.textContent?.includes("<b>一行目</b>") ?? false };
-              })
-              .catch(() => null);
-            if (m) {
-              seen.windowLines = Math.round(m.lines);
-              seen.escaped = m.literal && !m.bold;
-              expect(m.pages).toBe(3);
-            }
-          }
-          if (await page.getByTestId("seq-image").count()) seen.imageShown = true;
-        }
-        await page.waitForTimeout(100);
-      }
-      expect([...seen.pages].sort()).toEqual(["0", "1", "2"]); // 3ページ(3行・3行・1行)を順に出した
+      await expect.poll(() => route(page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+      const seen = await page.evaluate(() => (window as unknown as { __seqSeen: SeqSeen }).__seqSeen);
+      expect(seen.pages.sort()).toEqual(["0", "1", "2"]); // 3ページ(3行・3行・1行)を順に出した
+      expect(seen.pageCount, "行送りは3ページ").toBe(3);
       expect(seen.windowLines, "窓の高さは3行ぶん").toBe(3);
       expect(seen.escaped, "本文は文字として出す(<b> は太字にならず、そのまま見える)").toBe(true);
       expect(seen.imageShown, "途中に画像が出た").toBe(true);
-      expect([...seen.indexes].sort()).toEqual(["0", "1", "2"]);
-      await expect.poll(() => route(page), { timeout: 30_000 }).toBe("/execute/jackpot-description");
+      expect(seen.indexes.sort()).toEqual(["0", "1", "2"]);
       // 効果音は、項目2・項目3の始めに1回ずつ鳴った
       const plays = allStarts(await soundTrace(page));
       expect(plays.length).toBeGreaterThanOrEqual(2);
