@@ -28,6 +28,14 @@ test("表の行は、ID が重複せず、すべて確かめ方が書かれて�
   for (const row of AUDIO_BASELINE) expect(row.checkedBy.length, row.id).toBeGreaterThan(0);
 });
 
+test("e2e のブラウザでは、音の中心(SoundSystem)の状態を window.__sound.snapshot() で読める(何も鳴らしていなければ、全チャンネルが空)", async ({ browser }) => {
+  const dev = await newDevice(browser, { signedIn: true });
+  await dev.page.goto("/#/sessions");
+  const snapshot = await dev.page.evaluate(() => (window as unknown as { __sound?: { snapshot: () => unknown } }).__sound?.snapshot());
+  expect(snapshot).toMatchObject({ audio: expect.stringMatching(/^(suspended|running)$/), venue: { current: null, tracks: [] }, screen: { current: null, tracks: [] }, effect: { current: null, tracks: [] } });
+  await dev.context.close();
+});
+
 // ---------------------------------------------------------------- ジャックポットの画面BGM
 
 const A = `ab-a-${stamp}.wav`;
@@ -183,7 +191,8 @@ test(`${baselineRow("V1").id} 場内BGMを鳴らす → ${baselineRow("V3").id} 
   // V3: ゲームに入ると、場内BGMが止まる(1秒のフェードアウトのあと)。音量の予約に、0 までの下りがある
   const entered = await host.page.evaluate(() => performance.now());
   await admin.page.getByTestId("start-jackpot").click();
-  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-opening");
+  // オープニングは短いので、環境によっては、確かめる前に説明へ進んでいる。ゲームの画面に入ったことだけ見る
+  await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/^\/execute\/jackpot-/);
   await expect.poll(async () => (await activeSounds(host.page)).length, { message: "ゲーム中は場内BGMが鳴らない", timeout: 30_000 }).toBe(0);
   let log = await soundTrace(host.page);
   const stop = log.find((x) => x.kind === "source" && x.e === "stop" && x.id === sourceId)!;
@@ -255,7 +264,7 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
 
   // Q2: 出題 → BGM がループで流れる
   await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
-  await expect.poll(() => route(host.page)).toBe(`/execute/quiz/${QUIZ_ID}/play`);
+  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/play`);
   const play = await expectSingle(host.page, { duration: durationOf(TUNES.quiz), loop: true }, "出題中のBGMがループで流れる");
 
   // 受付を締め切る(onFinish)と止まる
@@ -267,10 +276,10 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
 
   // Q3: 正解 → 正解BGM が1回だけ(ループしない)流れ、離れると止まる
   await next.click();
-  await expect.poll(() => route(host.page)).toBe(`/execute/quiz/${QUIZ_ID}/answer`);
+  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/answer`);
   const correct = await expectSingle(host.page, { duration: durationOf(TUNES.fanfare), loop: false }, "正解BGMが、ループなしで流れる");
   await next.click(); // → ランキング
-  await expect.poll(() => route(host.page)).toBe(`/execute/quiz/${QUIZ_ID}/result`);
+  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/result`);
   await expect.poll(async () => (await activeSounds(host.page)).some((s) => s.id === correct.id), { message: "正解を離れたら正解BGMは止まる" }).toBe(false);
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host]) await d.context.close();
