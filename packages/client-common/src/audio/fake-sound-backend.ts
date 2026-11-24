@@ -59,6 +59,46 @@ export class FakeSoundBackend implements SoundBackend {
         return this.get(id).gain;
     }
 
+    // ---- 動画などの要素 ----
+    private readonly elements = new Map<string, { gain: number; finishFade: (() => void) | null }>();
+    private elementSeq = 0;
+    attachElement(): string {
+        const id = `e${++this.elementSeq}`;
+        this.calls.push(`attachElement:${id}`);
+        this.elements.set(id, { gain: 1, finishFade: null });
+        return id;
+    }
+    fadeOutElement(id: string, fadeOutMs: number): Promise<void> {
+        const e = this.elements.get(id);
+        if (!e) return Promise.resolve();
+        this.calls.push(`fadeOutElement:${id}:fade=${fadeOutMs}`);
+        return new Promise<void>((resolve) => {
+            e.finishFade = () => {
+                e.finishFade = null;
+                resolve();
+            };
+        });
+    }
+    getElementGain(id: string): number {
+        const e = this.elements.get(id);
+        if (!e) throw new Error(`no element ${id}`);
+        return e.gain;
+    }
+    detachElement(id: string): void {
+        const e = this.elements.get(id);
+        if (!e) return;
+        this.calls.push(`detachElement:${id}`);
+        e.finishFade?.();
+        this.elements.delete(id);
+    }
+    /** 動画の音のフェードアウトが終わったことにする(音量は 0 になる)。 */
+    finishElementFade(id: string): void {
+        const e = this.elements.get(id);
+        if (!e) return;
+        e.gain = 0;
+        e.finishFade?.();
+    }
+
     /** 時間(秒)を進める。 */
     advance(seconds: number): void {
         this.clock += seconds;

@@ -13,7 +13,7 @@ vi.mock("../../../../control/auth/auth-session", () => ({
 }));
 
 import SessionHostView from "../session-host-view.vue";
-import { AudioServiceToken } from "../../../../control/media/audio";
+import { SoundSystemToken } from "../../../../control/media/audio";
 import { makeDevice, makeRouter, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
 import type { SessionEnv } from "./session-test-kit";
 
@@ -39,19 +39,19 @@ async function mountHost(sessionId: string) {
 }
 
 describe("session-host-view", () => {
-  /** 自動再生の制限を真似た音の部品。 */
+  /** 自動再生の制限を真似た音の中心。 */
   function fakeAudio(initial: "suspended" | "running") {
     let state = initial;
     /** 利用者の操作の中でだけ解除できる(操作が無いと、ブラウザは resume を認めない)。 */
     let gesture = false;
     const listeners = new Set<() => void>();
     const audio = {
-      get state() { return state; },
+      get audioState() { return state; },
       unlock: vi.fn(async () => { if (!gesture) return; state = "running"; listeners.forEach((l) => l()); }),
       allowGesture: () => { gesture = true; },
-      onStateChange: (l: () => void) => { listeners.add(l); return () => listeners.delete(l); },
+      onAudioStateChange: (l: () => void) => { listeners.add(l); return () => listeners.delete(l); },
     };
-    container.register(AudioServiceToken, { useValue: audio });
+    container.register(SoundSystemToken, { useValue: audio });
     return audio;
   }
 

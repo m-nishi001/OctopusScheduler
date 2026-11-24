@@ -14,6 +14,14 @@ interface AudioInstance {
     stopping: { done: Promise<void>; finish: () => void } | null;
 }
 
+/** 音の通り道(AudioContext)に組み込んだ要素(動画)。音量は `gain` で扱い、要素の `volume` は触らない。 */
+interface ElementTap {
+    source: MediaElementAudioSourceNode;
+    gain: GainNode;
+    /** フェードアウト中なら、それを終わらせる(待っている呼び出しも解決する)。 */
+    finishFade: (() => void) | null;
+}
+
 /**
  * Web Audio API を使用して複数のオーディオソースを管理するサービス
  */
@@ -21,6 +29,8 @@ export class AudioService {
     private _audioContext: AudioContext;
     // ロードされた各オーディオインスタンスをIDで管理
     private _audioInstances: Map<string, AudioInstance>;
+    // 音の通り道に組み込んだ、動画などの要素(`attachElement`)
+    private _elements = new Map<string, ElementTap>();
 
     /**
      * AudioServiceのコンストラクタ
@@ -401,6 +411,58 @@ export class AudioService {
         }
         instance.gainNode.disconnect();
         this._audioInstances.delete(id);
+    }
+
+    /**
+     * 動画などの要素の音を、AudioContext 経由にする(音量・フェードは GainNode で扱う)。1つの要素に1回だけ組み込める。
+     * @returns 組み込んだ要素の ID
+     */
+    public attachElement(element: HTMLMediaElement): string {
+        const source = this._audioContext.createMediaElementSource(element);
+        const gain = this._audioContext.createGain();
+        source.connect(gain);
+        gain.connect(this._audioContext.destination);
+        const id = crypto.randomUUID();
+        this._elements.set(id, { source, gain, finishFade: null });
+        return id;
+    }
+
+    /** 組み込んだ要素の音を、`fadeOut` ミリ秒かけて 0 まで下げる。下げ終わると解決する(途中で外されたら、そこで解決する)。 */
+    public fadeOutElement(id: string, fadeOut: number): Promise<void> {
+        const tap = this._elements.get(id);
+        if (!tap || fadeOut <= 0) return Promise.resolve();
+        tap.finishFade?.();
+        const gain = tap.gain.gain;
+        const now = this._audioContext.currentTime;
+        gain.cancelScheduledValues(now);
+        gain.setValueAtTime(gain.value, now); // 起点。これが無いと、補間が昔の予定から始まる
+        gain.linearRampToValueAtTime(0, now + fadeOut / 1000);
+        return new Promise<void>((resolve) => {
+            const timer = setTimeout(() => finish(), fadeOut);
+            const finish = () => {
+                clearTimeout(timer);
+                tap.finishFade = null;
+                resolve();
+            };
+            tap.finishFade = finish;
+        });
+    }
+
+    /** 組み込んだ要素の、いまの実際の音量(フェードの途中は途中の値)。 */
+    public getElementGain(id: string): number {
+        const tap = this._elements.get(id);
+        if (!tap) throw new Error(`Audio element with ID ${id} not found.`);
+        return tap.gain.gain.value;
+    }
+
+    /** 組み込んだ要素を外す。フェード中なら、そこで終わらせる。 */
+    public detachElement(id: string): void {
+        const tap = this._elements.get(id);
+        if (!tap) return;
+        tap.finishFade?.();
+        tap.source.disconnect();
+        tap.gain.disconnect();
+        this._elements.delete(id);
     }
 
     /**

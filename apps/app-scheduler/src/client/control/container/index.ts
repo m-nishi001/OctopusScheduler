@@ -20,7 +20,7 @@ import { AppEventService } from "../app-event/app-event-service";
 import { AssetService } from "../asset/asset-service";
 import { SyncService } from "../sync/sync-service";
 import { AssetSource } from "../media/asset-source";
-import { AudioControl, AudioServiceToken, SoundSystemToken } from "../media/audio";
+import { AudioControl, SoundSystemToken } from "../media/audio";
 import { LobbyPathToken, ScreenControl } from "../media/screen";
 import { VideoOutput } from "../media/video-output";
 import { AudioService } from "@octopus/client-common/audio/audio-service";
@@ -57,8 +57,7 @@ export class Container {
     container.register(AppEventService, { useClass: AppEventService });
     // メディア(音楽・スクリーン)。ルーター(`ScreenRouterToken`)は、作ったあとに `main.ts` が登録する。
     container.registerSingleton(AssetSource);
-    container.register(AudioServiceToken, { useFactory: instanceCachingFactory(() => new AudioService()) });
-    container.register(SoundSystemToken, { useFactory: instanceCachingFactory((c) => new SoundSystem(c.resolve<AudioService>(AudioServiceToken))) });
+    container.register(SoundSystemToken, { useFactory: instanceCachingFactory(() => new SoundSystem(new AudioService())) });
     container.registerSingleton(AudioControl);
     container.register(LobbyPathToken, {
       useValue: () => (container.isRegistered(HostAgent) ? container.resolve(HostAgent).lobbyPath : null),

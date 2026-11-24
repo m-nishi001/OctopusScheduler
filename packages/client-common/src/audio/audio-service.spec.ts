@@ -202,3 +202,60 @@ describe("AudioService.stop", () => {
   });
 
 });
+
+describe("AudioService の動画(要素)の組み込み", () => {
+  let context: PlayableContext & { createMediaElementSource: ReturnType<typeof vi.fn>; mediaSource: { connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> } };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("window", {
+      AudioContext: class {
+        constructor() {
+          const mediaSource = { connect: vi.fn(), disconnect: vi.fn() };
+          context = Object.assign(new PlayableContext(), { mediaSource, createMediaElementSource: vi.fn(() => mediaSource) });
+          return context;
+        }
+      },
+    });
+    vi.stubGlobal("crypto", { randomUUID: () => "el-1" });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("要素の音を、GainNode を通して AudioContext の出力につなぐ。要素の volume は触らない", () => {
+    const service = new AudioService();
+    const element = { volume: 1 } as HTMLMediaElement;
+    const id = service.attachElement(element);
+    expect(context.createMediaElementSource).toHaveBeenCalledWith(element);
+    expect(context.mediaSource.connect).toHaveBeenCalledOnce();
+    expect(service.getElementGain(id)).toBe(1);
+    expect(element.volume).toBe(1);
+  });
+
+  it("フェードアウトは、いまの音量を起点に置いてから 0 まで下げ、時間が来たら解決する", async () => {
+    const service = new AudioService();
+    const id = service.attachElement({} as HTMLMediaElement);
+    const gain = context.gains[0];
+    gain.value = 0.9;
+    context.currentTime = 50;
+    let done = false;
+    void service.fadeOutElement(id, 3000).then(() => (done = true));
+    expect(gain.calls).toEqual([
+      ["cancel", 50],
+      ["set", 0.9, 50],
+      ["ramp", 0, 53],
+    ]);
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(done).toBe(true);
+  });
+
+  it("フェードの途中で外されたら、そこで解決する。外したあとのフェードは何もしない", async () => {
+    const service = new AudioService();
+    const id = service.attachElement({} as HTMLMediaElement);
+    const fading = service.fadeOutElement(id, 60_000);
+    service.detachElement(id);
+    await expect(fading).resolves.toBeUndefined();
+    await expect(service.fadeOutElement(id, 1000)).resolves.toBeUndefined();
+    expect(() => service.getElementGain(id)).toThrow();
+  });
+});

@@ -21,7 +21,6 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import type { PropType } from 'vue';
-import { useSound } from '@octopus/composables/use-sound';
 import '../../../theme/jackpot-theme.css';
 import type { PrizeDto } from '@control/prize/dto/prize-dto';
 import type { AnimationItem, AnimationRef } from '../animation-types';
@@ -31,8 +30,6 @@ import {
 } from './reel-model';
 import type { Rng, StopPlan } from './reel-model';
 
-/** リール音の曲の key(回している間に流す音は1つだけ)。 */
-const REEL_SOUND_KEY = 'slot-reel';
 /** 止まってから結果を見せ続ける時間(ms)。 */
 const HOLD_AFTER_STOP_MS = 2000;
 /** 止まった直後にリールが光る時間(ms)。 */
@@ -55,9 +52,6 @@ export default {
         const spinning = ref(false);
         const container = ref<HTMLElement | null>(null);
         let animationId: number | null = null;
-        // リール音(回っている間だけ、ループで流す)。音の中心(SoundSystem)の effect チャンネル。
-        const { effect } = useSound();
-        const stopBgm = () => effect.stop({ key: REEL_SOUND_KEY });
         // position は「上へ流れた距離(px)」。ループ1周で元に戻る(位置計算は reel-model.ts)。
         // offset は止まった直後の跳ね返り(行き過ぎて戻る分)。position は常に止まる位置ぴったりのまま。
         const reels = ref(Array.from({ length: REEL_COUNT }, () => ({ position: 0, speed: 0, offset: 0 })));
@@ -141,12 +135,7 @@ export default {
             '--slot-pad': `${size.value.padding}px`,
         }));
 
-        const startSpin = async (bgmUrl?: Blob | null) => {
-            console.log('[SlotAnimation] startSpin: bgmUrl=', bgmUrl ? { size: bgmUrl.size, type: bgmUrl.type } : null);
-            if (bgmUrl) {
-                await stopBgm();
-                await effect.play({ key: REEL_SOUND_KEY, load: async () => bgmUrl }, { loop: true }); // 失敗しても例外にならない(演出は止めない)
-            }
+        const startSpin = async () => {
             rebuildLoops();
             clearStopTimers();
             hit.value = false;
@@ -209,7 +198,6 @@ export default {
                     if (stoppedCount === reels.value.length) {
                         spinning.value = false;
                         hit.value = true;
-                        void stopBgm();
                         stopTimers.push(setTimeout(() => {
                             emit('stopped', targetId);
                             resolve(targetId);
@@ -252,7 +240,6 @@ export default {
                 cancelAnimationFrame(animationId);
                 animationId = null;
             }
-            void stopBgm();
         });
 
         // Options API の setup() では defineExpose は使えない(何もしない)ので、context の expose を使う。

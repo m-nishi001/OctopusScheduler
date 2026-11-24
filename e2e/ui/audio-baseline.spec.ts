@@ -283,12 +283,16 @@ test(`${baselineRow("E1").id} 動画を映して「消す」と、動画の音�
   await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/execute/show-video/${clip.id}`);
   await expect(host.page.locator(".fullscreen-video video")).toBeAttached();
   expect(fadeOutsToZero(await soundTrace(host.page)), "映している間は、音を下げない").toEqual([]);
+  // 動画の音は、音の中心(SoundSystem)の通り道に組み込まれていて、音量は 1(PR5 で追加した確認。変更前は読めない)
+  const videoOf = () => host.page.evaluate(() => (window as unknown as { __sound: { snapshot: () => { video: { gain: number } | null } } }).__sound.snapshot().video);
+  await expect.poll(videoOf, { timeout: 30_000 }).toEqual({ gain: 1 });
 
   // 「消す」: 音を 0 へ下げ終えてから、ロビーへ戻る(戻った時点で、下げる動きが記録に残っている)
   await admin.page.getByTestId("media-fade-sec").fill("1");
   await admin.page.getByTestId("media-clear").click();
   await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/session/host/${sessionId}`);
   expect(fadeOutsToZero(await soundTrace(host.page)).length, "ロビーへ戻る前に、動画の音を 0 まで下げている").toBeGreaterThan(0);
+  expect(await videoOf(), "ロビーへ戻ったら、動画は外れている").toBeNull();
   for (const d of [admin, host]) await d.context.close();
 });
 
