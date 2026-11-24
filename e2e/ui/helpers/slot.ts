@@ -99,8 +99,16 @@ export async function stoppedWinRows(page: Page): Promise<string[]> {
     }));
   const first = await read();
   expect(first.transitions, "リールの移動に CSS の transition が掛かっていない").toEqual(["0s", "0s", "0s"]);
-  await expect.poll(async () => (await read()).rows.every((r) => r !== ""), { message: "3本とも当たりの行(真ん中)に景品が揃う" }).toBe(true);
-  return (await read()).rows;
+  // 揃ったと判断した読み取りの値そのものを返す(判断のあとにもう一度読むと、跳ね返りの途中の読み取りに当たることがある)
+  let settled: string[] = [];
+  await expect
+    .poll(async () => {
+      const rows = (await read()).rows;
+      if (rows.every((r) => r !== "")) settled = rows;
+      return settled.length;
+    }, { message: "3本とも当たりの行(真ん中)に景品が揃う" })
+    .toBe(3);
+  return settled;
 }
 
 /**

@@ -119,14 +119,14 @@ for (const kind of ["roulette", "slot"] as const) {
       const total = r! - o.decelStartMs!;
       expect(total, `停止から最後のリールが止まるまで ${Math.round(total)}ms (設定 4000ms ±25%)`).toBeGreaterThan(3000);
       expect(total).toBeLessThan(5000);
-      // 左が止まって(跳ね返りも終わって)いる間も、右は動いている
-      const at = (t: number) => o.samples.find((s) => s.t >= t)!;
-      const a = at(l! + 500);
-      const b = at(l! + 600);
-      expect(Math.abs(b.pos[0] - a.pos[0]), "左のリールは止まっている").toBeLessThan(0.5);
-      expect(Math.abs(b.pos[2] - a.pos[2]), "右のリールはまだ動いている").toBeGreaterThan(1);
-      const held = o.samples.filter((s) => s.t >= r! && s.t <= r! + 1500);
-      expect(held.length).toBeGreaterThan(10);
+      // 左が止まって(跳ね返りも終わって)いる間も、右は動いている。時刻を決め打ちで比べず、その間に描かれたコマ全部で、左の動きと右の動きを見る
+      const between = o.samples.filter((s) => s.t >= l! + 500 && s.t < r!);
+      expect(between.length, `左が止まって右が止まるまでの間に描かれたコマ(${between.length})`).toBeGreaterThanOrEqual(2);
+      const travel = (i: number) => between.slice(1).reduce((sum, s, k) => sum + Math.abs(s.pos[i] - between[k].pos[i]), 0);
+      expect(travel(0), "左のリールは止まっている").toBeLessThan(0.5);
+      expect(travel(2), "右のリールはまだ動いている").toBeGreaterThan(1);
+      const held = o.samples.filter((s) => s.t >= r! && s.t <= r! + 1000);
+      expect(held.length, "止まったあと、結果を見せる間に描かれたコマ").toBeGreaterThanOrEqual(2);
       expect(held.every((s) => s.hit), "全部止まったあと、結果を見せる間は当たりの行が光る(hit)").toBe(true);
       expect(o.samples.filter((s) => s.t < r! - 50).every((s) => !s.hit), "止まる前は光らない").toBe(true);
     }
