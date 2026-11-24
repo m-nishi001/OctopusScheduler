@@ -28,7 +28,7 @@ import RankingBoard from '../../components/result/ranking-board.vue';
 import { usePrizeOrchestrator } from '../../composables/use-prize-orchestrator';
 import { useRankingReveal } from '../../composables/use-ranking-reveal';
 import { useQuizSession } from '../../composables/use-quiz-session';
-import { useScreenBgm } from '../../composables/use-screen-bgm';
+import { useQuizSound } from '../../composables/use-quiz-sound';
 
 const router = useRouter();
 const route = useRoute();
@@ -36,7 +36,7 @@ const session = useQuizSession();
 // セッションのホストなら、管理端末の「次へ」(順位発表→賞品→ホーム)でも進める。Enter キーと同じ進行。
 const host = useQuizHost({ advance: () => advance() });
 // ランキングの画面にいる間、ランキングBGMを1回だけ流す
-const screenBgm = useScreenBgm();
+const quizSound = useQuizSound();
 
 type DisplayResult = RankedResult & { rank: number };
 
@@ -141,7 +141,7 @@ onMounted(() => {
 
             if (disposed) return;
             currentQuiz.value = quiz;
-            void screenBgm.playOnce(quiz?.settings?.rankingBgm);
+            void quizSound.play(`quiz:${quizId}:ranking`, quiz?.settings?.rankingBgm);
             publishResult = (reveal: QuizRevealPhase) =>
                 host.publish(
                     buildQuizHostState({
@@ -215,7 +215,7 @@ function advance(): void {
         if (noWinner.value) goHome();
         else {
             // ランキングBGMは景品のダイアログに進む前に止める(景品BGMは景品側で流れる)
-            void screenBgm.stop();
+            void quizSound.stop();
             showPrizeDialog();
         }
     }

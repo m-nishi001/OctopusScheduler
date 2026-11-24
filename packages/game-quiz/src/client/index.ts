@@ -9,3 +9,5 @@ export { useQuizStep } from "./ui/composables/use-quiz-step";
 export type { QuizDto } from "./control/dto/quiz-dto";
 // イベントの終了時に、会場に残るクイズの表示状態(順位発表など)を取り下げるために使う。
 export { QUIZ_NAMESPACE } from "./model/quiz-host-state";
+// クイズの画面が切り替わるとき、画面の曲を止める(アプリが router に取り付ける)。
+export { installQuizBgmGuard } from "./ui/composables/quiz-bgm-guard";
