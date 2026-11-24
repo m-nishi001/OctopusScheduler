@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expect, test as base } from "@playwright/test";
 import type { APIRequestContext, Browser, BrowserContext, Page } from "@playwright/test";
 
@@ -167,7 +168,15 @@ async function seedStoreOnce(
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(storeName, "readwrite");
         const store = tx.objectStore(storeName);
-        for (const it of items) store.put({ data: it.value, updatedAt: Date.now() }, it.id);
+        // ファイルの中身は { $blob: base64, type } で渡す(Blob は page.evaluate で渡せないので、ページの中で作る)
+        const revive = (v: unknown) => {
+          const b = v as { $blob?: string; type?: string } | null;
+          if (!b || typeof b.$blob !== "string") return v;
+          const bin = atob(b.$blob);
+          const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+          return new Blob([bytes], { type: b.type ?? "" });
+        };
+        for (const it of items) store.put({ data: revive(it.value), updatedAt: Date.now() }, it.id);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
@@ -204,10 +213,22 @@ export const demoDrawSetting = (enabled: boolean, rounds = 1) => ({
  * ジャックポットの景品と画面設定(`{ schemaVersion, prizes, screens, media }` の1件のレコード)に、素材を持たない景品・画面設定を入れる。
  * 画面設定にデモ抽選が無ければ、`demoDraw`(既定 false)で入れる。説明から本抽選へ直行する従来の流れのテストを、そのまま動かすため。
  */
-export async function seedJackpot(page: Page, record: { prizes?: unknown[]; screens?: unknown[]; demoDraw?: boolean }): Promise<void> {
+export async function seedJackpot(
+  page: Page,
+  record: { prizes?: unknown[]; screens?: unknown[]; demoDraw?: boolean; images?: Array<{ name: string; mime: string; body: Buffer }> }
+): Promise<void> {
   const screens = [...(record.screens ?? [])] as Array<{ settingName?: string }>;
   if (!screens.some((s) => s.settingName === "demo-screen-settings")) screens.push(demoDrawSetting(record.demoDraw ?? false));
-  const data = { schemaVersion: 2, prizes: record.prizes ?? [], screens, media: {} };
+  // 景品の画像: 素材の索引(名前 → ハッシュ)と、この端末のファイルの置き場(ハッシュ → 中身)の両方に入れる
+  const media: Record<string, { hash: string; mime: string; size: number }> = {};
+  const blobs: Array<{ id: string; value: unknown }> = [];
+  for (const img of record.images ?? []) {
+    const hash = createHash("sha256").update(img.body).digest("hex").slice(0, 32);
+    media[img.name] = { hash, mime: img.mime, size: img.body.length };
+    blobs.push({ id: hash, value: { $blob: img.body.toString("base64"), type: img.mime } });
+  }
+  const data = { schemaVersion: 2, prizes: record.prizes ?? [], screens, media };
+  if (blobs.length > 0) await seedStore(page, "jackpot-game-blobs", "Blobs", blobs);
   await seedStore(page, "jackpot-game", "JackpotData", [{ id: "record", value: { data, updatedAt: Date.now() } }]);
 }
 

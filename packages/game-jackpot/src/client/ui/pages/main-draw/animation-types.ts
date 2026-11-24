@@ -2,6 +2,8 @@
 export interface AnimationItem {
   id: string;
   name: string;
+  /** 景品画像の URL。無い景品は名前を出す。 */
+  imageUrl?: string;
 }
 
 /**

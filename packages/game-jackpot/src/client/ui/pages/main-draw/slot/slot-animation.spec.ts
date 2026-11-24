@@ -495,3 +495,38 @@ describe("SlotAnimation", () => {
     expect(source).not.toMatch(/transition:\s*transform/);
   });
 });
+
+describe("SlotAnimation: 景品画像", () => {
+  const withImage = [
+    { id: "p1", name: "賞1", imageUrl: "blob:test/p1" },
+    { id: "p2", name: "賞2" },
+    { id: "p3", name: "賞3", imageUrl: "blob:test/p3" },
+  ];
+  const mountItems = () => mount(SlotAnimation, { props: { prizes, preparedPrizes: withImage, selectedPrize: prizes[0] } });
+
+  it("画像のある景品は img.prize-image(src 一致)、無い景品は名前で出る", () => {
+    const wrapper = mountItems();
+    const srcs = new Set(wrapper.findAll("img.prize-image").map((i) => i.attributes("src")));
+    expect(srcs).toEqual(new Set(["blob:test/p1", "blob:test/p3"]));
+    const names = wrapper.findAll(".prize-name").map((n) => n.text());
+    expect(new Set(names)).toEqual(new Set(["賞2"]));
+  });
+
+  it("画像が読めなかったら、その景品は名前に戻る", async () => {
+    const wrapper = mountItems();
+    await wrapper.find('img.prize-image[src="blob:test/p1"]').trigger("error");
+    expect(wrapper.find('img.prize-image[src="blob:test/p1"]').exists()).toBe(false);
+    expect(new Set(wrapper.findAll(".prize-name").map((n) => n.text()))).toEqual(new Set(["賞1", "賞2"]));
+    expect(wrapper.find('img.prize-image[src="blob:test/p3"]').exists()).toBe(true);
+  });
+
+  it("確変の updatePrizes で渡した imageUrl が出る", async () => {
+    const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+    expect(wrapper.findAll("img.prize-image")).toHaveLength(0);
+    const api = wrapper.vm as unknown as Required<AnimationRef>;
+    await api.updatePrizes([{ id: "p1", name: "賞1", imageUrl: "blob:test/new" }, { id: "p1", name: "賞1", imageUrl: "blob:test/new" }]);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findAll("img.prize-image").every((i) => i.attributes("src") === "blob:test/new")).toBe(true);
+    expect(wrapper.findAll("img.prize-image").length).toBeGreaterThan(0);
+  });
+});

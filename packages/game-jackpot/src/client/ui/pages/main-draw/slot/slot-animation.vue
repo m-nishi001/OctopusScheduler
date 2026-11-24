@@ -4,7 +4,15 @@
             <div class="reel" v-for="(reel, index) in reels" :key="index" :class="{ landed: landed[index] }">
                 <div class="reel-content" :style="{ transform: `translateY(${-(reel.position + reel.offset)}px)` }">
                     <div v-for="slot in strips[index]" :key="slot.key" class="prize-item">
-                        <span class="prize-name">{{ slot.name }}</span>
+                        <img
+                            v-if="slot.imageUrl && !failedUrls.has(slot.imageUrl)"
+                            class="prize-image"
+                            :src="slot.imageUrl"
+                            :alt="slot.name"
+                            draggable="false"
+                            @error="markFailed(slot.imageUrl)"
+                        />
+                        <span v-else class="prize-name">{{ slot.name }}</span>
                     </div>
                 </div>
                 <!-- 当たりの行(真ん中)。全部止まったあと、金色に光らせる -->
@@ -77,7 +85,7 @@ export default {
         const source = computed<ReadonlyArray<AnimationItem>>(() => {
             if (items.value) return items.value;
             const base: ReadonlyArray<AnimationItem> = props.preparedPrizes.length > 0 ? props.preparedPrizes : props.prizes;
-            return base.map(({ id, name }) => ({ id, name }));
+            return base.map((p) => ({ id: p.id, name: p.name, imageUrl: 'imageUrl' in p ? p.imageUrl : undefined }));
         });
 
         // リールごとに別の並び(同じ名前が隣り合わない)。景品が変わったときと、回し始めるたびに組み直す。
@@ -97,9 +105,15 @@ export default {
         // 描画は「ループ + 窓の高さ分」。窓が帯の外(黒)を映さないので、1周の継ぎ目が見えない。
         const strips = computed(() =>
             loops.value.map((loop) =>
-                Array.from({ length: renderedCount(loop.length) }, (_, k) => ({ key: k, name: loop[k % loop.length].name }))
+                Array.from({ length: renderedCount(loop.length) }, (_, k) => ({ key: k, name: loop[k % loop.length].name, imageUrl: loop[k % loop.length].imageUrl }))
             )
         );
+
+        // 読み込めなかった画像の URL。そのマスは名前に戻す
+        const failedUrls = ref<ReadonlySet<string>>(new Set());
+        const markFailed = (url: string) => {
+            failedUrls.value = new Set([...failedUrls.value, url]);
+        };
 
         // 大きさは窓の大きさだけから決める(自分の大きさを測らないので、揺れ戻しが起きない)。
         const readViewport = () =>
@@ -150,7 +164,7 @@ export default {
         };
 
         const updatePrizes = (next: ReadonlyArray<AnimationItem>) => {
-            items.value = next.map(({ id, name }) => ({ id, name }));
+            items.value = next.map(({ id, name, imageUrl }) => ({ id, name, imageUrl }));
         };
         const getInternalItems = () => source.value;
 
@@ -246,7 +260,7 @@ export default {
         // これが無いと親から startSpin/stopSpin が見えず、景品抽選を開始しても何も動かない。
         expose({ startSpin, stopSpin, updatePrizes, getInternalItems } satisfies AnimationRef);
 
-        return { spinning, hit, landed, reels, strips, sizeVars, container };
+        return { spinning, hit, landed, reels, strips, sizeVars, container, failedUrls, markFailed };
     }
 };
 </script>
@@ -304,6 +318,15 @@ export default {
     overflow: hidden;
     background: rgba(0, 0, 0, 0.8);
     border-bottom: 1px solid #FFD700;
+}
+
+/* 景品画像。マスの高さは変えず、マスの中に収める */
+.prize-image {
+    display: block;
+    max-width: 100%;
+    height: calc(var(--slot-item-h, 60px) - 12px);
+    object-fit: contain;
+    user-select: none;
 }
 
 /* 長い名前は2行まで折り返し、それでも入らなければ省略する */

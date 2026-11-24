@@ -2,6 +2,7 @@ import { adminRpc, createSession, expect, joinPortalAs, newDevice, openAdvanced,
 import { advanceUntilStop, pressStop } from "./helpers/jackpot-console";
 import { captureTimeline, expectAnimating } from "./helpers/motion";
 import type { Page } from "@playwright/test";
+import { PNG_1X1 } from "./helpers/media";
 import { expectNoGapUnderReels, expectSlotFitsEverySize, expectSlotLarge, observeSlotStop, sampleRepeatedRows, stoppedWinRows } from "./helpers/slot";
 
 /**
@@ -43,8 +44,11 @@ for (const kind of ["roulette", "slot"] as const) {
       order: i + 1,
       rank: 3,
       animation: kind,
+      // スロットは、先頭の2つだけ景品画像を付ける(画像のある景品と無い景品が混ざる)
+      ...(kind === "slot" && i < 2 ? { image: `slot-prize-${i + 1}.png` } : {}),
     }));
-    await seedJackpot(host.page, { prizes });
+    const images = kind === "slot" ? [1, 2].map((n) => ({ name: `slot-prize-${n}.png`, mime: "image/png", body: Buffer.concat([PNG_1X1, Buffer.from(`slot${n}`)]) })) : [];
+    await seedJackpot(host.page, { prizes, images });
 
     // 抽選の対象は既定で「参加者全員(自動)」: ポータルから入室した人を1人用意する
     const guest = await joinPortalAs(browser, request, sessionId, MEMBER.id, memberKey);
@@ -69,6 +73,15 @@ for (const kind of ["roulette", "slot"] as const) {
       await expect.poll(slotHeightRatio(host.page), "窓の大きさに合わせて組み直される").toBeLessThan(0.9);
       await expectSlotLarge(host.page, "1280x720", { heightRatio: 0.62, font: 38 });
       await expectSlotFitsEverySize(host.page, "スロット");
+      // 画像のある景品は、名前ではなく画像でリールに出て、読み込みが終わっている。画像の無い景品は名前のまま
+      await expect.poll(
+        () => host.page.evaluate(() => {
+          const imgs = Array.from(document.querySelectorAll<HTMLImageElement>(".slot-container img.prize-image"));
+          return imgs.length > 0 && imgs.every((img) => img.complete && img.naturalWidth > 0);
+        }),
+        { message: "リールの景品画像が読み込まれている" }
+      ).toBe(true);
+      await expect(host.page.locator(".slot-container .prize-name").first(), "画像の無い景品は名前で出る").toBeVisible();
       // 枠の中に、リールの下の空白が無い(上下左右の余白が同じ)。どの大きさでも
       for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }, { width: 1024, height: 768 }]) {
         await host.page.setViewportSize(size);
