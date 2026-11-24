@@ -147,8 +147,16 @@ export async function holdDownloads(page: Page): Promise<{ release: () => void; 
   let release: () => void = () => undefined;
   let count = 0;
   const gate = new Promise<void>((resolve) => (release = resolve));
+  // Cloudflare は GET /blobs/**、GAS は /rpc の「…_getBlob」呼び出し(google.script.run)で取る
   await page.route("**/blobs/**", async (route) => {
     if (route.request().method() === "GET") {
+      count++;
+      await gate;
+    }
+    await route.fallback();
+  });
+  await page.route("**/rpc", async (route) => {
+    if (/_(getBlob|getAssetBlob)"/.test(route.request().postData() ?? "")) {
       count++;
       await gate;
     }
