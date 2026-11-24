@@ -1,7 +1,8 @@
 import { strToU8, zipSync } from "fflate";
 import type { Browser, APIRequestContext, Page } from "@playwright/test";
 import { makeWav, TUNES } from "../../scripts/seed-content.js";
-import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedJackpot, test } from "./fixtures";
+import { adminRpc, createSession, expect, joinPortalAs, newDevice, openAdvanced, seedJackpot, test } from "./fixtures";
+import { advanceUntilStop, pressStop, stopAndMeasure } from "./helpers/jackpot-console";
 import { allStarts, installSoundTrace, soundFade, soundTrace, type SoundEvent } from "./helpers/sound-trace";
 
 /**
@@ -106,33 +107,6 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
 
 const prizesOf = (kind: "roulette" | "slot") => ["特賞", "一等", "二等"].map((name, i) => ({ id: `jp-bgm-${kind}-${i + 1}`, name, order: i + 1, rank: 3, animation: kind }));
 
-/** 管理コンソールの主ボタンが「止める」(指定の種類)になるまで「次へ」で進める。 */
-async function advanceUntilStop(admin: Page, what: "メンバー" | "景品") {
-  const next = nextButton(admin);
-  const view = async () =>
-    [await next.innerText().catch(() => ""), await admin.getByTestId("next-hint").innerText().catch(() => ""), await admin.getByTestId("jackpot-state").innerText().catch(() => "")].join("|");
-  for (let i = 0; i < 40; i++) {
-    await expect(next).not.toContainText("演出中", { timeout: 60_000 });
-    const label = (await next.innerText().catch(() => "")).trim();
-    const hint = (await admin.getByTestId("next-hint").innerText().catch(() => "")).trim();
-    if (label.includes("止める") && hint.includes(what)) return;
-    const before = await view();
-    await next.click();
-    await expect.poll(view, { timeout: 20_000 }).not.toBe(before);
-  }
-  throw new Error(`${what}を止められる状態にならなかった`);
-}
-
-/** 止めるボタンを押してから、管理端末の主ボタンの「演出中…」が消えるまでの時間(ミリ秒)。 */
-async function stopAndMeasure(admin: Page): Promise<number> {
-  const next = nextButton(admin);
-  const clicked = Date.now();
-  await next.click();
-  await expect(next).toContainText("演出中", { timeout: 10_000 });
-  await expect(next).not.toContainText("演出中", { timeout: 60_000 });
-  return Date.now() - clicked;
-}
-
 const fadeOf = soundFade;
 
 for (const kind of ["roulette", "slot"] as const) {
@@ -152,16 +126,15 @@ for (const kind of ["roulette", "slot"] as const) {
     // メンバー抽選: 開始で流れ、停止でフェードアウト
     await advanceUntilStop(admin.page, "メンバー");
     await expect.poll(() => logs.join("\n")).toContain(`memberLotteryBgms play ${MEMBER_BGM}`);
-    await nextButton(admin.page).click();
+    await pressStop(admin.page, "メンバー");
     await expect.poll(() => logs.join("\n")).toContain("memberLotteryBgms fadeOut");
 
     // 景品抽選: 開始で流れる。この景品は当選BGMが空なので、停止開始では止めず、止まってからフェードアウトする(結果ダイアログを閉じるところまでに、メンバー結果BGMも流れて止まる)
     await advanceUntilStop(admin.page, "景品");
     await expect.poll(() => logs.join("\n")).toContain(`prizeLotteryBgms play ${PRIZE_BGM}`);
-    // 回っているのを見てから止める(状態を待つ。回り始める前の「止める」は効かない)
+    // 管理画面の主ボタンが「止める」(景品)になっている = ホストが回り始めてから公開された状態。ホストの見た目でなく、この状態を待ってから押す
     const reel = host.page.locator(`.${kind}-container`);
-    await expect(reel.and(host.page.locator(".spinning")), "景品抽選が回っている").toBeVisible();
-    await nextButton(admin.page).click();
+    await pressStop(admin.page, "景品");
     // 止まる演出が終わる(回転が止まる)のを待ち、そのあと結果が出る。失敗したら、画面で起きたエラーを添える
     await expect(reel.and(host.page.locator(".spinning")), `止まる演出が終わらない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeHidden({ timeout: 30_000 });
     await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}、直近のコンソール: ${JSON.stringify((host.page as unknown as { __recent: string[] }).__recent.slice(-25))}`).toBeVisible({ timeout: 60_000 });
@@ -221,7 +194,6 @@ test("@motion 結果BGMが空なら、メンバー抽選BGM・景品抽選BGMは
   await advanceUntilStop(admin.page, "メンバー");
   const memberStop = await stopAt();
   await advanceUntilStop(admin.page, "景品");
-  await expect(host.page.locator(".roulette-container.spinning"), "景品抽選が回っている").toBeVisible();
   const prizeStop = await stopAt();
   const ids = soundIds(await audioLog(host.page));
   const [member, prize] = ids;
@@ -262,8 +234,7 @@ test("@motion 当選BGMは1回だけ流れ、リールが止まる瞬間に無�
   await stopAndMeasure(admin.page);
   await advanceUntilStop(admin.page, "景品");
   const reel = host.page.locator(".roulette-container");
-  await expect(reel.and(host.page.locator(".spinning")), "景品抽選が回っている").toBeVisible();
-  await nextButton(admin.page).click();
+  await pressStop(admin.page, "景品");
   const errors = () => JSON.stringify([...pageErrors, ...consoleErrors]);
   await expect.poll(async () => allStarts(await audioLog(host.page)).length > 0, { message: `当選BGMが流れない。画面のエラー: ${errors()}`, timeout: 15_000 }).toBe(true);
   await expect(reel.and(host.page.locator(".spinning")), `止まる演出が終わらない。画面のエラー: ${errors()}`).toBeHidden({ timeout: 30_000 });
@@ -397,10 +368,10 @@ test("@motion 確変: ダミー抽選と本抽選のそれぞれで、景品抽�
     const log = await audioLog(host.page);
     return soundIds(log).filter((id) => fadeOf(log, id).zeroAt !== undefined && fadeOf(log, id).stopAt !== undefined);
   };
-  for (let i = 0; i < 200 && (await faded()).length < 2; i++) {
-    await host.page.keyboard.press("Enter");
-    await host.page.waitForTimeout(900);
-  }
+  // ダミー抽選のメッセージはホストのキー(Enter)で閉じる(進行中は管理画面の指示を受け付けない)。当選BGMが2つ消えるまで、Enter を送り続ける
+  await expect
+    .poll(async () => { await host.page.keyboard.press("Enter"); return (await faded()).length; }, { message: `当選BGMが2つ(ダミー・確変)鳴ってフェードで消えない。画面のエラー: ${errors()}`, intervals: [500], timeout: 180_000 })
+    .toBeGreaterThanOrEqual(2);
   await expect.poll(async () => (await faded()).length, { message: `当選BGMが2つ(ダミー・確変)鳴ってフェードで消えない。画面のエラー: ${errors()}`, timeout: 30_000 }).toBe(2);
   const log = await audioLog(host.page);
   const starts = allStarts(log);

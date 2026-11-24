@@ -232,6 +232,24 @@ describe("useJackpotHost", () => {
     expect(handlers.stopRoulette).toHaveBeenCalledTimes(1);
   });
 
+  it("hold(進行の操作を受け付けた)のたびに ack が1増え、その後の公開にも載る。受け付けるまでは ack を載せない", async () => {
+    const { client } = await scene();
+    const { host } = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });
+    const ackOf = () => (client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot?.ack;
+    host.publish(prizeStop({ member: "太郎", prize: null }));
+    await tick(4000);
+    expect(ackOf()).toBeUndefined();
+    host.hold();
+    await tick(4000);
+    expect(ackOf()).toBe(1);
+    host.publish(prizeStop({ canStop: false, prize: "特賞" })); // 受け付けたあとの公開にも、数が載る
+    await tick(4000);
+    expect(ackOf()).toBe(1);
+    host.hold();
+    await tick(4000);
+    expect(ackOf()).toBe(2);
+  });
+
   it("hold は直前の状態を busy・停止不可・参加者の操作なしで公開し直す(当選者・景品は増えない)。遅れて届いた停止は捨てる", async () => {
     const { client, admin } = await scene();
     const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };

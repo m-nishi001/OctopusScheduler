@@ -139,6 +139,24 @@ export async function holdUploads(page: Page): Promise<{ release: () => void }> 
   return { release };
 }
 
+/**
+ * この端末のファイル(`GET /blobs/**`)の取得を、release するまで止める。取得の要求が来た回数は requested で分かる。
+ * 「まだ取っていない素材」の状態を、バックグラウンドの先読みとの競争にせず、テストが決めた間だけ保つ。
+ */
+export async function holdDownloads(page: Page): Promise<{ release: () => void; requested: () => number }> {
+  let release: () => void = () => undefined;
+  let count = 0;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/blobs/**", async (route) => {
+    if (route.request().method() === "GET") {
+      count++;
+      await gate;
+    }
+    await route.fallback();
+  });
+  return { release, requested: () => count };
+}
+
 /** 設定の「アセット」から素材を1件追加する(この端末の一覧に入り、あとでバックグラウンドでアップロードされる)。 */
 export async function addAssetInSettings(page: Page, file: { name: string; mimeType: string; buffer: Buffer }): Promise<void> {
   await page.goto("/#/settings?tab=assets");

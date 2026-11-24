@@ -120,7 +120,7 @@ export async function expectNoGapUnderReels(page: Page, label: string) {
 
 /** 止める操作の前から仕掛けておく、止まり方の観察(各フレームの位置と、光る・当たりの印)。 */
 export interface SlotStopObservation {
-  /** 減速の始まり(左のリールが回転の速さから遅くなり始めた時刻、ms)。見つからなければ null。 */
+  /** 減速の始まり(アプリが止め始めた時刻の印 performance.mark "slot-stop-spin"、ms)。印が無ければ null。 */
   decelStartMs: number | null;
   /** 各リールが止まった(.landed が付いた)時刻(ms)。付かなければ null。 */
   landedAt: Array<number | null>;
@@ -134,6 +134,7 @@ export async function observeSlotStop(page: Page): Promise<() => Promise<SlotSto
     w.__slotObs = new Promise((resolve) => {
       const samples: Array<{ t: number; pos: number[]; landed: boolean[]; hit: boolean; spinning: boolean }> = [];
       const t0 = performance.now();
+      (window as unknown as { __slotT0: number }).__slotT0 = t0;
       let lastLandedAt: number | null = null;
       const frame = () => {
         const container = document.querySelector<HTMLElement>(".slot-container")!;
@@ -156,17 +157,12 @@ export async function observeSlotStop(page: Page): Promise<() => Promise<SlotSto
   });
   return async () => {
     const samples = (await page.evaluate(() => (window as unknown as { __slotObs: Promise<unknown> }).__slotObs)) as SlotStopObservation["samples"];
-    // 回転の速さ(止める前の1フレームの動き)。折り返しで戻った分(負の差)は除く
-    const deltas = (i: number) => samples.slice(1).map((s, k) => s.pos[i] - samples[k].pos[i]);
-    const spinDelta = Math.max(...deltas(0).slice(0, 10), 0);
-    const d0 = deltas(0);
-    let decelStartMs: number | null = null;
-    for (let k = 10; k < d0.length; k++) {
-      if (d0[k] >= 0 && d0[k] < spinDelta * 0.85 && samples[k + 1].spinning) {
-        decelStartMs = samples[k + 1].t;
-        break;
-      }
-    }
+    // 減速の始まりは、アプリが止め始めたときに打つ印(performance.mark "slot-stop-spin")。位置の変化から推測しない
+    // (回転は1コマごとの移動、減速は時間で進むので、描画がコマ落ちすると位置の変化では見分けられない)
+    const decelStartMs = await page.evaluate(() => {
+      const mark = performance.getEntriesByName("slot-stop-spin").at(-1);
+      return mark ? mark.startTime - (window as unknown as { __slotT0: number }).__slotT0 : null;
+    });
     const landedAt = [0, 1, 2].map((i) => samples.find((s) => s.landed[i])?.t ?? null);
     return { decelStartMs, landedAt, samples };
   };

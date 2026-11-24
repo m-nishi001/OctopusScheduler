@@ -1,4 +1,5 @@
-import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedJackpot, test } from "./fixtures";
+import { adminRpc, createSession, expect, joinPortalAs, newDevice, openAdvanced, seedJackpot, test } from "./fixtures";
+import { advanceUntilStop, pressStop } from "./helpers/jackpot-console";
 import { captureTimeline, expectAnimating } from "./helpers/motion";
 import type { Page } from "@playwright/test";
 import { expectNoGapUnderReels, expectSlotFitsEverySize, expectSlotLarge, observeSlotStop, sampleRepeatedRows, stoppedWinRows } from "./helpers/slot";
@@ -51,23 +52,14 @@ for (const kind of ["roulette", "slot"] as const) {
     await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
     const state = admin.page.getByTestId("jackpot-state");
     await expect(state).toContainText("メンバー抽選", { timeout: 60_000 });
-    const next = nextButton(admin.page);
 
-    // 景品抽選の画面になるまで「次へ」で進める
+    // 景品抽選の画面になり、回り始めて「止める」が出るまで、主ボタンを(ホストが受け付けるのを待ちながら)押して進める。
+    // 回り始める直前に「待機」の手順があるので、1回で始まるとは限らない
     const reel = host.page.locator(kind === "slot" ? ".slot-container" : ".roulette-container");
-    for (let i = 0; i < 30 && !(await reel.isVisible().catch(() => false)); i++) {
-      await next.click();
-      await admin.page.waitForTimeout(1500);
-    }
-    await expect(reel).toBeVisible();
-
-    // 回り始めるまで進める（開始の直前に「待機」の手順があるため、1回で始まるとは限らない）
     const spinning = host.page.locator(`${kind === "slot" ? ".slot-container" : ".roulette-container"}.spinning`);
-    for (let i = 0; i < 5 && !(await spinning.isVisible().catch(() => false)); i++) {
-      await next.click();
-      await admin.page.waitForTimeout(1500);
-    }
-    await expect(spinning, "「次へ」を押しても景品抽選が回り始めない").toBeVisible();
+    await advanceUntilStop(admin.page, "景品");
+    await expect(reel).toBeVisible();
+    await expect(spinning, "「止める」が出たのに、景品抽選が回っていない").toBeVisible();
     await expectAnimating(reel, `prize-${kind}-spinning`, { count: 4, intervalMs: 400 });
 
     if (kind === "slot") {
@@ -112,7 +104,7 @@ for (const kind of ["roulette", "slot"] as const) {
 
     // 止める → 回転が止まり、当選した景品が発表される（発表の紙吹雪は動き続けるので、静止ではなく発表の表示で確認する）
     const observed = kind === "slot" ? await observeSlotStop(host.page) : null;
-    await next.click();
+    await pressStop(admin.page, "景品");
     await expect(spinning).toBeHidden({ timeout: 30_000 });
     // スロットは、3本とも同じ景品(当選景品)で、当たりの行(真ん中)に止まり、発表される景品と一致する
     const stoppedRows = kind === "slot" ? await stoppedWinRows(host.page) : [];

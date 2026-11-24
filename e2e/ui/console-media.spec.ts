@@ -1,7 +1,7 @@
 import { adminRpc, createSession, expect, newDevice, route, test } from "./fixtures";
 import type { Browser } from "@playwright/test";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
-import { addAssetInSettings, audioProbe, deleteLocalBlob, hasLocalBlob, holdUploads, installAudioProbe, PNG_1X1, removeServerAsset, seedServerAsset, serverHasAsset, silentWav, uid } from "./helpers/media";
+import { addAssetInSettings, audioProbe, deleteLocalBlob, hasLocalBlob, holdDownloads, holdUploads, installAudioProbe, PNG_1X1, removeServerAsset, seedServerAsset, serverHasAsset, silentWav, uid } from "./helpers/media";
 
 /**
  * 管理端末の「音楽・スクリーン」から、ホスト(投影)の画面と音楽を動かす。
@@ -152,14 +152,20 @@ test.describe("コントロール画面: 音楽・スクリーン", () => {
     const { admin, host, image } = await scene(browser, request, "メディア(未取得)");
     // ホストが先読みで取った分を消して、「まだ取っていない」状態にする
     await expect.poll(() => hasLocalBlob(host.page, image.body), { timeout: 30_000 }).toBe(true);
+    // 取得を止めておく(先読みが消した分を取り直す競争にしない)。止めている間は「まだ取っていない」が保たれ、ホストが取りに来たことも分かる
+    const downloads = await holdDownloads(host.page);
     await deleteLocalBlob(host.page, image.body);
     expect(await hasLocalBlob(host.page, image.body)).toBe(false);
 
     await admin.page.getByTestId("media-tab-screen").click();
     await admin.page.getByTestId(`media-show-${image.id}`).click();
+    await expect.poll(() => downloads.requested(), { message: "ホストが素材を取りに行く", timeout: 30_000 }).toBeGreaterThan(0);
+    expect(await hasLocalBlob(host.page, image.body), "取り終えるまでは、まだ無い").toBe(false);
+    expect(await route(host.page), "取ってから表示する(取り終えるまで、画像の画面にしない)").not.toBe(`/execute/show-image/${image.id}`);
+    downloads.release();
     await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/execute/show-image/${image.id}`);
     await expect(host.page.locator(".fullscreen-image img")).toBeVisible();
-    expect(await hasLocalBlob(host.page, image.body)).toBe(true);
+    await expect.poll(() => hasLocalBlob(host.page, image.body), { message: "取ったあとは、この端末に残る" }).toBe(true);
     for (const d of [admin, host]) await d.context.close();
   });
 

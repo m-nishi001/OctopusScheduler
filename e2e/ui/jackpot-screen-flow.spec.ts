@@ -1,6 +1,7 @@
 import type { APIRequestContext, Browser } from "@playwright/test";
 import { makeBadgePng, makeWav, TUNES } from "../../scripts/seed-content.js";
 import { allStarts, installSoundTrace, soundTrace } from "./helpers/sound-trace";
+import { pressMain } from "./helpers/jackpot-console";
 import { adminRpc, createSession, demoDrawSetting, expect, isGas, loginByQr, newDevice, nextButton, openEventTab, publishPortal, route, seedJackpot, test, type Device } from "./fixtures";
 
 /**
@@ -108,8 +109,7 @@ test.describe("画面の流れ", () => {
       expect(state.plan, "デモ抽選の確変の予定はサーバーに残らない").toBeNull();
       const badge = await host.page.getByTestId("demo-draw-badge").innerText().catch(() => "");
       lastRound = /(\d)\/2回目/.exec(badge)?.[0] ?? lastRound;
-      if ((await nextButton(admin.page).isEnabled()) && (await route(host.page)) === "/execute/jackpot-demo-draw") await nextButton(admin.page).click();
-      await admin.page.waitForTimeout(1500);
+      if ((await route(host.page)) === "/execute/jackpot-demo-draw") await pressMain(admin.page); // ホストが受け付けるのを待つ(固定の待ちを置かない)
     }
     expect(lastRound, "2回練習した").toBe("2/2回目");
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-draw");
@@ -121,8 +121,7 @@ test.describe("画面の流れ", () => {
     await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
     const revealed = async () => (await serverState(request, sessionId)).draws.filter((d) => d.revealedAtMs !== null).length;
     for (let i = 0; Date.now() < deadline && (await revealed()) < 1; i++) {
-      if (await nextButton(admin.page).isEnabled()) await nextButton(admin.page).click();
-      await admin.page.waitForTimeout(1500);
+      await pressMain(admin.page);
     }
     expect(await revealed()).toBe(1);
 
@@ -148,8 +147,7 @@ test.describe("画面の流れ", () => {
     await finishDescription(admin, host);
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-demo-draw");
     for (let i = 0; Date.now() < deadline && (await route(host.page)) === "/execute/jackpot-demo-draw"; i++) {
-      if (await nextButton(admin.page).isEnabled()) await nextButton(admin.page).click();
-      await admin.page.waitForTimeout(1500);
+      await pressMain(admin.page);
     }
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-draw");
     for (const d of [admin, host, ...guests]) await d.context.close();
