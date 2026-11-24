@@ -23,12 +23,12 @@ import { nextPending } from "@model/draw/unrevealed-draws";
 import { ENTRANTS_CHANGED_EVENT } from "@model/draw/entrants-changed";
 import { useJackpotHost } from "../../composables/use-jackpot-host";
 import { useJackpotSession } from "../../composables/use-jackpot-session";
-import { useScreenBgm } from "../../composables/use-screen-media";
+import { useSound } from "@octopus/composables/use-sound";
+import { useScreenSound } from "../../composables/use-screen-sound";
 import { usePrizeDrawState } from "./prize-animation-state";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
 import { ActionQueue } from "./action-queue";
-import { RouletteBgmManager } from "./roulette/roulette-bgm-manager";
 import { revokePreparedPrizes } from "./roulette/roulette-prize-preparer";
 import { createBgmBlobLoader } from "./bgm-blob-loader";
 import type { DrawContext } from "./draw-context";
@@ -52,6 +52,7 @@ export function useDrawOrchestrator() {
   const memberRepo = container.resolve(MemberRepository);
   const drawService = container.resolve(DrawApplicationService);
   const { to, isDemoDraw } = useJackpotSession();
+  const sound = useSound();
   const router = useRouter();
   /** デモ抽選(練習抽選)で回す回数。設定を読むまでは既定。 */
   let demoRounds = DEFAULT_DEMO_DRAW.rounds;
@@ -61,8 +62,8 @@ export function useDrawOrchestrator() {
   const demoRound = ref(0);
   const demoRoundTotal = ref(DEFAULT_DEMO_DRAW.rounds);
   /** デモ抽選を始めるまで流す BGM。最初の進行操作で止める(抽選中は、メンバー抽選・景品の BGM に任せる)。 */
-  const demoBgm = useScreenBgm();
-  /** 景品抽選BGM(開始から停止開始まで)。当選BGM(RouletteBgmManager)とは別に鳴らす。 */
+  const demoBgm = useScreenSound();
+  /** 景品抽選BGM(開始から停止開始まで)。当選BGM(bgm.ts)と同じ `screen` チャンネルで鳴らす(同時には鳴らない)。 */
   const prizeLotteryBgm = useLotteryBgm("prizeLotteryBgms");
 
   const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, buildPrizeItems, installPreparedPrizes, updateSelectedPrize } =
@@ -106,6 +107,7 @@ export function useDrawOrchestrator() {
     setSelectedPrize: updateSelectedPrize,
     preparePrizes,
     loadBgmBlob: createBgmBlobLoader(prizeRepo),
+    sound,
     memberAnim: memberAnimRef,
     prizeAnim: animationRef,
     showPrizeWinningDialog,
@@ -327,7 +329,7 @@ export function useDrawOrchestrator() {
         showPrizeWinningDialog.value = false;
         showHalfRemainingDialog.value = false;
         kakuhenOverlayVisible.value = false;
-        void RouletteBgmManager.stop();
+        void sound.screen.stop();
         void prizeLotteryBgm.stop();
         latestResult.value = { ...skipped.result, wonPrize: prize };
         startPrefetch(); // 先読みで確定済みの次の抽選は捨てずに拾い直す(prepareNextCycle)
@@ -426,7 +428,7 @@ export function useDrawOrchestrator() {
     // 終了後の「次へ」・Enter・OK は、次の画面へ進む(本抽選は結果の画面。エンディングへは結果の画面から進む。デモ抽選は本抽選)
     onLeave: () => leaveToNext(),
     onStarted: () => {
-      demoBgm.bgm.value?.pause();
+      void demoBgm.stop();
       host.hold();
     },
     onSettled: publishHostState,
@@ -465,8 +467,7 @@ export function useDrawOrchestrator() {
         const demo = parseDemoDrawSettings(await container.resolve(ScreenSettingsService).fetchScreenSetting("demo", "demo-screen-settings"));
         demoRounds = demo.rounds;
         demoRoundTotal.value = demo.rounds;
-        await demoBgm.load(demo.bgm);
-        demoBgm.play();
+        await demoBgm.play(demo.bgm); // 読み込んで鳴らし始めるまで待つ(以前と同じ。抽選が始まって止めるのは、そのあと)
       }
       await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
       // 確定済みで公開されていない抽選(再読み込み前に演出の途中だったもの)は、古い分を公開済みにして、最後の1件だけ引き直さずに同じ結果で演出し直す
@@ -505,7 +506,7 @@ export function useDrawOrchestrator() {
     window.removeEventListener(ENTRANTS_CHANGED_EVENT, onEntrantsChanged);
     flow.ready = false;
     cycleSource.invalidate();
-    void RouletteBgmManager.stop();
+    void sound.screen.stop();
     void prizeLotteryBgm.stop();
     revokePreparedPrizes(preparedPrizes.value);
   });

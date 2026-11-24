@@ -4,8 +4,12 @@ import { container } from "tsyringe";
 import { JackpotRepository } from "@model/jackpot-repository";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
 
-const audio = vi.hoisted(() => ({ load: vi.fn(), play: vi.fn(), stop: vi.fn(), fadeOut: vi.fn() }));
-vi.mock("@octopus/composables/use-audio", () => ({ useAudio: () => audio }));
+import { FakeSoundBackend } from "@octopus/client-common/audio/fake-sound-backend";
+import { SoundSystem } from "@octopus/client-common/audio/sound-system";
+
+// useLotteryBgm は、音の中心(SoundSystem)の screen チャンネルで鳴らす。偽の音の部品で、鳴っているか・どう止めたかを見る
+const sound = vi.hoisted(() => ({ system: null as unknown as SoundSystem }));
+vi.mock("@octopus/composables/use-sound", () => ({ useSound: () => sound.system }));
 
 import { LOTTERY_BGM_FADE_MS, LOTTERY_BGM_START_WAIT_MS, pickLotteryBgm, shouldHoldLotteryBgm, useLotteryBgm } from "./use-lottery-bgm";
 
@@ -41,9 +45,12 @@ describe("shouldHoldLotteryBgm(結果BGMが空なら、抽選BGMを止まるま�
 describe("useLotteryBgm", () => {
   const settings = vi.fn();
   const blobOf = vi.fn();
+  let backend: FakeSoundBackend;
+  const tracks = () => sound.system.screen.state.tracks;
   beforeEach(() => {
     vi.clearAllMocks();
-    audio.play.mockReset();
+    backend = new FakeSoundBackend();
+    sound.system = new SoundSystem(backend);
     container.clearInstances();
     container.registerInstance(ScreenSettingsService, { fetchScreenSetting: settings } as unknown as ScreenSettingsService);
     container.registerInstance(JackpotRepository, { blobOf } as unknown as JackpotRepository);
@@ -51,22 +58,18 @@ describe("useLotteryBgm", () => {
 
   it("設定した中から1曲を読み込み、1回だけ流す(ループ指定はしない)", async () => {
     settings.mockResolvedValue({ prizeLotteryBgms: ["only.mp3"], memberLotteryBgms: ["m.mp3"] });
-    const blob = new Blob(["x"]);
-    blobOf.mockResolvedValue(blob);
+    blobOf.mockResolvedValue(new Blob(["x"]));
 
     useLotteryBgm("prizeLotteryBgms").playRandom();
-    await vi.waitFor(() => expect(audio.play).toHaveBeenCalled());
-
+    await vi.waitFor(() => expect(tracks()).toMatchObject([{ key: "only.mp3", status: "playing", loop: false }]));
     expect(blobOf).toHaveBeenCalledWith("only.mp3");
-    expect(audio.load).toHaveBeenCalledWith(blob);
-    expect(audio.play).toHaveBeenCalledWith();
   });
 
   it("メンバー結果BGMのキーでも、その欄から1曲を選ぶ", async () => {
     settings.mockResolvedValue({ memberResultBgms: ["r.mp3"], memberLotteryBgms: ["m.mp3"] });
     blobOf.mockResolvedValue(new Blob(["x"]));
     useLotteryBgm("memberResultBgms").playRandom();
-    await vi.waitFor(() => expect(audio.play).toHaveBeenCalled());
+    await vi.waitFor(() => expect(tracks()).toMatchObject([{ key: "r.mp3" }]));
     expect(blobOf).toHaveBeenCalledWith("r.mp3");
   });
 
@@ -78,8 +81,8 @@ describe("useLotteryBgm", () => {
     settings.mockResolvedValue(null);
     bgm.playRandom();
     await bgm.fadeOut();
-    expect(audio.load).not.toHaveBeenCalled();
-    expect(audio.play).not.toHaveBeenCalled();
+    expect(tracks()).toEqual([]);
+    expect(backend.calls).toEqual([]);
   });
 
   it("読み込みに失敗しても演出を止めない", async () => {
@@ -89,31 +92,60 @@ describe("useLotteryBgm", () => {
     const bgm = useLotteryBgm("prizeLotteryBgms");
     bgm.playRandom();
     await expect(bgm.fadeOut()).resolves.toBeUndefined();
+    expect(tracks()).toEqual([]);
   });
 
-  it("fadeOut は 1.5秒のフェードアウトを頼む。流していない(未設定)ときは何もしない", async () => {
+  it("fadeOut は 1.5秒のフェードアウトで止める。流していない(未設定)ときは何もしない。2回目は何もしない", async () => {
     settings.mockResolvedValue({ memberLotteryBgms: ["m.mp3"] });
     blobOf.mockResolvedValue(new Blob(["x"]));
     const bgm = useLotteryBgm("memberLotteryBgms");
     await bgm.fadeOut();
-    expect(audio.fadeOut).not.toHaveBeenCalled();
+    expect(backend.calls).toEqual([]);
 
     bgm.playRandom();
+    await vi.waitFor(() => expect(tracks()).toHaveLength(1));
+    const id = backend.playingIds[0];
     await bgm.fadeOut();
-    expect(audio.fadeOut).toHaveBeenCalledWith(LOTTERY_BGM_FADE_MS);
+    expect(backend.calls).toContain(`stop:${id}:fade=${LOTTERY_BGM_FADE_MS}`);
     expect(LOTTERY_BGM_FADE_MS).toBe(1500);
+    expect(tracks()).toEqual([]);
     await bgm.fadeOut();
-    expect(audio.fadeOut).toHaveBeenCalledTimes(1);
+    expect(backend.calls.filter((c) => c.startsWith("stop:"))).toHaveLength(1);
   });
 
-  it("play() が終わらなくても(自動再生が止められるなど)、フェードアウトは先へ進み、終わる", async () => {
+  it("stop はすぐ止める(フェードしない)", async () => {
+    settings.mockResolvedValue({ memberResultBgms: ["r.mp3"] });
+    blobOf.mockResolvedValue(new Blob(["x"]));
+    const bgm = useLotteryBgm("memberResultBgms");
+    bgm.playRandom();
+    await vi.waitFor(() => expect(tracks()).toHaveLength(1));
+    const id = backend.playingIds[0];
+    await bgm.stop();
+    expect(backend.calls).toContain(`stop:${id}:fade=0`);
+    expect(tracks()).toEqual([]);
+  });
+
+  it("同じ曲がまだ鳴っていれば、止めて頭から鳴らし直す", async () => {
     settings.mockResolvedValue({ prizeLotteryBgms: ["a.mp3"] });
     blobOf.mockResolvedValue(new Blob(["x"]));
-    audio.play.mockReturnValue(new Promise<void>(() => {}));
     const bgm = useLotteryBgm("prizeLotteryBgms");
-    bgm.playRandom(); // 待たなくてよい(例外も出ない)
-    await bgm.fadeOut();
-    expect(audio.fadeOut).toHaveBeenCalledWith(LOTTERY_BGM_FADE_MS);
+    bgm.playRandom();
+    await vi.waitFor(() => expect(tracks()).toHaveLength(1));
+    const first = backend.playingIds[0];
+    bgm.playRandom();
+    await vi.waitFor(() => expect(backend.playingIds[0]).not.toBe(first));
+    expect(backend.playingIds).toHaveLength(1);
+    expect(tracks()).toHaveLength(1);
+  });
+
+  it("2つの抽選BGM(メンバーと景品)は、同じ screen チャンネルで、あとから鳴らす方が前の曲を置き換える", async () => {
+    settings.mockResolvedValue({ memberLotteryBgms: ["m.mp3"], prizeLotteryBgms: ["p.mp3"] });
+    blobOf.mockResolvedValue(new Blob(["x"]));
+    useLotteryBgm("memberLotteryBgms").playRandom();
+    await vi.waitFor(() => expect(tracks()).toMatchObject([{ key: "m.mp3" }]));
+    useLotteryBgm("prizeLotteryBgms").playRandom();
+    await vi.waitFor(() => expect(tracks()).toMatchObject([{ key: "p.mp3" }]));
+    expect(backend.playingIds).toHaveLength(1);
   });
 
   it("再生の準備(素材の読み込み)が終わらなくても、フェードアウトは待ちきれずに取りやめ、あとから鳴り出さない", async () => {
@@ -129,8 +161,30 @@ describe("useLotteryBgm", () => {
       await fading;
       release(new Blob(["x"]));
       await vi.advanceTimersByTimeAsync(100);
-      expect(audio.fadeOut).not.toHaveBeenCalled();
-      expect(audio.play).not.toHaveBeenCalled();
+      expect(tracks()).toEqual([]);
+      expect(backend.calls).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("音の読み込み(デコード)が終わらなくても、フェードアウトは先へ進み、取りやめる。あとから鳴り出さない", async () => {
+    vi.useFakeTimers();
+    try {
+      settings.mockResolvedValue({ prizeLotteryBgms: ["a.mp3"] });
+      blobOf.mockResolvedValue(new Blob(["x"]));
+      let release: () => void = () => {};
+      backend.holdLoad = new Promise<void>((resolve) => (release = resolve));
+      const bgm = useLotteryBgm("prizeLotteryBgms");
+      bgm.playRandom();
+      const fading = bgm.fadeOut();
+      await vi.advanceTimersByTimeAsync(LOTTERY_BGM_START_WAIT_MS + 100);
+      await fading;
+      expect(tracks()).toEqual([]);
+      release();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(backend.playingIds).toEqual([]);
+      expect(backend.alive).toEqual([]);
     } finally {
       vi.useRealTimers();
     }

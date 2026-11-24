@@ -91,7 +91,7 @@
                     <p class="console__sub" data-testid="quiz-state">
                         <template v-if="quizState">{{ quizPageLabel }}<template v-if="roundSummary"> ・ 回答 {{ roundSummary.answerCount }} 人</template></template>
                     </p>
-                    <p class="console__sub" data-testid="jackpot-state">
+                    <p class="console__sub" data-testid="jackpot-state" :data-ack="jackpot?.ack ?? 0">
                         <template v-if="jackpot">{{ phaseLabel }} ・ 当選者: {{ jackpot.member ?? '—' }} ・ 賞品: {{ jackpot.prize ?? '—' }}</template>
                     </p>
                 </section>

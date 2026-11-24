@@ -4,6 +4,8 @@ import type { Command } from "@octopus/session-hub";
 import { registerMediaCommands } from "../../../../control/media/host-media-commands";
 import type { MediaControls } from "../../../../control/media/host-media-commands";
 import { AudioControl } from "../../../../control/media/audio";
+import { SoundSystem } from "@octopus/client-common/audio/sound-system";
+import { FakeSoundBackend } from "@octopus/client-common/audio/fake-sound-backend";
 import { ScreenControl } from "../../../../control/media/screen";
 import { makeDevice, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
 import type { SessionEnv } from "./session-test-kit";
@@ -106,7 +108,7 @@ describe("registerMediaCommands(ホスト)", () => {
     const source = { ensure: vi.fn(() => new Promise<Blob>((resolve) => (release = resolve))) };
     const router = { push: vi.fn(async (_to: unknown) => undefined) };
     const screen = new ScreenControl(source, router, () => "/session/host/s1", { fadeOut: async () => undefined });
-    const audio = new AudioControl(source, { loadFromBlob: vi.fn(), play: vi.fn(), stop: vi.fn(), disposeInstance: vi.fn() } as never);
+    const audio = new AudioControl(source, new SoundSystem(new FakeSoundBackend()));
     const { admin } = await scene(() => ({ audio, screen }));
     await admin.conn.issue("media", "show", { spec: { kind: "image", id: "big" } });
     await admin.conn.issue("media", "clear", {});
@@ -121,14 +123,14 @@ describe("registerMediaCommands(ホスト)", () => {
 
   it("指示で要る素材は ensure で取ってから鳴らす", async () => {
     const source = { ensure: vi.fn(async (_id: string) => new Blob(["a"])) };
-    const fakeAudio = { loadFromBlob: vi.fn(async () => "i1"), play: vi.fn(async () => undefined), stop: vi.fn(), disposeInstance: vi.fn() };
-    const audio = new AudioControl(source, fakeAudio as never);
+    const backend = new FakeSoundBackend();
+    const audio = new AudioControl(source, new SoundSystem(backend));
     const screen = new ScreenControl(source, { push: vi.fn(async () => undefined) }, () => null, { fadeOut: async () => undefined });
     const { admin } = await scene(() => ({ audio, screen }));
     await admin.conn.issue("media", "play", { assetId: "song9" });
     await settle(5000);
     expect(source.ensure).toHaveBeenCalledWith("song9");
-    expect(fakeAudio.play).toHaveBeenCalledWith("i1", 0, false, expect.any(Function));
+    expect(backend.calls).toContain("play:i1:fadeIn=0:loop=false");
   });
 
   it("再生・表示できなかったら(素材が取れないなど)、その素材の ID で onFailure を呼ぶ。止める指示や成功では呼ばない", async () => {

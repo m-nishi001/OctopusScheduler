@@ -16,7 +16,7 @@ import DisplayStage from '../../components/display/display-stage.vue';
 import { onUnmounted } from 'vue';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
-import { useAudio } from '@octopus/composables';
+import { useQuizSound } from '../../composables/use-quiz-sound';
 import { dataUrlToBlob } from '../../../model/blob-utils';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { useQuizHost } from '../../composables/use-quiz-host';
@@ -28,7 +28,7 @@ const router = useRouter();
 const quizId = route.params.id as string;
 const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
-const { load, play, stop } = useAudio();
+const quizSound = useQuizSound();
 // セッションのホストなら、管理端末の「次へ」でも進める。正解はこの画面になって初めて参加者へ公開する。
 const goResult = () => void router.push({ name: session.routeName('quiz-result'), params: { id: quizId } });
 const host = useQuizHost({ advance: goResult });
@@ -80,8 +80,7 @@ onMounted(async () => {
         blobToPlay = dataUrlToBlob(maybeCorrect);
       }
       if (blobToPlay) {
-        await load(blobToPlay);
-        if (!disposed) await play();
+        if (!disposed) await quizSound.play(`quiz:${quizId}:correct`, blobToPlay);
       }
     } catch (error) {
       console.error('Failed to play correct BGM:', error);
@@ -92,7 +91,7 @@ onMounted(async () => {
 onUnmounted(() => {
   disposed = true;
   document.removeEventListener('keydown', handleKeydown);
-  stop();
+  void quizSound.stop();
 });
 
 const handleKeydown = (ev: KeyboardEvent) => {

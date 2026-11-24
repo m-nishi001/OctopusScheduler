@@ -44,7 +44,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import { useAudio } from '@octopus/composables';
+import { useQuizSound } from '../../composables/use-quiz-sound';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import OptionCard from '../../components/option-card.vue';
@@ -90,9 +90,8 @@ const { containerRef, headerRef, questionAreaRef, containerStyle } = useCardGrid
     () => quiz.value?.question
 );
 
-// クイズ再生中のBGM。ロード/再生/停止/unmount時のobject URL失効は
-// composable内部で自動的に処理される。
-const bgmAudio = useAudio();
+// クイズ再生中のBGM(ループ)。音の中心(SoundSystem)の screen チャンネルで流す。
+const quizSound = useQuizSound();
 
 const { timeLeft, showModal, isLoading, canProceed, errorMessage, start, emergencyStop } =
     useAnswerWindow({ gateway });
@@ -116,7 +115,7 @@ const publishState = (phase: 'answering' | 'closed') => {
 };
 
 const goAnswer = () => {
-    void bgmAudio.stop();
+    void quizSound.stop();
     void router.push({ name: session.routeName('quiz-answer'), params: { id: quizId } });
 };
 
@@ -150,15 +149,14 @@ onMounted(async () => {
             publishState('answering');
         },
         onFinish: () => {
-            void bgmAudio.stop();
+            void quizSound.stop();
             publishState('closed');
         },
     });
 
     if (disposed || !loaded.bgm) return;
-    await bgmAudio.load(loaded.bgm);
-    if (disposed) return; // 読み込みの間に離れたら、鳴らさない
-    await bgmAudio.play({ isRepeat: true });
+    if (disposed) return; // 読み込みの間に離れたら、鳴らさない(離れたあとの取りやめは、router のガードが行う)
+    await quizSound.play(`quiz:${quizId}:play`, loaded.bgm, { loop: true });
 });
 
 onUnmounted(() => {

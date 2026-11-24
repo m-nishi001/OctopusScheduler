@@ -48,6 +48,11 @@ export interface JackpotPublished {
   /** 説明画面: 表示中のページ(0始まり)と枚数。 */
   index?: number;
   total?: number;
+  /**
+   * ホストが受け付けた進行の操作(次へ・止める・飛ばすなど)の通し番号。受け付けるたびに1増える(受け付けなかった操作では増えない)。
+   * ホストは、演出の実行中・画面の準備前は指示を受け付けず捨てるので、管理端末(とテスト)が「押した操作が受け付けられたか」を確かめる印になる。
+   */
+  ack?: number;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -69,5 +74,6 @@ export function readJackpotState(data: Record<string, unknown> | null | undefine
   if (typeof raw.spare === "number" && Number.isFinite(raw.spare)) state.spare = raw.spare;
   if (typeof raw.index === "number" && Number.isFinite(raw.index)) state.index = raw.index;
   if (typeof raw.total === "number" && Number.isFinite(raw.total)) state.total = raw.total;
+  if (typeof raw.ack === "number" && Number.isFinite(raw.ack)) state.ack = raw.ack;
   return state;
 }

@@ -1,5 +1,5 @@
 import { ref, readonly, onUnmounted } from "vue";
-import { useAudio } from "@octopus/composables";
+import { useQuizSound } from "./use-quiz-sound";
 
 /** 結果発表のあとの景品ダイアログの進行。景品の BGM を鳴らしてダイアログを出し、Enter で閉じて戻る。 */
 export function usePrizeOrchestrator(options: {
@@ -13,18 +13,13 @@ export function usePrizeOrchestrator(options: {
   onNavigateHome: () => void;
 }) {
   const isPrizeDialogVisible = ref(false);
-  const audio = useAudio();
+  const sound = useQuizSound();
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
   const showPrizeDialog = async () => {
     const settings = options.getSettings();
     if (settings?.prizeBgm) {
-      try {
-        await audio.load(settings.prizeBgm);
-        await audio.play();
-      } catch (error) {
-        console.error("Failed to load prize BGM:", error);
-      }
+      await sound.play("quiz:prize", settings.prizeBgm); // 失敗しても例外にならない(ダイアログは出す)
     }
     isPrizeDialogVisible.value = true;
 
@@ -46,7 +41,7 @@ export function usePrizeOrchestrator(options: {
   };
 
   const hidePrizeDialog = async () => {
-    await audio.stop();
+    await sound.stop();
     isPrizeDialogVisible.value = false;
 
     // Remove keydown handler

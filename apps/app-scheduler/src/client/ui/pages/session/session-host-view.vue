@@ -60,8 +60,8 @@ import { UiButton, UiDialog, useConfirm } from '@octopus/ui-kit';
 import { HostAgent, parseHubErrorCode, stripHubErrorCode, useConnectionState } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import { prepareHostData } from '../../../control/session/prepare-host-data';
-import { AudioServiceToken } from '../../../control/media/audio';
-import type { AudioService } from '@octopus/client-common/audio/audio-service';
+import { SoundSystemToken } from '../../../control/media/audio';
+import type { SoundSystem } from '@octopus/client-common/audio/sound-system';
 import ConnectionBanner from './components/connection-banner.vue';
 
 const route = useRoute();
@@ -90,13 +90,13 @@ const prepareText = computed(() => {
  * この画面のクリックなどの操作の中で音を出せる状態にしておく。リロード後の自動復帰では操作が無いので、
  * 制限が残っている間(suspended)だけ、クリックを促す案内を出す。
  */
-const audio = container.isRegistered(AudioServiceToken) ? container.resolve<AudioService>(AudioServiceToken) : null;
-const audioState = ref(audio?.state ?? 'running');
+const sound = container.isRegistered(SoundSystemToken) ? container.resolve<SoundSystem>(SoundSystemToken) : null;
+const audioState = ref(sound?.audioState ?? 'running');
 const audioLocked = computed(() => audioState.value === 'suspended');
-const stopWatchingAudio = audio?.onStateChange(() => { audioState.value = audio.state; });
+const stopWatchingAudio = sound?.onAudioStateChange(() => { audioState.value = sound.audioState; });
 function unlockAudio() {
-    if (!audio || audio.state === 'running') return;
-    void audio.unlock().then(() => { audioState.value = audio.state; });
+    if (!sound || sound.audioState === 'running') return;
+    void sound.unlock().then(() => { audioState.value = sound.audioState; });
 }
 onUnmounted(() => stopWatchingAudio?.());
 

@@ -9,7 +9,7 @@ export interface AnimationItem {
  * どちらも同じ形で、親は演出の種類を気にせず呼べる。
  */
 export interface AnimationRef {
-  startSpin?: (bgmUrl?: Blob | null) => void;
+  startSpin?: () => void;
   /**
    * 指定した景品に止める。止まったら、その景品の id を返す。
    * 止める景品（`targetPrizeId`、省略時は選ばれた景品）が演出の中に無いときは、別の景品で止めず、例外にする
@@ -18,8 +18,7 @@ export interface AnimationRef {
   stopSpin?: (
     durationSec?: number,
     targetPrizeId?: string | null,
-    occurrence?: number,
-    bgmUrl?: Blob | null
+    occurrence?: number
   ) => Promise<string | null>;
   /**
    * 演出に流す景品を差し替える。確変で、当選景品を2つに複製した一覧を流すときなどに使う。

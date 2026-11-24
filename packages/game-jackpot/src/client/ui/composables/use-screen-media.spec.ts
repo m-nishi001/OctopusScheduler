@@ -1,32 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h } from "vue";
-import { useScreenAssetUrls, useScreenBgm, useScreenMedia } from "./use-screen-media";
+import { FakeSoundBackend } from "@octopus/client-common/audio/fake-sound-backend";
+import { SoundSystem } from "@octopus/client-common/audio/sound-system";
+import { SOUND_KEY } from "@octopus/composables/use-sound";
+import { useScreenAssetUrls, useScreenMedia } from "./use-screen-media";
 import type { MediaDeps } from "./use-screen-media";
 
 /**
- * 画面の素材（BGM・画像）の読み込みと後始末。
+ * 画面の素材（BGM・画像）の読み込みと後始末。BGM は音の中心(SoundSystem)の screen チャンネルで流す。
  * 以前は画面ごとに同じ処理を書いており、読み込み中に画面を離れても、読み込みが終わってから BGM が鳴り続けたり、
  * 作った URL が破棄されなかったりしていた。
  */
-
-class FakeAudio {
-  loop = false;
-  paused = true;
-  constructor(public src: string) {}
-  async play() {
-    this.paused = false;
-  }
-  pause() {
-    this.paused = true;
-  }
-}
 
 /** 解放するまで返らないアセット取得を作れる、偽の依存。 */
 function makeDeps(options: { settings?: unknown; blobs?: Record<string, Blob | null>; hold?: boolean; failFor?: string[] } = {}) {
   const blobs = options.blobs ?? {};
   const created: string[] = [];
   const revoked: string[] = [];
-  const audios: FakeAudio[] = [];
   const releases: Array<() => void> = [];
   const deps: MediaDeps = {
     fetchSetting: async () => options.settings ?? null,
@@ -41,17 +31,14 @@ function makeDeps(options: { settings?: unknown; blobs?: Record<string, Blob | n
       return url;
     },
     revokeObjectUrl: (url) => void revoked.push(url),
-    createAudio: (url) => {
-      const audio = new FakeAudio(url);
-      audios.push(audio);
-      return audio as unknown as HTMLAudioElement;
-    },
   };
-  return { deps, created, revoked, audios, releaseAll: () => releases.splice(0).forEach((r) => r()) };
+  const backend = new FakeSoundBackend();
+  const sound = new SoundSystem(backend);
+  return { deps, created, revoked, backend, sound, releaseAll: () => releases.splice(0).forEach((r) => r()) };
 }
 
 /** コンポーネントの中でフックを動かす（onMounted / 破棄時の後始末が働く）。 */
-function mountWith<T>(setup: () => T) {
+function mountWith<T>(setup: () => T, sound: SoundSystem = new SoundSystem(new FakeSoundBackend())) {
   let result!: T;
   const app = createApp(
     defineComponent({
@@ -61,78 +48,15 @@ function mountWith<T>(setup: () => T) {
       },
     })
   );
+  app.provide(SOUND_KEY, sound);
   app.mount(document.createElement("div"));
   return { result, unmount: () => app.unmount() };
 }
 
 const blob = (text: string) => new Blob([text]);
 const flush = async () => {
-  for (let i = 0; i < 10; i++) await Promise.resolve();
+  for (let i = 0; i < 50; i++) await Promise.resolve();
 };
-
-describe("useScreenBgm", () => {
-  it("アセットから BGM を作り、ループ再生に設定して、再生できる", async () => {
-    const env = makeDeps({ blobs: { bgm1: blob("abc") } });
-    const { result: bgm } = mountWith(() => useScreenBgm(env.deps));
-    await bgm.load("bgm1");
-
-    expect(bgm.bgm.value).not.toBeNull();
-    expect(env.audios[0].loop).toBe(true);
-    expect(env.audios[0].paused).toBe(true); // 読み込んだだけでは鳴らさない
-    bgm.play();
-    expect(env.audios[0].paused).toBe(false);
-  });
-
-  it("id が空・アセットが無い・読み込みに失敗したときは、何も作らず、画面は進められる", async () => {
-    const env = makeDeps({ blobs: {}, failFor: ["bad"] });
-    const { result: bgm } = mountWith(() => useScreenBgm(env.deps));
-    await bgm.load("");
-    await bgm.load(undefined);
-    await bgm.load("missing");
-    await bgm.load("bad");
-    expect(bgm.bgm.value).toBeNull();
-    expect(() => bgm.play()).not.toThrow();
-  });
-
-  it("再生まで待ちを指定でき、待つ間に画面を離れたら鳴らさない", async () => {
-    vi.useFakeTimers();
-    const env = makeDeps({ blobs: { bgm1: blob("abc") } });
-    const mounted = mountWith(() => useScreenBgm(env.deps));
-    await mounted.result.load("bgm1");
-    mounted.result.play(500);
-    await vi.advanceTimersByTimeAsync(499);
-    expect(env.audios[0].paused).toBe(true);
-
-    mounted.unmount();
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(env.audios[0].paused).toBe(true);
-    vi.useRealTimers();
-  });
-
-  it("画面を離れると、止めて URL を破棄する", async () => {
-    const env = makeDeps({ blobs: { bgm1: blob("abc") } });
-    const mounted = mountWith(() => useScreenBgm(env.deps));
-    await mounted.result.load("bgm1");
-    mounted.result.play();
-
-    mounted.unmount();
-    expect(env.audios[0].paused).toBe(true);
-    expect(env.revoked).toEqual(env.created);
-    expect(mounted.result.bgm.value).toBeNull();
-  });
-
-  it("読み込み中に画面を離れたら、読み込みが終わっても BGM を作らない（離れたあとに鳴り続けない）", async () => {
-    const env = makeDeps({ blobs: { bgm1: blob("abc") }, hold: true });
-    const mounted = mountWith(() => useScreenBgm(env.deps));
-    const loading = mounted.result.load("bgm1");
-    mounted.unmount();
-    env.releaseAll();
-    await loading;
-
-    expect(env.audios).toHaveLength(0);
-    expect(env.created).toHaveLength(0);
-  });
-});
 
 describe("useScreenAssetUrls", () => {
   it("image・se を持つ項目に表示・再生用の URL を付ける。読めないものがあっても残りは続ける", async () => {
@@ -184,22 +108,21 @@ describe("useScreenMedia", () => {
       settings: { bgm: "bgm1", items: [{ image: "img1", se: "se1" }, { kind: "テキスト" }] },
       blobs: { bgm1: blob("abc"), img1: blob("xy"), se1: blob("s") },
     });
-    const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
+    const { result: media } = mountWith(() => useScreenMedia(options, env.deps), env.sound);
     expect(media.config.value).toBeNull(); // 準備中
     await flush();
 
-    expect(media.config.value?.items[0].imageUrl).toBe("blob:1:2");
-    expect(media.config.value?.items[0].seUrl).toBe("blob:2:1");
-    expect(media.bgm.value).not.toBeNull();
-    expect(env.audios[0].paused).toBe(false);
+    expect(media.config.value?.items[0].imageUrl).toBe("blob:0:2");
+    expect(media.config.value?.items[0].seUrl).toBe("blob:1:1");
+    expect(env.sound.screen.state.tracks).toMatchObject([{ key: "bgm1", status: "playing", loop: true }]);
   });
 
   it("設定がまだ保存されていなければ、既定の設定で出す", async () => {
     const env = makeDeps({ settings: null });
-    const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
+    const { result: media } = mountWith(() => useScreenMedia(options, env.deps), env.sound);
     await flush();
     expect(media.config.value).toEqual({ bgm: "", items: [] });
-    expect(media.bgm.value).toBeNull();
+    expect(env.sound.screen.state.tracks).toEqual([]);
   });
 
   it("設定を読めなくても、既定の設定で出す（『読み込み中』のまま固まらない）", async () => {
@@ -208,7 +131,7 @@ describe("useScreenMedia", () => {
     env.deps.fetchSetting = async () => {
       throw new Error("db down");
     };
-    const { result: media } = mountWith(() => useScreenMedia(options, env.deps));
+    const { result: media } = mountWith(() => useScreenMedia(options, env.deps), env.sound);
     await flush();
     expect(media.config.value).toEqual({ bgm: "", items: [] });
     vi.restoreAllMocks();
@@ -220,7 +143,7 @@ describe("useScreenMedia", () => {
       blobs: { bgm1: blob("abc"), img1: blob("xy") },
       hold: true,
     });
-    const mounted = mountWith(() => useScreenMedia(options, env.deps));
+    const mounted = mountWith(() => useScreenMedia(options, env.deps), env.sound);
     await flush();
     mounted.unmount();
     env.releaseAll();
@@ -229,19 +152,53 @@ describe("useScreenMedia", () => {
     await flush();
 
     expect(mounted.result.config.value).toBeNull();
-    expect(env.audios.every((a) => a.paused)).toBe(true);
+    expect(env.sound.screen.state.tracks).toEqual([]);
     expect(env.revoked.sort()).toEqual([...env.created].sort());
   });
 
-  it("画面を離れると、BGM を止めて URL を破棄する", async () => {
+  it("画面を離れても BGM は止めない(止めるのは画面が切り替わるときの router の guard)が、URL は破棄する", async () => {
     const env = makeDeps({
       settings: { bgm: "bgm1", items: [{ image: "img1" }] },
       blobs: { bgm1: blob("abc"), img1: blob("xy") },
     });
-    const mounted = mountWith(() => useScreenMedia(options, env.deps));
+    const mounted = mountWith(() => useScreenMedia(options, env.deps), env.sound);
     await flush();
     mounted.unmount();
-    expect(env.audios[0].paused).toBe(true);
+    expect(env.sound.screen.state.tracks).toHaveLength(1);
     expect(env.revoked.sort()).toEqual([...env.created].sort());
+  });
+  it("同じ曲が鳴っている画面へ移っても、鳴らし直さない(流し続ける)。bgmDelayMs の待ちは、新しく鳴らすときだけ", async () => {
+    vi.useFakeTimers();
+    const env = makeDeps({ settings: { bgm: "same", items: [] }, blobs: { same: blob("abc") } });
+    const first = mountWith(() => useScreenMedia(options, env.deps), env.sound);
+    await vi.advanceTimersByTimeAsync(10);
+    const id = env.backend.playingIds[0];
+    first.unmount();
+    mountWith(() => useScreenMedia({ ...options, bgmDelayMs: 500 }, env.deps), env.sound);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(env.backend.playingIds).toEqual([id]);
+    expect(env.backend.calls.filter((c) => c.startsWith("play:"))).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("bgmDelayMs の間は鳴らさず、過ぎたら鳴らす", async () => {
+    vi.useFakeTimers();
+    const env = makeDeps({ settings: { bgm: "bgm1", items: [] }, blobs: { bgm1: blob("abc") } });
+    mountWith(() => useScreenMedia({ ...options, bgmDelayMs: 500 }, env.deps), env.sound);
+    await vi.advanceTimersByTimeAsync(499);
+    expect(env.backend.playingIds).toEqual([]);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(env.backend.playingIds).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("BGM の素材が無くても、画面は出す(鳴らさない)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const env = makeDeps({ settings: { bgm: "missing", items: [] }, blobs: {} });
+    const { result: media } = mountWith(() => useScreenMedia(options, env.deps), env.sound);
+    await flush();
+    expect(media.config.value).toEqual({ bgm: "missing", items: [] });
+    expect(env.backend.playingIds).toEqual([]);
+    vi.restoreAllMocks();
   });
 });

@@ -7,14 +7,6 @@ import type { AnimationRef } from "../animation-types";
 import { WIN_ROW } from "./reel-model";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
 
-vi.mock("@octopus/composables/use-audio", () => ({
-  useAudio: () => ({
-    load: vi.fn(() => Promise.resolve()),
-    play: vi.fn(() => Promise.resolve()),
-    stop: vi.fn(() => Promise.resolve()),
-  }),
-}));
-
 const prizes: PrizeDto[] = [
   { id: "p1", name: "賞1", order: 1 },
   { id: "p2", name: "賞2", order: 2 },
@@ -491,12 +483,6 @@ describe("SlotAnimation", () => {
       const api = wrapper.vm as unknown as Required<AnimationRef>;
       await api.startSpin();
       await expect(api.stopSpin(3, null)).rejects.toThrow("指定なし");
-    });
-
-    it("音源つきで回し始めても、回る", async () => {
-      const wrapper = mount(SlotAnimation, { props: { prizes } });
-      await (wrapper.vm as unknown as Required<AnimationRef>).startSpin(new Blob(["x"], { type: "audio/mpeg" }));
-      expect(wrapper.classes()).toContain("spinning");
     });
   });
 
