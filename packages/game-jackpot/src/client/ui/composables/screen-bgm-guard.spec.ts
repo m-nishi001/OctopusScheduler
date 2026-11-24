@@ -78,4 +78,18 @@ describe("installScreenBgmGuard", () => {
     expect(sound.screen.state.tracks).toEqual([]);
     vi.restoreAllMocks();
   });
+
+  it("設定の読み込みが遅くても、遷移は待たされない(止めずに進む)", async () => {
+    vi.useFakeTimers();
+    const { router, sound, backend, song, load } = setup({});
+    load.mockImplementation(() => new Promise(() => undefined));
+    await router.push("/home");
+    await sound.screen.play(song("a.wav"));
+    const moving = router.push("/execute/jackpot-description");
+    await vi.advanceTimersByTimeAsync(1600);
+    await moving;
+    expect(router.currentRoute.value.path).toBe("/execute/jackpot-description");
+    expect(backend.playingIds).toHaveLength(1); // 止めていない(行き先の画面が play で決める)
+    vi.useRealTimers();
+  });
 });
