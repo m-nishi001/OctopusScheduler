@@ -37,7 +37,7 @@ export const AUDIO_BASELINE: readonly BaselineRow[] = [
   {
     id: "V1",
     screen: "管理画面の音楽・スクリーン「再生」/ イベントの音楽(開始)",
-    source: "apps/app-scheduler/src/client/control/media/audio.ts(AudioControl → AudioService)",
+    source: "apps/app-scheduler/src/client/control/media/audio.ts(AudioControl。PR5 で SoundSystem の venue チャンネルの薄い包みに)",
     plays: "指定した素材(曲)",
     loop: "指定による",
     stops: "停止の指示まで(最後まで鳴り終われば自然に終わる)。同じ曲をもう一度鳴らすと、古い方をフェードアウトしながら新しい方を鳴らす(クロスフェード)",
@@ -247,8 +247,10 @@ export const AUDIO_BASELINE: readonly BaselineRow[] = [
     fade: "なし",
     delay: "なし(回り始めの前に stop → load → play)",
     venue: NOT_APPLICABLE,
-    checkedBy: "slot-animation.spec.ts(単体)。いまの抽選は、スロットに音源(リール音)を渡していないので、本番では鳴らない(e2e で確かめる対象がない)",
+    checkedBy: "(本番で鳴らない死んだコードだったので、PR5 で削除した。e2e で確かめる対象はない)",
     pr: "PR3",
+    intended: true,
+    reason: "いまの抽選は、スロットに音源(リール音)を渡していなかったので、本番では鳴らなかった。使われていない処理(startSpin の bgmUrl と effect チャンネルのリール音)を PR5 で削除した",
   },
   {
     id: "D7",
@@ -353,8 +355,10 @@ export const AUDIO_BASELINE: readonly BaselineRow[] = [
     fade: "表示を変えるときは DEFAULT_FADE_SEC 秒のフェードアウト(ScreenControl.fadeOutVideo)",
     delay: "なし",
     venue: "動画の音は場内BGMと別に鳴る",
-    checkedBy: "console-media.spec.ts・host-media.spec.ts",
+    checkedBy: "audio-baseline.spec.ts E1(「消す」で、ロビーへ戻る前に動画の音を 0 まで下げる)",
     pr: "PR5",
+    intended: true,
+    reason: "動画の音を音の通り道(SoundSystem)に組み込み、フェードを要素の volume ではなく音量の予約で行う。動き(指定秒かけて下げ、下げ終えてから戻る)は変えない",
   },
 ];
 

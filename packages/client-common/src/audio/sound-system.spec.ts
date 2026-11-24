@@ -273,6 +273,46 @@ describe("unlock", () => {
 
     it("snapshot は、音の状態と全チャンネルの状態をまとめて返す", async () => {
         await sound.screen.play(src("a"));
-        expect(sound.snapshot()).toMatchObject({ audio: "suspended", screen: { current: "a" }, venue: { current: null }, effect: { current: null } });
+        expect(sound.snapshot()).toMatchObject({ audio: "suspended", screen: { current: "a" }, venue: { current: null }, effect: { current: null }, video: null });
+    });
+
+    describe("スクリーンの動画", () => {
+        const video = () => ({}) as HTMLMediaElement;
+
+        it("組み込むと、snapshot に音量が出る。フェードアウトは、下げ終えるまで解決しない", async () => {
+            sound.attachVideo(video());
+            expect(sound.videoActive).toBe(true);
+            expect(sound.snapshot().video).toEqual({ gain: 1 });
+            let done = false;
+            void sound.fadeOutVideo(2000).then(() => (done = true));
+            await Promise.resolve();
+            expect(backend.calls).toContain("fadeOutElement:e1:fade=2000");
+            expect(done).toBe(false);
+            backend.finishElementFade("e1");
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(done).toBe(true);
+        });
+
+        it("別の動画に替わると前の動画は外し、外すとフェード中でも終わる。動画が無ければフェードはすぐ終わる", async () => {
+            await expect(sound.fadeOutVideo(1000)).resolves.toBeUndefined();
+            sound.attachVideo(video());
+            const fading = sound.fadeOutVideo(60_000);
+            sound.attachVideo(video());
+            await expect(fading).resolves.toBeUndefined();
+            expect(backend.calls).toContain("detachElement:e1");
+            sound.detachVideo();
+            expect(sound.videoActive).toBe(false);
+            expect(sound.snapshot().video).toBeNull();
+        });
+
+        it("組み込めなくても例外にしない(動画は要素のまま鳴る)", () => {
+            vi.spyOn(console, "warn").mockImplementation(() => undefined);
+            backend.attachElement = () => {
+                throw new Error("already attached");
+            };
+            expect(() => sound.attachVideo(video())).not.toThrow();
+            expect(sound.videoActive).toBe(false);
+        });
     });
 });

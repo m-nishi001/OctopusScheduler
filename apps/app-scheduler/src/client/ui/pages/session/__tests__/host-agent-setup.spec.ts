@@ -199,9 +199,9 @@ describe("setupHostAgent: ゲーム終了からロビーへ戻るとイベント
 
 describe("setupHostAgent: 開始前の画面とBGMの復元", () => {
   function fakeDeps() {
-    const audio = { suspend: vi.fn(async () => undefined), resume: vi.fn(async () => undefined) };
+    const audio = { enterGame: vi.fn(async () => undefined), leaveGame: vi.fn(async () => undefined) };
     const eventReturn = new EventReturn();
-    return { audio, eventReturn, deps: { audio: () => audio, eventReturn } satisfies HostAgentSetupDeps };
+    return { audio, eventReturn, deps: { sound: () => audio, eventReturn } satisfies HostAgentSetupDeps };
   }
   const addMediaRoute = (router: ReturnType<typeof makeRouter>) => {
     router.addRoute({ path: "/execute/show-slideshow/:data", name: "show-slideshow", component: { render: () => null } });
@@ -215,20 +215,20 @@ describe("setupHostAgent: 開始前の画面とBGMの復元", () => {
     addMediaRoute(router);
     await router.push("/execute/show-slideshow/abc");
     await settle();
-    expect(audio.suspend).not.toHaveBeenCalled();
+    expect(audio.enterGame).not.toHaveBeenCalled();
     await router.push("/execute/jackpot-opening");
     await settle();
     expect(eventReturn.take()).toBe("/execute/show-slideshow/abc");
     expect(agent.returnPath).toBe("/execute/show-slideshow/abc");
-    expect(audio.suspend).toHaveBeenCalledOnce();
-    expect(audio.resume).not.toHaveBeenCalled();
+    expect(audio.enterGame).toHaveBeenCalledOnce();
+    expect(audio.leaveGame).not.toHaveBeenCalled();
     await router.push("/execute/jackpot-ending"); // ゲームの中の移動では何もしない
     await settle();
-    expect(audio.suspend).toHaveBeenCalledOnce();
+    expect(audio.enterGame).toHaveBeenCalledOnce();
     await router.push(agent.returnPath as string);
     await settle();
     expect(router.currentRoute.value.fullPath).toBe("/execute/show-slideshow/abc");
-    expect(audio.resume).toHaveBeenCalledOnce();
+    expect(audio.leaveGame).toHaveBeenCalledOnce();
     expect(eventReturn.take()).toBeNull();
   });
 
@@ -240,7 +240,7 @@ describe("setupHostAgent: 開始前の画面とBGMの復元", () => {
     expect(agent.returnPath).toBe(`/session/host/${meta.id}`);
     await router.push(agent.returnPath as string);
     await settle();
-    expect(audio.resume).toHaveBeenCalledOnce();
+    expect(audio.leaveGame).toHaveBeenCalledOnce();
   });
 
   it("終了画面を通らずにゲームを抜けても、BGMを再開して覚えた画面を捨てる", async () => {
@@ -250,10 +250,10 @@ describe("setupHostAgent: 開始前の画面とBGMの復元", () => {
     await router.push("/execute/show-slideshow/abc");
     await router.push("/execute/quiz/q1/play");
     await settle();
-    expect(audio.suspend).toHaveBeenCalledOnce();
+    expect(audio.enterGame).toHaveBeenCalledOnce();
     await router.push("/home");
     await settle();
-    expect(audio.resume).toHaveBeenCalledOnce();
+    expect(audio.leaveGame).toHaveBeenCalledOnce();
     expect(eventReturn.take()).toBeNull();
   });
 
@@ -263,8 +263,8 @@ describe("setupHostAgent: 開始前の画面とBGMの復元", () => {
     await router.push("/home");
     await router.push("/sessions");
     await settle();
-    expect(audio.suspend).not.toHaveBeenCalled();
-    expect(audio.resume).not.toHaveBeenCalled();
+    expect(audio.enterGame).not.toHaveBeenCalled();
+    expect(audio.leaveGame).not.toHaveBeenCalled();
   });
 });
 

@@ -9,7 +9,8 @@ import {
   readExpectedPath,
 } from "@octopus/session-hub";
 import { isGameFinishRoute, isGameRoute, toExecutePath } from "../router/execute-path";
-import { AudioControl } from "../media/audio";
+import type { SoundSystem } from "@octopus/client-common/audio/sound-system";
+import { AudioControl, SoundSystemToken } from "../media/audio";
 import { EventReturn } from "./event-return";
 import { registerEventHost } from "./event-host";
 import { registerMediaCommands } from "../media/host-media-commands";
@@ -36,15 +37,15 @@ async function dispatchEventCommand(agent: HostAgent, type: string): Promise<voi
   });
 }
 
-/** イベントの開始・終了で、背景BGMを止めて続きから再開するための部品(テストで差し替える)。 */
+/** ゲームの出入りで、場内BGMを止めて続きから再開するための部品(テストで差し替える)。 */
 export interface HostAgentSetupDeps {
-  audio: () => Pick<AudioControl, "suspend" | "resume"> | null;
+  sound: () => Pick<SoundSystem, "enterGame" | "leaveGame"> | null;
   eventReturn: EventReturn;
 }
 
 function defaultDeps(): HostAgentSetupDeps {
   return {
-    audio: () => (container.isRegistered(AudioControl) ? container.resolve(AudioControl) : null),
+    sound: () => (container.isRegistered(SoundSystemToken) ? container.resolve<SoundSystem>(SoundSystemToken) : null),
     eventReturn: new EventReturn(),
   };
 }
@@ -103,7 +104,7 @@ export function setupHostAgent(router: Router, deps: HostAgentSetupDeps = defaul
     const leavingGame = isGameRoute(from) && !isGameRoute(to);
     if (enteringGame && from !== START_LOCATION) {
       deps.eventReturn.capture(from.fullPath);
-      void deps.audio()?.suspend(1);
+      void deps.sound()?.enterGame();
     }
     if (leavingGame) {
       if (isGameFinishRoute(from)) {
@@ -113,7 +114,7 @@ export function setupHostAgent(router: Router, deps: HostAgentSetupDeps = defaul
           .catch((error) => console.warn("ゲーム終了時のイベント終了に失敗しました", error));
       }
       deps.eventReturn.clear();
-      void deps.audio()?.resume();
+      void deps.sound()?.leaveGame();
     }
   });
 

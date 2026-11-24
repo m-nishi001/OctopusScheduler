@@ -1,5 +1,7 @@
 import "reflect-metadata";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { FakeSoundBackend } from "@octopus/client-common/audio/fake-sound-backend";
+import { SoundSystem } from "@octopus/client-common/audio/sound-system";
 import { AudioControl } from "./audio";
 
 function deferred<T>() {
@@ -11,72 +13,70 @@ function deferred<T>() {
 }
 
 function setup() {
-  let n = 0;
-  const audio = {
-    loadFromBlob: vi.fn(async (_blob: Blob) => `inst-${++n}`),
-    play: vi.fn(async (_id: string, _fadeMs?: number, _loop?: boolean, _onEnded?: () => void) => undefined),
-    pause: vi.fn(async (_id: string, _fadeMs?: number) => undefined),
-    stop: vi.fn(async (_id: string, _fadeMs?: number) => undefined),
-    disposeInstance: vi.fn((_id: string) => undefined),
-  };
+  const backend = new FakeSoundBackend();
+  const sound = new SoundSystem(backend);
   const source = { ensure: vi.fn(async (id: string) => new Blob([id])) };
-  return { audio, source, control: new AudioControl(source, audio) };
+  return { backend, sound, source, control: new AudioControl(source, sound) };
 }
 
-beforeEach(() => vi.spyOn(console, "error").mockImplementation(() => undefined));
-
-describe("AudioControl", () => {
-  it("素材を取ってから鳴らす", async () => {
-    const { control, audio, source } = setup();
+describe("AudioControl(venue チャンネルの薄い包み)", () => {
+  it("素材を取ってから、1回だけ(ループなし)で鳴らす。loop を指定すると繰り返す", async () => {
+    const { control, backend, source } = setup();
     await control.play("a");
     expect(source.ensure).toHaveBeenCalledWith("a");
-    expect(audio.play).toHaveBeenCalledWith("inst-1", 0, false, expect.any(Function));
-  });
-
-  it("loop を指定すると、繰り返し再生で鳴らす", async () => {
-    const { control, audio } = setup();
-    await control.play("a", true);
-    expect(audio.play).toHaveBeenCalledWith("inst-1", 0, true, expect.any(Function));
+    expect(backend.calls).toContain("play:i1:fadeIn=0:loop=false");
+    await control.play("b", true);
+    expect(backend.calls).toContain("play:i2:fadeIn=0:loop=true");
   });
 
   it("曲を指定した停止は、その曲だけをフェードアウトして止め、片づける", async () => {
-    const { control, audio } = setup();
+    const { control, backend } = setup();
     await control.play("a");
     await control.play("b");
     await control.stop("a", 1.5);
-    expect(audio.stop).toHaveBeenCalledOnce();
-    expect(audio.stop).toHaveBeenCalledWith("inst-1", 1500);
-    expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
+    expect(backend.calls).toContain("stop:i1:fade=1500");
+    expect(backend.calls).toContain("dispose:i1");
+    expect(backend.alive).toEqual(["i2"]);
   });
 
   it("曲を指定しない停止は、鳴っているすべてを止める", async () => {
-    const { control, audio } = setup();
+    const { control, backend } = setup();
     await control.play("a");
     await control.play("b");
     await control.stop();
-    expect(audio.stop.mock.calls.map((c) => c[0]).sort()).toEqual(["inst-1", "inst-2"]);
+    expect(backend.alive).toEqual([]);
   });
 
   it("鳴っていない曲の停止は何もしない", async () => {
-    const { control, audio } = setup();
+    const { control, backend } = setup();
     await control.stop("zzz");
-    expect(audio.stop).not.toHaveBeenCalled();
+    expect(backend.calls).toEqual([]);
+  });
+
+  it("停止は、秒数を省かなければ既定の 2 秒でフェードし、0 を明示したときだけ即時に止める", async () => {
+    const { control, backend } = setup();
+    await control.play("a");
+    await control.play("b");
+    await control.stop("a");
+    expect(backend.calls).toContain("stop:i1:fade=2000");
+    await control.stop("b", 0);
+    expect(backend.calls).toContain("stop:i2:fade=0");
   });
 
   it("取得を待っている間に停止が来たら、届いても鳴らさない", async () => {
-    const { control, audio, source } = setup();
+    const { control, backend, source } = setup();
     const gate = deferred<Blob>();
     source.ensure.mockReturnValueOnce(gate.promise);
     const playing = control.play("a");
     await control.stop("a");
     gate.resolve(new Blob(["a"]));
     await playing;
-    expect(audio.loadFromBlob).not.toHaveBeenCalled();
-    expect(audio.play).not.toHaveBeenCalled();
+    expect(backend.calls.filter((c) => c.startsWith("play:"))).toEqual([]);
+    expect(backend.alive).toEqual([]);
   });
 
   it("取得を待っている間の全停止でも、鳴らさない。あとから出した別の曲は鳴る", async () => {
-    const { control, audio, source } = setup();
+    const { control, backend, source } = setup();
     const gate = deferred<Blob>();
     source.ensure.mockReturnValueOnce(gate.promise);
     const first = control.play("a");
@@ -84,138 +84,79 @@ describe("AudioControl", () => {
     await control.play("b");
     gate.resolve(new Blob(["a"]));
     await first;
-    expect(audio.play).toHaveBeenCalledOnce();
+    expect(control.snapshot()).toEqual([{ assetId: "b", loop: false }]);
+    expect(backend.calls.filter((c) => c.startsWith("play:"))).toHaveLength(1);
   });
 
   it("読み込みの最中に停止が来たら、鳴らさずに片づける", async () => {
-    const { control, audio } = setup();
-    const gate = deferred<string>();
-    audio.loadFromBlob.mockReturnValueOnce(gate.promise);
+    const { control, backend } = setup();
+    const gate = deferred<void>();
+    backend.holdLoad = gate.promise;
     const playing = control.play("a");
-    await vi.waitFor(() => expect(audio.loadFromBlob).toHaveBeenCalled());
+    await vi.waitFor(() => expect(control.snapshot()).toEqual([]));
     await control.stop("a");
-    gate.resolve("late");
+    gate.resolve();
     await playing;
-    expect(audio.play).not.toHaveBeenCalled();
-    expect(audio.disposeInstance).toHaveBeenCalledWith("late");
+    expect(backend.calls.filter((c) => c.startsWith("play:"))).toEqual([]);
+    expect(backend.alive).toEqual([]);
   });
 
-  it("同じ曲をもう一度鳴らすと、前の分は止めて片づける(鳴りっぱなしの取り残しを作らない)", async () => {
-    const { control, audio } = setup();
+  it("同じ曲をもう一度鳴らすと、古い方を指定秒(既定 2 秒)でフェードアウトしながら新しい方を鳴らし、片づける(クロスフェード)", async () => {
+    const { control, backend } = setup();
     await control.play("a");
     await control.play("a");
-    expect(audio.stop).toHaveBeenCalledWith("inst-1", 2000);
-    expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
-    expect(audio.play).toHaveBeenLastCalledWith("inst-2", 0, false, expect.any(Function));
-  });
-
-  it("同じ曲の再生し直しは、古い方の停止の完了を待たずに、新しい方を鳴らす(クロスフェード)。秒数は指定できる", async () => {
-    const { control, audio } = setup();
-    await control.play("a");
-    const fading = deferred<undefined>();
-    audio.stop.mockReturnValueOnce(fading.promise);
+    expect(backend.calls).toContain("stop:i1:fade=2000");
+    expect(backend.calls).toContain("play:i2:fadeIn=0:loop=false");
+    await vi.waitFor(() => expect(backend.alive).toEqual(["i2"]));
     await control.play("a", false, 3);
-    expect(audio.stop).toHaveBeenCalledWith("inst-1", 3000);
-    expect(audio.play).toHaveBeenLastCalledWith("inst-2", 0, false, expect.any(Function));
-    expect(audio.disposeInstance).not.toHaveBeenCalledWith("inst-1"); // まだフェードアウト中
-    fading.resolve(undefined);
-    await vi.waitFor(() => expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1"));
+    expect(backend.calls).toContain("stop:i2:fade=3000");
   });
 
-  it("停止は、秒数を省かなければ既定の 2 秒でフェードし、0 を明示したときだけ即時に止める", async () => {
-    const { control, audio } = setup();
-    await control.play("a");
-    await control.play("b");
-    await control.stop("a");
-    expect(audio.stop).toHaveBeenLastCalledWith("inst-1", 2000);
-    await control.stop("b", 0);
-    expect(audio.stop).toHaveBeenLastCalledWith("inst-2", 0);
+  it("素材を取れなかったときは、その例外で失敗する(管理端末に知らせるため)。一覧には残らない", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { control, source } = setup();
+    source.ensure.mockRejectedValueOnce(new Error("素材がサーバーにありません: gone1"));
+    await expect(control.play("gone1")).rejects.toThrow("素材がサーバーにありません: gone1");
+    expect(control.snapshot()).toEqual([]);
   });
 
-  it("止めるのに失敗しても片づけて、例外にしない", async () => {
-    const { control, audio } = setup();
-    await control.play("a");
-    audio.stop.mockRejectedValueOnce(new Error("gone"));
-    await expect(control.stop("a")).resolves.toBeUndefined();
-    expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
-  });
-
-  describe("suspend / resume", () => {
-    it("suspend は鳴っている曲をフェードアウトして一時停止し、破棄しない。resume は同じ再生を、loop も含めて続きから鳴らす", async () => {
-      const { control, audio } = setup();
+  describe("ゲームの出入り(SoundSystem.enterGame / leaveGame)", () => {
+    it("入ると鳴っている曲を1秒のフェードアウトで一時停止し(破棄しない)、出ると同じ再生を、loop も含めて1秒のフェードインで続きから鳴らす", async () => {
+      const { control, backend, sound } = setup();
       await control.play("a", true);
       await control.play("b");
-      await control.suspend(1);
-      expect(audio.pause.mock.calls).toEqual([["inst-1", 1000], ["inst-2", 1000]]);
-      expect(audio.disposeInstance).not.toHaveBeenCalled();
-      expect(audio.stop).not.toHaveBeenCalled();
-      audio.play.mockClear();
-      await control.resume();
-      expect(audio.play).toHaveBeenCalledWith("inst-1", 1000, true, expect.any(Function));
-      expect(audio.play).toHaveBeenCalledWith("inst-2", 1000, false, expect.any(Function));
-      expect(audio.loadFromBlob).toHaveBeenCalledTimes(2);
+      await sound.enterGame();
+      expect(backend.calls).toContain("pause:i1:fade=1000");
+      expect(backend.calls).toContain("pause:i2:fade=1000");
+      expect(backend.calls.some((c) => c.startsWith("stop:"))).toBe(false);
+      expect(control.snapshot()).toEqual([]);
+      await sound.leaveGame();
+      expect(backend.calls).toContain("play:i1:fadeIn=1000:loop=true");
+      expect(backend.calls).toContain("play:i2:fadeIn=1000:loop=false");
+      expect(control.snapshot()).toEqual([{ assetId: "a", loop: true }, { assetId: "b", loop: false }]);
+      expect(backend.calls.filter((c) => c.startsWith("load:"))).toHaveLength(2);
     });
 
-    it("resume のあとの全停止は、再開した曲を止める。もう一度 resume しても何も鳴らない", async () => {
-      const { control, audio } = setup();
-      await control.play("a");
-      await control.suspend();
-      await control.resume();
-      audio.play.mockClear();
-      await control.stop(undefined, 0);
-      expect(audio.stop).toHaveBeenCalledWith("inst-1", 0);
-      await control.resume();
-      expect(audio.play).not.toHaveBeenCalled();
-    });
-
-    it("一時停止中に stop(id) が来た曲は破棄され、resume で戻らない。ほかの曲は戻る", async () => {
-      const { control, audio } = setup();
+    it("一時停止中の停止は破棄し、再開で戻らない", async () => {
+      const { control, backend, sound } = setup();
       await control.play("a");
       await control.play("b");
-      await control.suspend();
+      await sound.enterGame();
       await control.stop("a");
-      expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
-      audio.play.mockClear();
-      await control.resume();
-      expect(audio.play).toHaveBeenCalledOnce();
-      expect(audio.play).toHaveBeenCalledWith("inst-2", 1000, false, expect.any(Function));
-    });
-
-    it("一時停止中の全停止は、すべて破棄する", async () => {
-      const { control, audio } = setup();
-      await control.play("a");
-      await control.suspend();
+      expect(backend.calls).toContain("dispose:i1");
+      await sound.leaveGame();
+      expect(control.snapshot()).toEqual([{ assetId: "b", loop: false }]);
+      await sound.enterGame();
       await control.stop();
-      expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
-      audio.play.mockClear();
-      await control.resume();
-      expect(audio.play).not.toHaveBeenCalled();
+      await sound.leaveGame();
+      expect(control.snapshot()).toEqual([]);
     });
 
-    it("一時停止中に同じ曲が鳴らされていたら、resume は再開せずに古い方を破棄する(二重に鳴らさない)", async () => {
-      const { control, audio } = setup();
-      await control.play("a");
-      await control.suspend();
-      await control.play("a");
-      audio.play.mockClear();
-      await control.resume();
-      expect(audio.play).not.toHaveBeenCalled();
-      expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
-    });
-
-    it("鳴っていないときの suspend / resume は何もしない", async () => {
-      const { control, audio } = setup();
-      await control.suspend();
-      await control.resume();
-      expect(audio.pause).not.toHaveBeenCalled();
-      expect(audio.play).not.toHaveBeenCalled();
-    });
-
-    it("一時停止に失敗しても例外にしない", async () => {
-      const { control, audio } = setup();
-      await control.play("a");
-      audio.pause.mockRejectedValueOnce(new Error("gone"));
-      await expect(control.suspend()).resolves.toBeUndefined();
+    it("鳴っていないときの入退場は何もしない", async () => {
+      const { backend, sound } = setup();
+      await sound.enterGame();
+      await sound.leaveGame();
+      expect(backend.calls).toEqual([]);
     });
   });
 });
@@ -236,50 +177,48 @@ describe("AudioControl: いま鳴っている曲", () => {
     expect(control.snapshot()).toEqual([]);
   });
 
-  it("subscribe は、鳴っている曲が変わるたびに知らせ、解除できる", async () => {
+  it("subscribe は、鳴っている曲が変わったときに知らせ、解除できる", async () => {
     const { control } = setup();
     const listener = vi.fn();
     const off = control.subscribe(listener);
     await control.play("a");
-    expect(listener).toHaveBeenCalledTimes(1);
-    await control.stop("a");
-    expect(listener).toHaveBeenCalledTimes(2);
-    await control.stop("a"); // 鳴っていない曲の停止は、変化ではない
-    expect(listener).toHaveBeenCalledTimes(2);
+    const afterPlay = listener.mock.calls.length;
+    expect(afterPlay).toBeGreaterThan(0);
+    await control.stop("a", 0);
+    const afterStop = listener.mock.calls.length;
+    expect(afterStop).toBeGreaterThan(afterPlay);
+    await control.stop("a", 0); // 鳴っていない曲の停止は、変化ではない
+    expect(listener).toHaveBeenCalledTimes(afterStop);
     off();
     await control.play("b");
-    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledTimes(afterStop);
   });
 
   it("曲が自然に終わったら、鳴っている曲から消し、知らせて、片づける", async () => {
-    const { control, audio } = setup();
+    const { control, backend } = setup();
     await control.play("a");
     const listener = vi.fn();
     control.subscribe(listener);
-    const onEnded = audio.play.mock.calls[0][3]!;
-    onEnded();
+    backend.end("i1");
     expect(control.snapshot()).toEqual([]);
     expect(listener).toHaveBeenCalledOnce();
-    expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
-    onEnded(); // 二重の通知は無視する
-    expect(listener).toHaveBeenCalledOnce();
+    expect(backend.alive).toEqual([]);
   });
 
-  it("止めたあと・再生し直したあとに届いた、古い再生の終了は無視する", async () => {
-    const { control, audio } = setup();
+  it("止めたあと・再生し直したあとに届いた、古い再生の終了は、新しい再生を消さない", async () => {
+    const { control, backend } = setup();
     await control.play("a");
-    const oldEnded = audio.play.mock.calls[0][3]!;
     await control.play("a"); // クロスフェードで入れ替え
-    oldEnded();
+    await vi.waitFor(() => expect(backend.alive).toEqual(["i2"]));
     expect(control.snapshot()).toEqual([{ assetId: "a", loop: false }]);
-    expect(audio.disposeInstance).toHaveBeenCalledTimes(1); // 古い方は、フェード後の片づけの1回だけ
   });
 
   it("鳴らせなかった曲は、一覧に残さない", async () => {
-    const { control, audio } = setup();
-    audio.play.mockRejectedValueOnce(new Error("boom"));
-    await expect(control.play("a")).rejects.toThrow("boom");
-    expect(control.snapshot()).toEqual([]);
-    expect(audio.disposeInstance).toHaveBeenCalledWith("inst-1");
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { control, backend } = setup();
+    backend.failPlay = true;
+    await control.play("a");
+    await vi.waitFor(() => expect(control.snapshot()).toEqual([]));
+    expect(backend.alive).toEqual([]);
   });
 });

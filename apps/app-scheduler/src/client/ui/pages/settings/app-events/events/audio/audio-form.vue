@@ -31,7 +31,6 @@ import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../control/asset/asset-service';
 import type { Asset } from '../../../../../../model/asset/asset';
 import { classifyMedia } from '../../../../../../model/media/media-kind';
-import { useAudio } from '@octopus/composables/use-audio';
 
 type Props = {
     initialData?: AudioEventDto;
@@ -44,7 +43,35 @@ const assetService = container.resolve(AssetService);
 const audioAssets = ref<Asset[]>([]);
 const fileInput = ref<HTMLInputElement>();
 
-const { load, play, pause, isPlaying } = useAudio();
+// 設定画面の試聴。再生の仕組み(SoundSystem)には含めず、利用者が押したときだけ、`<audio>` で鳴らす。
+const isPlaying = ref(false);
+let preview: HTMLAudioElement | null = null;
+let previewUrl: string | null = null;
+
+const pause = () => preview?.pause();
+
+const disposePreview = () => {
+    preview?.pause();
+    preview = null;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
+    isPlaying.value = false;
+};
+
+const startPreview = async (source: Blob) => {
+    disposePreview();
+    previewUrl = URL.createObjectURL(source);
+    const element = new Audio(previewUrl);
+    element.addEventListener('playing', () => (isPlaying.value = true));
+    element.addEventListener('pause', () => (isPlaying.value = false));
+    element.addEventListener('ended', () => (isPlaying.value = false));
+    preview = element;
+    try {
+        await element.play();
+    } catch (error) {
+        console.warn('試聴を始められませんでした', error);
+    }
+};
 
 const formData = reactive({
     audioId: props.initialData?.audioId ?? '',
@@ -84,7 +111,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener);
-    try { pause(); } catch (e) { }
+    disposePreview();
 });
 
 const handleFileUpload = async (event: Event) => {
@@ -101,7 +128,7 @@ const togglePreview = async () => {
     if (isPlaying.value) {
         pause();
     } else {
-        let source: Blob | string | null = null;
+        let source: Blob | null = null;
         if (formData.audioFile) {
             source = formData.audioFile;
         } else if (formData.audioId) {
@@ -109,8 +136,7 @@ const togglePreview = async () => {
             if (asset) source = asset.blob;
         }
         if (source) {
-            await load(source);
-            play();
+            await startPreview(source);
         }
     }
 };
