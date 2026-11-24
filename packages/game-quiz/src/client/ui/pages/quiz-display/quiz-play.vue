@@ -9,7 +9,7 @@
                 <div class="header-content">
                     <div class="title-card" aria-hidden="false">
                         <h1 class="quiz-title">{{ quiz.title }}</h1>
-                        <p class="quiz-content">{{ quiz.question }}</p>
+                        <p class="quiz-content" :class="`size-${questionSize}`">{{ quiz.question }}</p>
                     </div>
                 </div>
             </div>
@@ -51,6 +51,7 @@ import OptionCard from '../../components/option-card.vue';
 import { useQuizHost } from '../../composables/use-quiz-host';
 import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
 import { buildQuizHostState } from '../../../model/quiz-host-state';
+import { questionSizeOf } from '../../../model/question-size';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { useAnswerWindow } from '../../composables/use-answer-window';
 import { useCardGridLayout } from '../../composables/use-card-grid-layout';
@@ -64,6 +65,7 @@ const quizId = route.params.id as string;
 const session = useQuizSession();
 
 const quiz = ref<QuizDto | null>(null);
+const questionSize = computed(() => questionSizeOf(quiz.value?.question ?? ''));
 // 選択肢の画像の表示用URL。同じ画像には同じURLを使い回し、画面を離れたら破棄する。
 const imageUrls = useObjectUrlStore();
 
@@ -233,7 +235,7 @@ body::-webkit-scrollbar {
 }
 
 .quiz-title {
-    font-size: 2.25rem;
+    font-size: clamp(1rem, 3.2vmin, 2.25rem);
     font-weight: 800;
     color: #ffd54a;
     margin: 0;
@@ -285,8 +287,25 @@ body::-webkit-scrollbar {
 
 .quiz-content {
     margin: 0;
-    font-size: 1.375rem;
-    color: var(--muted);
+    /* 問題文が主役: 画面に比例して大きくし、長さ段階で縮める。最大3行。 */
+    --question-scale: 1;
+    font-size: calc(clamp(1.4rem, 5.5vmin, 4.5rem) * var(--question-scale));
+    line-height: 1.35;
+    color: #fff;
+    text-wrap: balance;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+.quiz-content.size-medium {
+    --question-scale: 0.8;
+}
+
+.quiz-content.size-long {
+    --question-scale: 0.65;
 }
 
 /* Grid: always 2 columns (2 x N rows). Narrow screens keep 2 columns as requested. */
@@ -395,54 +414,6 @@ body::-webkit-scrollbar {
     transform: scale(1.02);
 }
 
-.option-index {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    min-width: 44px;
-    height: 44px;
-    border-radius: 999px;
-    background: var(--option-color, rgba(255, 255, 255, 0.12));
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 0.85rem;
-    padding: 0 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
-    z-index: 3;
-}
-
-.text-ribbon {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 12px 16px;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-}
-
-.option-text {
-    font-size: 1rem;
-    color: #fff;
-    font-weight: 800;
-    text-align: center;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-    white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: calc(100% - 56px);
-    padding: 6px 8px;
-}
-
 .emergency-stop-button {
     position: absolute;
     bottom: 18px;
@@ -524,15 +495,6 @@ body::-webkit-scrollbar {
         height: auto;
     }
 
-    .quiz-title {
-        font-size: 1.6rem;
-    }
-
-    .question-text {
-        font-size: 1.125rem;
-        padding: 14px;
-    }
-
     .timer-pill {
         right: 12px;
         top: 10px;
@@ -557,13 +519,6 @@ body::-webkit-scrollbar {
 
 
     /* keep full-width images inside option cards on very small screens */
-
-    .option-index {
-        min-width: 52px;
-        height: 52px;
-        font-size: 0.78rem;
-        padding: 0 8px;
-    }
 }
 </style>
 

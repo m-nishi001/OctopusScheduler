@@ -11,11 +11,6 @@ export interface CycleSourceDeps<P> {
   prepare(): Promise<P>;
   /** 使わずに捨てる材料の後始末(画像の URL の破棄など)。 */
   discard(prepared: P): void;
-  /**
-   * 通信中の公開(reveal)が済むのを待つ(省略可)。受け取りの前に呼ぶ。公開の通信中に押されたとき、公開が済んで先読みが始まるのを
-   * 待ってから受け取り、「その場の用意」と「先読み」が同時に抽選・確定するのを防ぐ。
-   */
-  settle?(): Promise<void>;
   onPrefetchError?(error: unknown): void;
   /**
    * 先読みが用意できた(確定まで済んだ)。無効化されたあとでも呼ぶ(確定した抽選は、保存先に残るため)。
@@ -28,8 +23,8 @@ export interface CycleSourceDeps<P> {
  * 次のサイクルの材料の出どころ。進行役が「次の抽選」を求めたとき、裏で先に用意したものがあればそれを即座に渡し、
  * 無ければ(用意していない・失敗・無効化された)従来どおりその場で用意する。
  *
- * 先に用意してよいのは、**いまの抽選の公開(reveal)が済んでから**(サーバーは、公開されていない抽選がある間は次の確定を断るため)。
- * 呼び出し側は、公開に成功したら prefetch(drawId) を呼ぶ。
+ * 先に用意するのは、**いまの抽選のサイクルを受け取った直後**(演出している間に、次の抽選を確定しておく。サーバーは未公開の抽選が
+ * 残っていても次の確定を受け付ける)。先読みは1段まで: 呼び出し側は、次のサイクルを受け取ってから prefetch(drawId) を呼ぶ。
  *
  * 失敗しても退行しない: 先の用意が失敗・矛盾しても、受け取りはその場の用意に切り替わる。
  * 先の用意が「確定した後」に失敗・無効化されても、確定済みで未公開の抽選として残り、その場の用意が引き直さずに演出し直す
@@ -46,7 +41,7 @@ export class CycleSource<P> {
     return this.slot.state;
   }
 
-  /** drawId の抽選の公開が済んだ。次のサイクルの材料を裏で用意し始める(同じ drawId では1回だけ)。 */
+  /** drawId の抽選のサイクルを受け取った。そのあとの次のサイクルの材料を裏で用意し始める(同じ drawId では1回だけ)。 */
   prefetch(afterDrawId: string): void {
     this.slot.start(afterDrawId, async () => {
       await this.deps.refresh();
@@ -58,7 +53,6 @@ export class CycleSource<P> {
 
   /** 次のサイクルの材料。用意中なら出来上がりを待つ(二重に確定しない)。無ければ、その場で用意する。 */
   async next(): Promise<P> {
-    await this.deps.settle?.();
     const prepared = await this.slot.take();
     if (prepared) return prepared;
     await this.deps.refresh();

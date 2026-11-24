@@ -154,7 +154,7 @@ const onSelect = () => {
 }
 
 .option-text {
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 3.6vmin, 3rem);
     color: #fff;
     font-weight: 800;
     text-align: center;
@@ -172,7 +172,6 @@ const onSelect = () => {
     }
 
     .option-text {
-        font-size: 1.05rem;
         padding: 4px 6px;
     }
 }

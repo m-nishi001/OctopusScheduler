@@ -107,7 +107,8 @@ test.describe("画面の流れ", () => {
       const state = await serverState(request, sessionId);
       expect(state.draws, "デモ抽選の結果はサーバーに残らない").toEqual([]);
       expect(state.plan, "デモ抽選の確変の予定はサーバーに残らない").toBeNull();
-      const badge = await host.page.getByTestId("demo-draw-badge").innerText().catch(() => "");
+      // 本抽選へ移った直後(バッジが無くなる)に読むことがあるので、待たずに空として扱う(タイムアウトを付けないと、要素が無い間ずっと待ち続ける)
+      const badge = await host.page.getByTestId("demo-draw-badge").innerText({ timeout: 2_000 }).catch(() => "");
       lastRound = /(\d)\/2回目/.exec(badge)?.[0] ?? lastRound;
       if ((await route(host.page)) === "/execute/jackpot-demo-draw") await pressMain(admin.page); // ホストが受け付けるのを待つ(固定の待ちを置かない)
     }

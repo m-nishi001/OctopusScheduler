@@ -3,3 +3,4 @@
 export { MemberRepository } from "./model/member/member-repository";
 export { filterEligibleIds, DEFAULT_ELIGIBLE } from "./model/member/eligibility";
 export type { EligibilityExtras } from "./model/member/eligibility";
+export { notifyEntrantsChanged } from "./model/draw/entrants-changed";

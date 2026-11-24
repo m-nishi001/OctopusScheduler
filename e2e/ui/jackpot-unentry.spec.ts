@@ -7,6 +7,7 @@ import { acceptConfirm, adminRpc, createSession, expect, loginByQr, newDevice, n
  *       本人は受付中ならもう一度エントリーでき、運営の一覧にまた載る。
  *   (b) 外した人は、以降の抽選に出ない(最後まで通して、当選するのは残りの人だけ)。
  *   (c) 当選済みの人は外せない: 一覧には「当選済み」と出てボタンが無く、サーバーも取り消しを拒否する。
+ *   (d) 先読みで確定しただけの次の抽選の人は外せる(その抽選は削除され、引き直される)。演出中(最古の未公開)の人はサーバーが拒否する。
  * 参加者は別々のブラウザコンテキスト(= 別々のスマホ)。参加者・セッションは終わったら消す。
  */
 
@@ -17,7 +18,7 @@ const sessionIds: string[] = [];
 const PRIZES = Array.from({ length: 8 }, (_, i) => ({ id: `jp-unentry-p${i + 1}`, name: `取消景品${i + 1}`, order: i + 1, rank: 3 }));
 
 interface ServerState {
-  draws: Array<{ memberId: string; revealedAtMs: number | null }>;
+  draws: Array<{ drawId: string; memberId: string; revealedAtMs: number | null }>;
 }
 const serverState = (request: APIRequestContext, sessionId: string) => adminRpc<ServerState>(request, "sessionHub_getJackpotState", { sessionId });
 
@@ -179,5 +180,53 @@ test("(b)(c) 取り消した人は以降の抽選に出ない。当選済みの�
   expect(new Set(winners).size, "同じ人が二度当選していない").toBe(2);
   expect(winners, "取り消した人は当選しない").not.toContain(removed);
   await expect(host.page.getByTestId("end-message")).toHaveText("対象の 2 名全員の抽選が終わりました。");
+  await closeAll(s);
+});
+
+test("(d) 先読みで確定しただけの次の抽選の人は外せる(その抽選は削除され、引き直される)。演出中の人はサーバーが拒否する", async ({ browser, request }) => {
+  test.setTimeout(480_000);
+  const s = await scene(browser, request, "取消会場D");
+  const { host, sessionId } = s;
+  const admin = s.admin.page;
+
+  // 受付は開けたまま抽選を始める(エントリーの取り消しは受付中の操作)
+  await openAdvanced(admin);
+  await admin.getByRole("button", { name: "ジャックポット: 抽選" }).click();
+  await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+  await expect(admin.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
+
+  // 演出中の1件目と、先読みで確定済みの2件目(どちらも未公開)
+  await expect.poll(async () => (await serverState(request, sessionId)).draws.length, { timeout: 60_000 }).toBe(2);
+  const [onStage, prefetched] = (await serverState(request, sessionId)).draws;
+  expect(onStage.revealedAtMs).toBeNull();
+  expect(prefetched.revealedAtMs).toBeNull();
+
+  // 演出中の人は、サーバーが拒否する(「飛ばす」を使う)
+  const creds = await adminRpc<{ deviceId: string; token: string }>(request, "sessionHub_joinOperator", { sessionId, role: "admin", label: "E2E 管理", deviceId: `e2e-unentry-d-${sessionId}` });
+  const { round } = await adminRpc<{ round: { key: string } }>(request, "sessionHub_poll", { sessionId, ...creds, sinceSeq: 0, stateVersion: -1 });
+  await expect(adminRpc(request, "sessionHub_removeAnswer", { sessionId, ...creds, key: round.key, memberId: onStage.memberId })).rejects.toThrow(/JACKPOT_CONFLICT/);
+
+  // 管理コンソールは、未発表の当選者を「当選済み」と見せない。先読み分の人は外せる
+  const name = nameOf(prefetched.memberId);
+  await expect(rowOf(admin, name).getByTestId("entrant-won")).toHaveCount(0);
+  await remove(admin, name);
+  await expect(admin.getByTestId("entry-count")).toHaveText("2");
+
+  // 先読み分は削除され、残りの人から引き直される(演出中の抽選はそのまま)
+  await expect
+    .poll(async () => {
+      const draws = (await serverState(request, sessionId)).draws;
+      return draws.length === 2 && draws[0].drawId === onStage.drawId && draws[1].drawId !== prefetched.drawId;
+    }, { timeout: 60_000 })
+    .toBe(true);
+  const redrawn = (await serverState(request, sessionId)).draws;
+  expect(redrawn.map((d) => d.memberId)).not.toContain(prefetched.memberId);
+
+  // 最後まで通す: 取り消した人は一度も当選せず、重複もない
+  await stepUntil(admin, async () => host.page.getByTestId("end-dialog").isVisible().catch(() => false), "終了の画面が出る", 200);
+  const winners = (await serverState(request, sessionId)).draws.map((d) => d.memberId);
+  expect(winners).toHaveLength(2);
+  expect(new Set(winners).size).toBe(2);
+  expect(winners).not.toContain(prefetched.memberId);
   await closeAll(s);
 });

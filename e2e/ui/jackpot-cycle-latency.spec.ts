@@ -3,12 +3,14 @@ import { adminRpc, createSession, expect, loginByQr, newDevice, openAdvanced, ro
 
 /**
  * ジャックポットのサイクルの切れ目(当選ダイアログ → 「次へ」 → メンバー抽選の画面)が、通信が遅くても待たされないこと。
- * 次のサイクルは、いまの抽選の公開が済んだ時点から裏で用意される(終了の確認・抽選・保存先への確定・景品の画像・メンバーの写真)。
+ * 次のサイクルは、いまのサイクルを受け取った直後(演出している間)から裏で用意される(終了の確認・抽選・保存先への確定・景品の画像・メンバーの写真)。
+ * 未公開の抽選は何件あってもよい(演出中の1件と、先読みで確定した次の1件)。
  *   (a) 当選ダイアログの間に、次の抽選がサーバーに確定され、「次へ」を押すとメンバー抽選の画面がすぐ出る(通信を待たない)
  *   (b) 先に確定した(未公開の)抽選は、ホストを再読み込みしても同じ当選者で演出し直す。引き直さない
  *   (c) 最後の景品(対象の最後の人)の後は、先読みでも終了の画面が正しく出る。余分な抽選は確定しない
  *   (d) 確変の回を挟んでも、先読みで取り置いた景品が確変の回にだけ当たる
  *   (e) 先に確定したあとで結果がリセットされても、進行が壊れず、知らせが出て、新しく引き直せる
+ *   (f) 演出中(未公開が2件)に再読み込みしても、古い分は公開済みになり、最後の1件だけ演出し直す。引き直さない
  * 計測は、ホストの画面のキー操作(Enter)から画面が変わるまで。管理端末からのコマンドの往復を含めない。
  * ホストの通信(/rpc)に一定の遅れを足して、従来の「その場で通信してから表示」なら必ず遅れが見える状態にする。
  */
@@ -279,5 +281,28 @@ test("(e) 先に確定したあとで結果がリセットされても、進行�
   expect(after.draws.every((d) => d.drawId !== first.drawId)).toBe(true);
   expect(after.plan).not.toBeNull();
   expect(new Set(after.draws.map((d) => d.memberId)).size).toBe(after.draws.length);
+  await closeAll(s);
+});
+
+test("(f) 演出中(未公開が2件)に再読み込みしても、古い分は公開済みになり、最後の1件だけ演出し直す。引き直さない", async ({ browser, request }) => {
+  test.skip(BASELINE, "先読みの検査");
+  test.setTimeout(300_000);
+  const s = await scene(browser, request, "遅延会場F", 3, []);
+  // 1件目の演出中に、2件目が先読みで確定される(どちらも未公開)
+  await waitPrefetched(request, s.sessionId, 2);
+  const before = (await serverState(request, s.sessionId)).draws;
+  expect(before.map((d) => d.revealedAtMs)).toEqual([null, null]);
+
+  await s.host.page.reload();
+  await expect.poll(() => route(s.host.page)).toBe("/execute/jackpot-draw");
+  await expect(s.admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
+  // 古い分(1件目)は公開済み、最後の1件(2件目)が演出し直される
+  await expect.poll(async () => (await serverState(request, s.sessionId)).draws[0]?.revealedAtMs, { timeout: 30_000 }).not.toBeNull();
+  await pressUntil(s.host.page, async () => (await s.admin.page.getByTestId("jackpot-state").innerText()).includes(`当選者: ${before[1].memberName}`), "最後の1件の当選者が見える(再読み込み後)");
+
+  const after = (await serverState(request, s.sessionId)).draws;
+  expect(after.slice(0, 2).map((d) => d.drawId), "引き直していない").toEqual(before.map((d) => d.drawId));
+  expect(after[0].revealedAtMs).not.toBeNull();
+  expect(new Set(after.map((d) => d.memberId)).size, "同じ人が二度当選していない").toBe(after.length);
   await closeAll(s);
 });

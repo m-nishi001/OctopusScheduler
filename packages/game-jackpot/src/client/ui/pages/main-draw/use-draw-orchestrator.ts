@@ -19,6 +19,8 @@ import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 import type { PrizeCounts } from "@model/draw/half-remaining";
 import type { DrawEndReason } from "@control/draw/dto/draw-progress";
 import { RevealTracker } from "@model/jackpot-host-state";
+import { nextPending } from "@model/draw/unrevealed-draws";
+import { ENTRANTS_CHANGED_EVENT } from "@model/draw/entrants-changed";
 import { useJackpotHost } from "../../composables/use-jackpot-host";
 import { useJackpotSession } from "../../composables/use-jackpot-session";
 import { useSound } from "@octopus/composables/use-sound";
@@ -156,17 +158,16 @@ export function useDrawOrchestrator() {
   /**
    * 次のサイクルの材料を用意する(画面の状態には触れない。裏で先に走らせてもよい)。
    * 続けられるかの確認 → 抽選 → 保存先への確定(commit) → ルーレットの景品・メンバーの写真の下ごしらえ。
-   * 確定できなかったとき(通信の失敗・矛盾)は例外。確定済みで未公開の抽選が残っていれば、引き直さずそれを材料にする。
+   * 確定できなかったとき(通信の失敗・矛盾)は例外。画面で演出中の抽選のほかに確定済みで未公開の抽選(先読み済み・確定はできたが応答が
+   * 届かなかった)があれば、引き直さずそれを材料にする。
    */
   const prepareNextCycle = async (): Promise<NextCycleResult> => {
     // 結果が別の端末でリセットされた後などは確変の予定が無いので、引く前に決め直す(メモリから見るだけで通信しない)
     if (!(await drawService.store.plan())) await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
-    // 確定はできていたのに応答が届かなかった抽選など、まだ画面に見せていない確定済みの抽選があれば、引き直さずにそれを演出する
-    const pending = await drawService.store.pending();
-    const next: NextCycleResult =
-      pending && pending.drawId !== latestResult.value?.drawId
-        ? { kind: "draw", outcome: await performResume(performDeps, pending) }
-        : await performNext(performDeps);
+    // 演出中(latestResult)以外に、まだ画面に見せていない確定済みの抽選があれば、引き直さずにそれを演出する
+    // (先読みで確定済みの次の抽選。当選者を飛ばしたあとも、演出中の抽選を次の抽選と取り違えない)
+    const pending = nextPending(await drawService.store.unrevealed(), latestResult.value?.drawId);
+    const next: NextCycleResult = pending ? { kind: "draw", outcome: await performResume(performDeps, pending) } : await performNext(performDeps);
     if (next.kind === "draw") await preloadMemberImages(next.outcome.memberRes);
     return next;
   };
@@ -185,12 +186,11 @@ export function useDrawOrchestrator() {
   };
 
   /**
-   * 次のサイクルの材料の出どころ。公開(reveal)が済んだら裏で先に用意し、進行操作で即座に渡す。
+   * 次のサイクルの材料の出どころ。そのサイクルを受け取った直後(演出中)に裏で先に用意し、進行操作で即座に渡す。
    * 用意できていなければ、従来どおりその場で(保存先を読み直して)用意する。
    */
   const cycleSource = new CycleSource<NextCycleResult>({
     refresh: () => refreshStore(),
-    settle: () => publishHostState.settled(),
     prepare: prepareNextCycle,
     discard: discardPrepared,
     onPrefetchError: (e) => console.warn("[DrawOrchestrator] next cycle prefetch failed; falling back to on-demand", e),
@@ -229,12 +229,27 @@ export function useDrawOrchestrator() {
   const nextCycle = async (): Promise<NextCycle> => {
     // デモ抽選は、決めた回数を引いたら次の画面(本抽選)へ進む
     if (isDemoDraw && demoDrawn >= demoRounds) return { kind: "leave" };
+    await storeSync; // エントリーの取り消しで保存先を読み直している間は、先読みを受け取らない
+    await revealOnStage(); // 演出中の抽選を先に公開する(公開は古い順。済んでいれば通信しない)
     revealTracker.reset(); // 新しい抽選が始まったので、前回の当選者を参加者への公開から外す
     if (prefetchedStore !== drawService.store) {
       cycleSource.invalidate();
       prefetchedStore = drawService.store;
     }
-    const prepared = await cycleSource.next();
+    const prefetched = cycleSource.state.kind !== "idle";
+    let prepared = await cycleSource.next();
+    // 先読みが「終了」だったとき、そのあとに対象が増えている(自動の対象で、途中から入室した人)かもしれないので、その場で確かめ直す
+    if (prefetched && prepared.kind === "finished") {
+      await refreshStore();
+      prepared = await prepareNextCycle();
+    }
+    // 先読みの抽選が、エントリーの取り消しで保存先から削除されていたら捨てて、その場で用意する(稀なので待ちを許容)
+    const preparedDrawId = prepared.kind === "draw" ? prepared.outcome.result.drawId : null;
+    if (preparedDrawId && !(await drawService.store.results()).some((r) => r.drawId === preparedDrawId)) {
+      discardPrepared(prepared);
+      await refreshStore();
+      prepared = await prepareNextCycle();
+    }
     if (prepared.kind === "finished") {
       leaveMemberWaiting();
       return prepared;
@@ -242,7 +257,44 @@ export function useDrawOrchestrator() {
     waitingFromPhase = null;
     demoDrawn++;
     demoRound.value = demoDrawn;
-    return { kind: "cycle", steps: applyOutcome(prepared.outcome) };
+    const steps = applyOutcome(prepared.outcome);
+    startPrefetch(); // このサイクルを演出している間に、次の抽選を確定しておく(先読みは1段まで)
+    return { kind: "cycle", steps };
+  };
+
+  /** 画面で演出中の抽選を公開する(次のサイクルを受け取る前に。公開できなければ例外で、次の進行操作でやり直す)。 */
+  const revealOnStage = async () => {
+    const onStage = latestResult.value;
+    if (onStage && !(await revealDraw(onStage.drawId))) throw new Error("抽選の結果を保存できませんでした。通信状況を確認して、もう一度「次へ」を押してください");
+  };
+
+  /** 演出中の抽選のあとの抽選を、裏で用意し始める。デモ抽選で決めた回数を引き終えていたら(次は画面を離れる)しない。 */
+  const startPrefetch = () => {
+    const onStage = latestResult.value;
+    if (disposed || !onStage || (isDemoDraw && demoDrawn >= demoRounds)) return;
+    cycleSource.prefetch(onStage.drawId);
+  };
+
+  /**
+   * エントリーが取り消された(同じ端末のイベント側からの合図)。先読みで確定した抽選が、サーバーで削除されていることがある。
+   * 先読みを捨てて保存先を読み直し、作り直す(その間の進行操作は、読み直しを待つ)。
+   */
+  let storeSync: Promise<void> | null = null;
+  const onEntrantsChanged = () => {
+    if (drawService.store.kind !== "session" || disposed) return;
+    cycleSource.invalidate();
+    const sync = (async () => {
+      try {
+        await drawService.store.load();
+        storeLoadedAtMs = Date.now();
+      } catch (e) {
+        console.warn("[DrawOrchestrator] reload after entrant change failed", e);
+      }
+      startPrefetch();
+    })().finally(() => {
+      if (storeSync === sync) storeSync = null;
+    });
+    storeSync = sync;
   };
 
   /** 確定済みで未公開の抽選を、引き直さずに同じ結果で演出し直すステップを返す(ホストの再読み込み後)。 */
@@ -280,6 +332,7 @@ export function useDrawOrchestrator() {
         void sound.screen.stop();
         void prizeLotteryBgm.stop();
         latestResult.value = { ...skipped.result, wonPrize: prize };
+        startPrefetch(); // 先読みで確定済みの次の抽選は捨てずに拾い直す(prepareNextCycle)
         currentMemberRes.value = skipped.memberRes;
         spareMembers.value = skipped.spareMembers;
         updateSelectedPrize(skipped.result.isKakuhen ? kakuhenFinalPrize(prize) : prize);
@@ -320,8 +373,6 @@ export function useDrawOrchestrator() {
   const revealDraw = async (drawId: string): Promise<boolean> => {
     try {
       await drawService.store.reveal(drawId);
-      // 公開の通信が通った = 保存先がいま使えて、結果は(矛盾なく)そのまま。先読みの前に読み直す通信は省く
-      storeLoadedAtMs = Date.now();
       return true;
     } catch (e) {
       if (e instanceof DrawConflictError) {
@@ -347,12 +398,6 @@ export function useDrawOrchestrator() {
     host,
     tracker: revealTracker,
     reveal: revealDraw,
-    // いまの抽選が公開されたので、次のサイクルを裏で用意し始める(サーバーは公開されていない抽選がある間は次の確定を断る)
-    onRevealed: (drawId) => {
-      // デモ抽選で決めた回数を引き終えていたら、先読みしない(次は画面を離れる)
-      if (isDemoDraw && demoDrawn >= demoRounds) return;
-      if (!disposed && flow.ready && !flow.finished) cycleSource.prefetch(drawId);
-    },
     demoDraw: isDemoDraw,
     phase: () => phase.value,
     ended: () => endReason.value !== null,
@@ -425,15 +470,16 @@ export function useDrawOrchestrator() {
         await demoBgm.play(demo.bgm); // 読み込んで鳴らし始めるまで待つ(以前と同じ。抽選が始まって止めるのは、そのあと)
       }
       await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
-      // 確定済みで公開されていない抽選(再読み込み前に演出の途中だったもの)は、引き直さずに同じ結果で演出し直す
-      const pending = await store.pending();
+      // 確定済みで公開されていない抽選(再読み込み前に演出の途中だったもの)は、古い分を公開済みにして、最後の1件だけ引き直さずに同じ結果で演出し直す
+      const pending = await drawService.restoreUnrevealed();
       if (pending) {
         try {
           resumeSteps = await resumeCycle(pending);
         } catch (e) {
-          // 演出し直せないときは、次の抽選の前に公開して先へ進む(DrawApplicationService.executeDraw)
+          // 演出し直せないときは、公開して先へ進む(次の抽選は引き直す)
           console.error("[DrawOrchestrator] failed to resume the pending draw", e);
           alertError(e);
+          await store.reveal(pending.drawId).catch((err) => console.error("[DrawOrchestrator] reveal failed", err));
         }
       }
     } catch (e) {
@@ -443,8 +489,12 @@ export function useDrawOrchestrator() {
     }
     if (disposed) return;
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(ENTRANTS_CHANGED_EVENT, onEntrantsChanged);
     flow.ready = true;
-    if (resumeSteps) queue.addCycle(resumeSteps);
+    if (resumeSteps) {
+      queue.addCycle(resumeSteps);
+      startPrefetch();
+    }
     advance();
   });
 
@@ -453,6 +503,7 @@ export function useDrawOrchestrator() {
   onUnmounted(() => {
     disposed = true;
     window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener(ENTRANTS_CHANGED_EVENT, onEntrantsChanged);
     flow.ready = false;
     cycleSource.invalidate();
     void sound.screen.stop();

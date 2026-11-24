@@ -333,13 +333,14 @@ const entryRoster = useRoundAnswers(connection, state, entryKey);
 const drawPool = computed<DrawPool>(() => portalEvent.value?.pool ?? 'auto');
 const poolLabel = computed(() => (drawPool.value === 'entrants' ? `エントリーした人のみ(${entryRoster.count.value}人)` : '参加者全員(自動)'));
 /**
- * ジャックポットに当選済み(未公開の確定を含む)のメンバーのID。当選済みの人のエントリーは取り消せない(行にボタンを出さない)。
+ * ジャックポットに公開済みで当選しているメンバーのID。当選済みの人のエントリーは取り消せない(行にボタンを出さない)。
+ * 未公開の抽選(演出中・先読みで確定済みの次の抽選)は含めない: 未発表の当選者を、ここで見せない(先読み分は取り消してよく、取り消すと次の抽選を引き直す。サーバーが判断する)。
  * ホストが結果を公開するたび(rev が進むとき)に取り直す。取れなくても、取り消しを押したときにもう一度確かめる。
  */
 const winnerIds = ref<Set<string>>(new Set());
 async function loadWinners(): Promise<void> {
     try {
-        winnerIds.value = new Set((await connection.getJackpotState()).draws.map((d) => d.memberId));
+        winnerIds.value = new Set((await connection.getJackpotState()).draws.filter((d) => d.revealedAtMs !== null).map((d) => d.memberId));
     } catch {
         // 取得できないときは前のまま
     }

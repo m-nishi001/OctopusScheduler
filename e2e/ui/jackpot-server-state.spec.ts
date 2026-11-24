@@ -118,31 +118,33 @@ const closeAll = async (s: Scene) => {
   for (const d of [s.admin, s.host, ...s.guests]) await d.context.close();
 };
 
-test("(a) ホストを再読み込みしても、演出の途中だった抽選は引き直さず、同じ当選者・景品で演出し直す", async ({ browser, request }) => {
+test("(a) ホストを再読み込みしても、演出の途中だった抽選は引き直さず、古い分は公開済みに、最後の1件を同じ当選者・景品で演出し直す", async ({ browser, request }) => {
   test.setTimeout(300_000);
   const s = await scene(browser, request, "再読み込み会場", 3);
   await openDraw(s.admin.page, s.host.page);
 
-  // 当選者が画面に見えた(= サーバーには確定済みだが、まだ公開していない)ところまで進める
+  // 当選者が画面に見えた(= サーバーには確定済みだが、まだ公開していない)ところまで進める。演出中に、次の抽選が先読みで確定される
   await stepUntil(s.admin.page, async () => /当選者: 状態\d/.test(await s.admin.page.getByTestId("jackpot-state").innerText()), "当選者が見える");
+  await expect.poll(async () => (await serverState(request, s.sessionId)).draws.length, { timeout: 60_000 }).toBe(2);
   const before = (await serverState(request, s.sessionId)).draws;
-  expect(before).toHaveLength(1);
-  expect(before[0].revealedAtMs, "景品が見えるまで、参加者には公開されない").toBeNull();
+  expect(before.map((d) => d.revealedAtMs), "景品が見えるまで、参加者には公開されない(未公開が2件)").toEqual([null, null]);
 
   await s.host.page.reload();
   await expect.poll(() => route(s.host.page)).toBe("/execute/jackpot-draw");
   await expect(s.admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
 
-  // 演出し直し: 同じ当選者になる。引き直されていない(サーバーの確定は1件のまま)
+  // 古い分(1件目)は公開済みになり、最後の1件(2件目)を同じ当選者で演出し直す。引き直されていない
+  await expect.poll(async () => (await serverState(request, s.sessionId)).draws[0].revealedAtMs, { timeout: 30_000 }).not.toBeNull();
   // 再読み込み前の表示が残っている間に通り過ぎないよう、同じ当選者が(再び)見えるまで進める
-  await stepUntil(s.admin.page, async () => (await s.admin.page.getByTestId("jackpot-state").innerText()).includes(`当選者: ${before[0].memberName}`), "同じ当選者が見える(再読み込み後)");
-  await stepUntil(s.admin.page, async () => (await revealedCount(request, s.sessionId)) === 1, "景品が見えて公開される");
+  await stepUntil(s.admin.page, async () => (await s.admin.page.getByTestId("jackpot-state").innerText()).includes(`当選者: ${before[1].memberName}`), "同じ当選者が見える(再読み込み後)");
+  await stepUntil(s.admin.page, async () => (await revealedCount(request, s.sessionId)) === 2, "景品が見えて公開される");
   const after = (await serverState(request, s.sessionId)).draws;
-  // 通信の遅い環境では、公開を確かめる間に次の抽選が確定していることがある。最初の抽選が引き直されず(同じ drawId・当選者・景品)、
+  // 通信の遅い環境では、公開を確かめる間に次の抽選が確定していることがある。最初の2件が引き直されず(同じ drawId・当選者・景品)、
   // 同じ人が二度当選していなければよい
-  expect(after.length).toBeGreaterThanOrEqual(1);
-  expect(after[0]).toMatchObject({ drawId: before[0].drawId, memberId: before[0].memberId, prizeId: before[0].prizeId });
+  expect(after.length).toBeGreaterThanOrEqual(2);
+  for (const i of [0, 1]) expect(after[i]).toMatchObject({ drawId: before[i].drawId, memberId: before[i].memberId, prizeId: before[i].prizeId });
   expect(after[0].revealedAtMs).not.toBeNull();
+  expect(after[1].revealedAtMs).not.toBeNull();
   expect(new Set(after.map((d) => d.memberId)).size, "同じ人が二度当選していない").toBe(after.length);
   await closeAll(s);
 });
