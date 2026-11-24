@@ -13,6 +13,9 @@ import { allStarts, installSoundTrace, soundFade, soundTrace, type SoundEvent } 
  * 音は再生の履歴(helpers/sound-trace.ts: <audio>・Web Audio のどちらで鳴らしても同じ形)とコンソールのログで確かめる。音源はテストの中で生成する(公開リポジトリのため)。
  */
 
+/** 抽選の演出より長い曲(止める・フェードアウトするときに、まだ鳴っているように。短い曲は、止める前に自然に終わる)。 */
+const longWav = (notes: Parameters<typeof makeWav>[0]) => makeWav(Array.from({ length: 8 }, () => notes).flat() as Parameters<typeof makeWav>[0]);
+
 const MEMBER = { id: "jp-bgm-e2e-01", name: "音楽太郎" };
 const sessionIds: string[] = [];
 let memberKey = "";
@@ -38,9 +41,9 @@ const zipOf = (mainRow: string) => ({
   buffer: Buffer.from(
     zipSync({
       "screens.csv": strToU8(`${SCREENS_HEADER}\r\n${mainRow}\r\n`),
-      [`media/${MEMBER_BGM}`]: makeWav(TUNES.draw),
-      [`media/${RESULT_BGM}`]: makeWav(TUNES.fanfare),
-      [`media/${PRIZE_BGM}`]: makeWav(TUNES.prize),
+      [`media/${MEMBER_BGM}`]: longWav(TUNES.draw),
+      [`media/${RESULT_BGM}`]: longWav(TUNES.fanfare),
+      [`media/${PRIZE_BGM}`]: longWav(TUNES.prize),
     })
   ),
 });
@@ -57,8 +60,8 @@ async function installAudioLog(page: Page, stallPlay = false) {
   });
 }
 const audioLog = (page: Page) => soundTrace(page);
-/** 止まった(<audio> の pause / Web Audio の stop)出来事。 */
-const stops = (log: SoundEvent[]) => log.filter((x) => (x.kind === "media" && x.e === "pause") || (x.kind === "source" && x.e === "stop"));
+/** 止まった(<audio> の pause / Web Audio の stop・曲が終わった ended)出来事。短い曲は、止める前に自然に終わる。 */
+const stops = (log: SoundEvent[]) => log.filter((x) => (x.kind === "media" && x.e === "pause") || (x.kind === "source" && (x.e === "stop" || x.e === "ended")));
 /** 鳴らし始めた順の、音ごとの連番。 */
 const soundIds = (log: SoundEvent[]) => [...new Set(allStarts(log).map((x) => x.id))];
 
@@ -243,7 +246,7 @@ test("@motion 当選BGMは1回だけ流れ、リールが止まる瞬間に無�
     await page.getByTestId("table-import-table").setInputFiles({
       name: "prizes.zip",
       mimeType: "application/zip",
-      buffer: Buffer.from(zipSync({ "prizes.csv": strToU8(["ID,名前,景品ランク,アニメーション,抽選画像,当選BGM", ...rows].join("\r\n") + "\r\n"), [`media/${WIN_BGM}`]: makeWav(TUNES.fanfare) })),
+      buffer: Buffer.from(zipSync({ "prizes.csv": strToU8(["ID,名前,景品ランク,アニメーション,抽選画像,当選BGM", ...rows].join("\r\n") + "\r\n"), [`media/${WIN_BGM}`]: longWav(TUNES.fanfare) })),
     });
     await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
     await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });
@@ -363,7 +366,7 @@ test("@motion 確変: ダミー抽選と本抽選のそれぞれで、景品抽�
     await page.getByTestId("table-import-table").setInputFiles({
       name: "prizes.zip",
       mimeType: "application/zip",
-      buffer: Buffer.from(zipSync({ "prizes.csv": strToU8([header, ...rows].join("\r\n") + "\r\n"), [`media/${WIN1}`]: makeWav(TUNES.fanfare), [`media/${WIN2}`]: makeWav(TUNES.ending) })),
+      buffer: Buffer.from(zipSync({ "prizes.csv": strToU8([header, ...rows].join("\r\n") + "\r\n"), [`media/${WIN1}`]: longWav(TUNES.fanfare), [`media/${WIN2}`]: longWav(TUNES.ending) })),
     });
     await page.getByRole("dialog").getByRole("button", { name: "取り込む" }).click();
     await expect(page.getByTestId("table-import-result")).toBeVisible({ timeout: 60_000 });

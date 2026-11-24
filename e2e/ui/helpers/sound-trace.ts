@@ -170,7 +170,7 @@ export function soundFade(log: SoundEvent[], id: number): { startAt?: number; ze
     const after = mine.filter((x) => x.e === "volume" && pause && x.t >= pause.t);
     return { startAt: start >= 0 ? mine[start].t : undefined, zeroAt: zero?.t, stopAt: pause?.t, restored: after.at(-1)?.v };
   }
-  const stop = log.find((x) => x.kind === "source" && x.id === id && x.e === "stop");
+  const stop = log.find((x) => x.kind === "source" && x.id === id && (x.e === "stop" || x.e === "ended"));
   const gains = log.filter((x) => x.kind === "gain" && x.id === first.gainId);
   const ramp = gains.find((x) => x.e === "ramp" && x.v === 0 && x.t >= first.t);
   const origin = ramp ? [...gains].reverse().find((x) => x.e === "set" && x.t <= ramp.t) : undefined;
