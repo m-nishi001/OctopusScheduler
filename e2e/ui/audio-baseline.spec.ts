@@ -256,6 +256,42 @@ test(`${baselineRow("V1").id} 場内BGMを鳴らす → ${baselineRow("V3").id} 
   for (const d of [admin, host]) await d.context.close();
 });
 
+// ---------------------------------------------------------------- スクリーンの動画
+
+/** 履歴のうち、動画の音を 0 へ下げた(下げる予約をした)もの。要素の音量を直接下げる実装でも、音量の予約で下げる実装でも同じ形で見つける。 */
+const fadeOutsToZero = (log: SoundEvent[]) => log.filter((x) => (x.kind === "media" && x.e === "volume" && (x.v ?? 1) <= 0.001) || (x.kind === "gain" && x.e === "ramp" && x.v === 0));
+
+test(`${baselineRow("E1").id} 動画を映して「消す」と、動画の音を下げ終えてからロビーへ戻る`, async ({ browser, request }) => {
+  test.setTimeout(240_000);
+  const tag = uid();
+  // 中身は再生できなくてよい(音を下げる動きだけを見る)。動画として扱われるよう、種類を動画にする
+  const clip = { id: `abvideo${tag}`, fileName: `ab-clip-${tag}.webm`, mime: "video/webm", body: Buffer.from(`not-a-real-video-${tag}`) };
+  await seedServerAsset(request, clip);
+
+  const admin = await newDevice(browser, { signedIn: true });
+  const { id: sessionId } = await createSession(admin.page, "動画の音の基準");
+  sessionIds.push(sessionId);
+  const host = await newDevice(browser, { signedIn: true, projector: true });
+  host.page.on("dialog", (d) => void d.dismiss());
+  await installSoundTrace(host.context);
+  await host.page.goto(`/#/session/host/${sessionId}`);
+  await expect(host.page.locator(".host-view__title")).toBeVisible();
+  await admin.page.getByTestId("media-reload").click();
+  await admin.page.getByTestId("media-tab-screen").click();
+
+  await admin.page.getByTestId(`media-show-${clip.id}`).click();
+  await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/execute/show-video/${clip.id}`);
+  await expect(host.page.locator(".fullscreen-video video")).toBeAttached();
+  expect(fadeOutsToZero(await soundTrace(host.page)), "映している間は、音を下げない").toEqual([]);
+
+  // 「消す」: 音を 0 へ下げ終えてから、ロビーへ戻る(戻った時点で、下げる動きが記録に残っている)
+  await admin.page.getByTestId("media-fade-sec").fill("1");
+  await admin.page.getByTestId("media-clear").click();
+  await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/session/host/${sessionId}`);
+  expect(fadeOutsToZero(await soundTrace(host.page)).length, "ロビーへ戻る前に、動画の音を 0 まで下げている").toBeGreaterThan(0);
+  for (const d of [admin, host]) await d.context.close();
+});
+
 // ---------------------------------------------------------------- クイズ(出題中・正解表示)
 
 const QUIZ_ID = `ab-quiz-${stamp}`;
