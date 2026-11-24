@@ -26,6 +26,8 @@ export type SoundEvent = {
   duration?: number;
   /** gain: 予約の時刻(AudioContext の秒) */
   at?: number;
+  /** source の start: このソースがつながっている GainNode の連番(gain イベントの id と同じ) */
+  gainId?: number;
 };
 
 export type ActiveSound = {
@@ -76,6 +78,27 @@ export async function installSoundTrace(context: BrowserContext): Promise<void> 
       },
     });
 
+    // ソース → GainNode のつながりと、AudioParam → GainNode の持ち主。フェード(音量の予約)を、鳴らしている音ごとに追えるようにする
+    const gainOfSource = new WeakMap<object, object>();
+    const ownerOfParam = new WeakMap<object, object>();
+    const ctxProto = (window as unknown as { BaseAudioContext?: { prototype: BaseAudioContext } }).BaseAudioContext?.prototype;
+    if (ctxProto) {
+      const createGain = ctxProto.createGain;
+      ctxProto.createGain = function (this: BaseAudioContext) {
+        const node = createGain.call(this);
+        ownerOfParam.set(node.gain, node);
+        return node;
+      };
+    }
+    const np = (window as unknown as { AudioNode?: { prototype: AudioNode } }).AudioNode?.prototype;
+    if (np) {
+      const connect = np.connect as (this: AudioNode, ...a: unknown[]) => unknown;
+      (np as unknown as { connect: unknown }).connect = function (this: AudioNode, ...args: unknown[]) {
+        if (typeof AudioBufferSourceNode !== "undefined" && this instanceof AudioBufferSourceNode && typeof GainNode !== "undefined" && args[0] instanceof GainNode) gainOfSource.set(this, args[0]);
+        return connect.apply(this, args);
+      };
+    }
+
     const sp = (window as unknown as { AudioBufferSourceNode?: { prototype: AudioBufferSourceNode } }).AudioBufferSourceNode?.prototype;
     if (sp) {
       const start = sp.start;
@@ -83,7 +106,8 @@ export async function installSoundTrace(context: BrowserContext): Promise<void> 
       sp.start = function (this: AudioBufferSourceNode, ...args: [number?, number?, number?]) {
         const info = { loop: this.loop, duration: round(this.buffer?.duration ?? 0) };
         sources.set(this, info);
-        log.push({ t: performance.now(), kind: "source", e: "start", id: idOf(this), loop: info.loop, duration: info.duration });
+        const gain = gainOfSource.get(this);
+        log.push({ t: performance.now(), kind: "source", e: "start", id: idOf(this), loop: info.loop, duration: info.duration, gainId: gain ? idOf(gain) : undefined });
         this.addEventListener("ended", () => {
           if (sources.delete(this)) log.push({ t: performance.now(), kind: "source", e: "ended", id: idOf(this) });
         });
@@ -100,7 +124,8 @@ export async function installSoundTrace(context: BrowserContext): Promise<void> 
       for (const name of ["setValueAtTime", "linearRampToValueAtTime"] as const) {
         const original = ap[name];
         ap[name] = function (this: AudioParam, value: number, at: number) {
-          log.push({ t: performance.now(), kind: "gain", e: name === "setValueAtTime" ? "set" : "ramp", id: idOf(this), v: round(value * 1000) / 1000, at: round(at) });
+          const owner = ownerOfParam.get(this);
+          log.push({ t: performance.now(), kind: "gain", e: name === "setValueAtTime" ? "set" : "ramp", id: idOf(owner ?? this), v: round(value * 1000) / 1000, at: round(at) });
           return original.call(this, value, at);
         };
       }
@@ -129,3 +154,31 @@ export const starts = (log: SoundEvent[], kind: "media" | "source") => log.filte
 
 /** 履歴のうち、仕組み(media / source)を問わず、鳴らし始めたものだけ。 */
 export const allStarts = (log: SoundEvent[]) => log.filter((x) => (x.kind === "media" && x.e === "play") || (x.kind === "source" && x.e === "start"));
+
+/**
+ * 1つの音のフェードアウトを、仕組み(media: 音量の変更 / source: 音量の予約)によらず同じ形で取り出す。
+ *   startAt: 音量が下がり始めた時刻 / zeroAt: 0 になった(なる)時刻 / stopAt: 止まった時刻 / restored: 止まったあとの音量
+ */
+export function soundFade(log: SoundEvent[], id: number): { startAt?: number; zeroAt?: number; stopAt?: number; restored?: number } {
+  const first = log.find((x) => x.id === id && (x.e === "play" || x.e === "start"));
+  if (!first) return {};
+  if (first.kind === "media") {
+    const mine = log.filter((x) => x.id === id);
+    const start = mine.findIndex((x) => x.e === "volume" && (x.v ?? 1) < 1 && x.t > first.t);
+    const pause = mine.find((x) => x.e === "pause" && x.t > first.t);
+    const zero = mine.slice(Math.max(start, 0)).find((x) => x.e === "volume" && (x.v ?? 1) <= 0.001);
+    const after = mine.filter((x) => x.e === "volume" && pause && x.t >= pause.t);
+    return { startAt: start >= 0 ? mine[start].t : undefined, zeroAt: zero?.t, stopAt: pause?.t, restored: after.at(-1)?.v };
+  }
+  const stop = log.find((x) => x.kind === "source" && x.id === id && (x.e === "stop" || x.e === "ended"));
+  const gains = log.filter((x) => x.kind === "gain" && x.id === first.gainId);
+  const ramp = gains.find((x) => x.e === "ramp" && x.v === 0 && x.t >= first.t);
+  const origin = ramp ? [...gains].reverse().find((x) => x.e === "set" && x.t <= ramp.t) : undefined;
+  const afterStop = stop ? gains.filter((x) => x.e === "set" && x.t >= stop.t) : [];
+  return {
+    startAt: ramp?.t,
+    zeroAt: ramp && origin ? ramp.t + (ramp.at! - origin.at!) * 1000 : undefined,
+    stopAt: stop?.t,
+    restored: afterStop.at(-1)?.v,
+  };
+}

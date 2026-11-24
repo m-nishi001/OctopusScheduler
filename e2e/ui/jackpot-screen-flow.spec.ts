@@ -1,5 +1,6 @@
 import type { APIRequestContext, Browser } from "@playwright/test";
 import { makeBadgePng, makeWav, TUNES } from "../../scripts/seed-content.js";
+import { allStarts, installSoundTrace, soundTrace } from "./helpers/sound-trace";
 import { adminRpc, createSession, demoDrawSetting, expect, isGas, loginByQr, newDevice, nextButton, openEventTab, publishPortal, route, seedJackpot, test, type Device } from "./fixtures";
 
 /**
@@ -160,16 +161,8 @@ test.describe("オープニングの行送り・画像・効果音(管理画面�
     test.setTimeout(180_000);
     const dev = await newDevice(browser, { signedIn: true });
     const { page } = dev;
-    // 音の再生(<audio> の play)を数える。ヘッドレスでは音は聞こえないので、呼び出しで確かめる
-    await dev.context.addInitScript(() => {
-      const plays: string[] = [];
-      (window as unknown as { __plays: string[] }).__plays = plays;
-      const play = HTMLMediaElement.prototype.play;
-      HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
-        plays.push(this.src);
-        return play.apply(this);
-      };
-    });
+    // 音の再生を数える(<audio>・Web Audio のどちらで鳴らしても同じ形の記録器)。ヘッドレスでは音は聞こえないので、鳴らし始めた回数で確かめる
+    await installSoundTrace(dev.context);
     const stamp = Date.now();
     const PIC = { name: `flow-${stamp}.png`, mimeType: "image/png", buffer: makeBadgePng("#10b981", "#064e3b", { width: 64, height: 64 }) };
     const SE = { name: `flow-se-${stamp}.wav`, mimeType: "audio/wav", buffer: makeWav(TUNES.prize) };
@@ -245,8 +238,9 @@ test.describe("オープニングの行送り・画像・効果音(管理画面�
       expect([...seen.indexes].sort()).toEqual(["0", "1", "2"]);
       await expect.poll(() => route(page), { timeout: 30_000 }).toBe("/execute/jackpot-description");
       // 効果音は、項目2・項目3の始めに1回ずつ鳴った
-      const plays = await page.evaluate(() => (window as unknown as { __plays: string[] }).__plays);
-      expect(plays.filter((src) => src.startsWith("blob:")).length).toBeGreaterThanOrEqual(2);
+      const plays = allStarts(await soundTrace(page));
+      expect(plays.length).toBeGreaterThanOrEqual(2);
+      expect(plays.filter((x) => x.loop), "効果音はループしない").toEqual([]);
     } finally {
       // 後始末: 項目を全部消して保存(ほかのテストが、この設定を読まないように)
       await page.goto("/#/execute/jackpot-admin/screens/opening");

@@ -234,7 +234,7 @@ export const AUDIO_BASELINE: readonly BaselineRow[] = [
     fade: "D3・D4 と同じ",
     delay: "D3・D4 と同じ",
     venue: NOT_APPLICABLE,
-    checkedBy: "jackpot-stop-patterns.spec.ts ほか確変の e2e(音は D4 と同じ経路。ローカル wrangler の通しで確変の全種類を確認)",
+    checkedBy: "jackpot-draw-bgm.spec.ts「確変: ダミー抽選と本抽選のそれぞれで…」(景品抽選BGMは当選BGMの前に即止まり、当選BGMは1回ずつ鳴ってフェードで消える)",
     pr: "PR3",
   },
   {
@@ -247,7 +247,7 @@ export const AUDIO_BASELINE: readonly BaselineRow[] = [
     fade: "なし",
     delay: "なし(回り始めの前に stop → load → play)",
     venue: NOT_APPLICABLE,
-    checkedBy: "slot-animation.spec.ts(単体)",
+    checkedBy: "slot-animation.spec.ts(単体)。いまの抽選は、スロットに音源(リール音)を渡していないので、本番では鳴らない(e2e で確かめる対象がない)",
     pr: "PR3",
   },
   {
@@ -260,7 +260,7 @@ export const AUDIO_BASELINE: readonly BaselineRow[] = [
     fade: "なし",
     delay: "なし",
     venue: NOT_APPLICABLE,
-    checkedBy: "jackpot-screen-flow.spec.ts「行送りで3行ずつ…項目の始めに効果音が鳴る」",
+    checkedBy: "jackpot-screen-flow.spec.ts「行送りで3行ずつ…項目の始めに効果音が鳴る」(再生の記録器で、鳴らし始めた回数とループしないことを確認)",
     pr: "PR3",
   },
   // ---- クイズ ----

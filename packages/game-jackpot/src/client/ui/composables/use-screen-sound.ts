@@ -25,6 +25,8 @@ function defaultBlobOf(name: string): Promise<Blob | null> {
  */
 export function useScreenSound(blobOf?: (name: string) => Promise<Blob | null>) {
   const { screen } = useSound();
+  /** この画面が流している曲の名前(止めるのは、自分が流した曲だけ。同じチャンネルの別の曲は止めない)。 */
+  let current: string | null = null;
   return {
     /** 曲を先に読み込んでおく(名前が空なら何もしない)。 */
     preload(name: string | null | undefined): Promise<void> {
@@ -33,11 +35,12 @@ export function useScreenSound(blobOf?: (name: string) => Promise<Blob | null>) 
     /** 曲をループで流す(`delayMs` 待ってから)。名前が空なら何もしない。失敗しても画面は止めない。 */
     async play(name: string | null | undefined, delayMs = 0): Promise<void> {
       if (!name) return;
+      current = name;
       await screen.play(screenBgmSource(name, blobOf), { loop: true, delayMs });
     },
-    /** 流している曲を止める。 */
+    /** この画面が流した曲を止める(まだ読み込み中なら、鳴らさない)。流していなければ何もしない。 */
     stop(): Promise<void> {
-      return screen.stop();
+      return current ? screen.stop({ key: current }) : Promise.resolve();
     },
   };
 }

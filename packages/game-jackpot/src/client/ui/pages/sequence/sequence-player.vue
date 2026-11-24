@@ -18,6 +18,8 @@
 <script lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, type PropType } from 'vue';
 import { useRouter } from 'vue-router';
+import { useSound } from '@octopus/composables/use-sound';
+import type { SoundSource } from '@octopus/client-common/audio/sound-system';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import type { SequenceItem, SequenceSettings } from '@model/screen-config/sequence-setting';
 import { loadEdgeColor } from '../../composables/load-edge-color';
@@ -69,13 +71,12 @@ export default {
         const containerStyle = computed(() => (edge.value ? { background: edge.value } : {}));
         const bodyStyle = computed(() => ({ transform: `translateY(${y.value}px)`, opacity: opacity.value }));
 
+        // 効果音は、音の中心(SoundSystem)の effect チャンネルで鳴らす(重ねて鳴らせる。止めない。鳴らなくても進める)。先に読み込んでおき、項目の始めで遅れないようにする
+        const { effect } = useSound();
+        const seSource = (url: string): SoundSource => ({ key: url, load: async () => (await fetch(url)).blob() });
+        for (const item of props.config.items) if (item.seUrl) void effect.preload(seSource(item.seUrl));
         const playSe = (item: SequenceItem) => {
-            if (!item.seUrl) return;
-            try {
-                void new Audio(item.seUrl).play().catch(() => undefined);
-            } catch {
-                /* 効果音が鳴らなくても進める */
-            }
+            if (item.seUrl) void effect.play(seSource(item.seUrl));
         };
 
         const waitForImage = (el: HTMLElement | null) =>

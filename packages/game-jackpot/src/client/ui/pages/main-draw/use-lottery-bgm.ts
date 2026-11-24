@@ -1,7 +1,8 @@
 import { container } from 'tsyringe';
 import { JackpotRepository } from '@model/jackpot-repository';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { useAudio } from '@octopus/composables/use-audio';
+import { useSound } from '@octopus/composables/use-sound';
+import type { SoundSource } from '@octopus/client-common/audio/sound-system';
 
 /** 停止が始まってから、抽選BGMが消えるまでの長さ(ミリ秒)。 */
 export const LOTTERY_BGM_FADE_MS = 1500;
@@ -42,40 +43,39 @@ export function shouldHoldLotteryBgm(resultBgms: string | readonly (string | nul
 
 /**
  * 抽選中に流すBGM(`main-screen-settings` の `key` に並べた曲から、抽選のたびにランダムに1曲)の
- * 読み込み・再生・フェードアウトを担う。景品の当選BGM(roulette-audio の singleton)とは別の
- * `useAudio()` を持つので、2曲が同時に鳴る。再生に失敗しても演出は止めない。
+ * 読み込み・再生・フェードアウトを担う。音の中心(`SoundSystem`)の `screen` チャンネルで1回だけ流す。
+ * 再生に失敗しても演出は止めない。読み込み中に止められた・フェードアウトが来た再生は、チャンネルが取りやめる(古い結果は鳴らさない)。
+ * 景品の当選BGM(bgm.ts)も同じチャンネルだが、2曲が同時に鳴ることはない(当選BGMがあれば抽選BGMは先に止め、無ければ当選BGMは鳴らない)。
  */
 export function useLotteryBgm(key: LotteryBgmKey): LotteryBgmPlayer {
   const repo = container.resolve(JackpotRepository);
   const screenSettingsService = container.resolve(ScreenSettingsService);
-  const { load, play, stop, fadeOut } = useAudio();
-  /** この抽選で曲を流しているか(未設定・読み込み失敗のときは false。フェードのログを出さない)。 */
+  const { screen } = useSound();
+  /** いま流している(または準備中の)曲名。 */
+  let current: string | null = null;
+  /** この抽選で曲を流し始めたか(未設定・読み込み失敗のときは false。フェードのログを出さない)。 */
   let playing = false;
-  /** 再生の世代。stop / fadeOut / 次の再生で進め、古い再生が遅れて始まらないようにする。 */
+  /** 準備の世代。stop / fadeOut の取りやめ / 次の再生で進め、古い準備が遅れて鳴らさないようにする(鳴らす前の取りやめは、チャンネルの stop が行う)。 */
   let generation = 0;
-  /** 再生を始めた(または、始めないと決まった)ら解決する。フェードアウトが、再生の準備中に来ても待てるようにする。play() の完了は待たない。 */
+  /** 再生を始めた(または、始めないと決まった)ら解決する。フェードアウトが、再生の準備中に来ても待てるようにする。 */
   let ready: Promise<void> = Promise.resolve();
 
-  const start = async (mine: number, settle: () => void): Promise<void> => {
+  const start = async (mine: number): Promise<void> => {
     try {
       const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
       const name = pickLotteryBgm(cfg?.[key]);
       if (!name) return;
       const blob = await repo.blobOf(name);
       if (!blob || mine !== generation) return;
-      await stop();
-      await load(blob);
-      if (mine !== generation) return;
       console.log(`[LotteryBgm] ${key} play`, name);
-      playing = true;
-      // play() は、自動再生が止められると終わらないことがある。終わるのを誰も待たない
-      const started = play();
-      settle();
-      await started;
+      current = name;
+      const source: SoundSource = { key: name, load: async () => blob };
+      await screen.stop({ key: name }); // 同じ曲が残っていれば、止めて頭から鳴らし直す
+      if (mine !== generation) return;
+      const result = await screen.play(source, { loop: false });
+      if (mine === generation && result === 'started') playing = true;
     } catch (e) {
       console.error(`Failed to play ${key}:`, e);
-    } finally {
-      settle();
     }
   };
 
@@ -94,20 +94,20 @@ export function useLotteryBgm(key: LotteryBgmKey): LotteryBgmPlayer {
     playRandom: () => {
       const mine = ++generation;
       playing = false;
-      let settle: () => void = () => {};
-      ready = new Promise<void>((resolve) => (settle = resolve));
-      void start(mine, settle);
+      current = null;
+      ready = start(mine);
     },
     fadeOut: async () => {
       try {
         if (!(await readyWithin())) {
           generation++; // 準備が終わらない再生は取りやめる(あとから鳴り出さない)
+          if (current) await screen.stop({ key: current });
           return;
         }
-        if (!playing) return;
+        if (!playing || !current) return;
         playing = false;
         console.log(`[LotteryBgm] ${key} fadeOut`);
-        await fadeOut(LOTTERY_BGM_FADE_MS);
+        await screen.stop({ key: current, fadeMs: LOTTERY_BGM_FADE_MS });
       } catch (e) {
         console.warn(`Failed to fade out ${key}:`, e);
       }
@@ -116,7 +116,7 @@ export function useLotteryBgm(key: LotteryBgmKey): LotteryBgmPlayer {
       generation++;
       playing = false;
       try {
-        await stop();
+        if (current) await screen.stop({ key: current });
       } catch (e) {
         console.warn(`Failed to stop ${key}:`, e);
       }

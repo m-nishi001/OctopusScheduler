@@ -1,5 +1,7 @@
 import { ref } from "vue";
 import { vi } from "vitest";
+import { FakeSoundBackend } from "@octopus/client-common/audio/fake-sound-backend";
+import { SoundSystem } from "@octopus/client-common/audio/sound-system";
 import type { DrawContext } from "./draw-context";
 
 /** テスト用の DrawContext。演出コンポーネント(テンプレート ref)は vi.fn の偽物。 */
@@ -18,6 +20,7 @@ export function createTestContext(overrides: Record<string, unknown> = {}) {
     }),
     preparePrizes: vi.fn().mockResolvedValue([{ id: "prepared" }]),
     loadBgmBlob: vi.fn().mockResolvedValue(null),
+    sound: new SoundSystem(new FakeSoundBackend()),
     memberAnim: ref<any>({ startDraw: vi.fn(), stopDraw: vi.fn().mockResolvedValue(undefined) }),
     prizeAnim: ref<any>({
       startSpin: vi.fn(),

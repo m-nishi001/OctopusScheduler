@@ -8,20 +8,6 @@ import { reactive, nextTick } from "vue";
 };
 
 // モック対象モジュール
-vi.mock("./roulette-audio", () => {
-  const audioMock = {
-    startBgm: vi.fn(() => Promise.resolve()),
-    stopBgmAudio: vi.fn(() => Promise.resolve()),
-    bgmAutoplayBlocked: { value: false },
-    tryResumeBgm: vi.fn(() => Promise.resolve()),
-    isBgmPlaying: { value: false },
-    currentBgmSrc: { value: "" },
-  };
-  return {
-    useRouletteAudio: () => audioMock,
-  };
-});
-
 vi.mock("./roulette-animator", () => {
   const animatorMock = {
     startSpin: vi.fn(() => Promise.resolve()),
