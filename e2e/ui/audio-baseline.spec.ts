@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { makeWav, TUNES } from "../../scripts/seed-content.js";
 import { AUDIO_BASELINE, baselineRow } from "./helpers/audio-baseline";
 import { seedServerAsset, silentWav, uid } from "./helpers/media";
-import { activeSounds, allStarts, installSoundTrace, soundTrace, starts, type SoundEvent } from "./helpers/sound-trace";
+import { activeSounds, allStarts, installSoundTrace, soundTrace, type SoundEvent } from "./helpers/sound-trace";
 import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, publishPortal, route, seedJackpot, test } from "./fixtures";
 
 /**
@@ -320,9 +320,9 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/answer`);
   // 遅い環境(GAS)では、鳴っている間に確かめ損ねないよう、再生の履歴で確かめる
   await expect
-    .poll(async () => starts(await soundTrace(host.page), "media").filter((x) => !x.loop && x.id !== play.id).map((x) => x.id).length, { message: "正解BGMが、ループなしで流れる", timeout: 60_000 })
+    .poll(async () => allStarts(await soundTrace(host.page)).filter((x) => !x.loop && x.id !== play.id).map((x) => x.id).length, { message: "正解BGMが、ループなしで流れる", timeout: 60_000 })
     .toBe(1);
-  const correct = starts(await soundTrace(host.page), "media").filter((x) => !x.loop && x.id !== play.id)[0];
+  const correct = allStarts(await soundTrace(host.page)).filter((x) => !x.loop && x.id !== play.id)[0];
   await next.click(); // → ランキング
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/result`);
   await expect.poll(async () => (await activeSounds(host.page)).some((s) => s.id === correct.id), { message: "正解を離れたら正解BGMは止まる" }).toBe(false);

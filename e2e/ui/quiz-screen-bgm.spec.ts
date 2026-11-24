@@ -1,6 +1,7 @@
 import { strToU8, zipSync } from "fflate";
 import type { Page } from "@playwright/test";
 import { makeWav, TUNES } from "../../scripts/seed-content.js";
+import { installSoundTrace, soundTrace } from "./helpers/sound-trace";
 import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, route, test } from "./fixtures";
 
 /**
@@ -21,30 +22,21 @@ test.afterAll(async ({ request }) => {
 });
 
 type AudioEvent = { e: "play" | "pause"; id: number; loop: boolean };
+/** ホストの音の動きを記録する(<audio>・Web Audio のどちらで鳴らしても同じ形)。 */
 async function installAudioLog(page: Page) {
-  await page.context().addInitScript(() => {
-    const log: AudioEvent[] = [];
-    (window as unknown as { __audioLog: AudioEvent[] }).__audioLog = log;
-    const ids = new WeakMap<object, number>();
-    let count = 0;
-    const idOf = (el: object) => {
-      if (!ids.has(el)) ids.set(el, ++count);
-      return ids.get(el)!;
-    };
-    const proto = HTMLMediaElement.prototype;
-    const play = proto.play;
-    proto.play = function (this: HTMLMediaElement) {
-      log.push({ e: "play", id: idOf(this), loop: this.loop });
-      return play.call(this);
-    };
-    const pause = proto.pause;
-    proto.pause = function (this: HTMLMediaElement) {
-      log.push({ e: "pause", id: idOf(this), loop: this.loop });
-      return pause.call(this);
-    };
-  });
+  await installSoundTrace(page.context());
 }
-const audioLog = (page: Page) => page.evaluate(() => (window as unknown as { __audioLog: AudioEvent[] }).__audioLog);
+/** 再生の開始(play)と、止めた(pause: <audio> の pause / Web Audio の stop。自然に終わったのは含めない)出来事。 */
+const audioLog = async (page: Page): Promise<AudioEvent[]> =>
+  (await soundTrace(page)).flatMap((x): AudioEvent[] =>
+    (x.kind === "media" && x.e === "play") || (x.kind === "source" && x.e === "start")
+      ? [{ e: "play", id: x.id, loop: !!x.loop }]
+      : (x.kind === "media" && x.e === "pause") || (x.kind === "source" && x.e === "stop")
+        ? [{ e: "pause", id: x.id, loop: false }]
+        : []
+  );
+/** 演出より長い曲(止めるとき、まだ鳴っているように。短い曲は止める前に自然に終わる)。 */
+const longWav = (notes: Parameters<typeof makeWav>[0]) => makeWav(Array.from({ length: 12 }, () => notes).flat() as Parameters<typeof makeWav>[0]);
 
 const quizzesZip = () => {
   const header = "ID,タイトル,問題,制限時間(秒),正解(選択肢の番号),開始BGM,ランキングBGM,選択肢1,選択肢2";
@@ -55,8 +47,8 @@ const quizzesZip = () => {
     buffer: Buffer.from(
       zipSync({
         "quizzes.csv": strToU8(`${header}\r\n${row}\r\n`),
-        [`media/${INTRO_BGM}`]: makeWav(TUNES.opening),
-        [`media/${RANKING_BGM}`]: makeWav(TUNES.ending),
+        [`media/${INTRO_BGM}`]: longWav(TUNES.opening),
+        [`media/${RANKING_BGM}`]: longWav(TUNES.ending),
       })
     ),
   };
@@ -150,8 +142,8 @@ test("@motion 当選者がいると、景品のダイアログが開いた時点
           `ID,タイトル,問題,制限時間(秒),正解(選択肢の番号),景品名,景品BGM,ランキングBGM,選択肢1,選択肢2\r\n` +
             `${prizeQuizId},景品BGMクイズ,みかんはどれ?,30,2,テスト景品,${prizeBgm},${rankingBgm},りんご,みかん\r\n`
         ),
-        [`media/${prizeBgm}`]: makeWav(TUNES.opening),
-        [`media/${rankingBgm}`]: makeWav(TUNES.ending),
+        [`media/${prizeBgm}`]: longWav(TUNES.opening),
+        [`media/${rankingBgm}`]: longWav(TUNES.ending),
       })
     ),
   };

@@ -300,7 +300,7 @@ export const AUDIO_BASELINE: readonly BaselineRow[] = [
     fade: "なし",
     delay: "なし",
     venue: NOT_APPLICABLE,
-    checkedBy: "(音の e2e なし。単体テストと、ローカル wrangler の通しで確認)",
+    checkedBy: "audio-baseline.spec.ts Q3(正解BGMは1回だけ、ループしない)",
     pr: "PR4",
   },
   {
