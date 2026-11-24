@@ -80,6 +80,13 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   host.page.on("pageerror", (e) => pageErrors.push(e.message));
   // 演出の途中の失敗(進行の「step failed」など)は、画面に出ずコンソールにだけ出る。落ちたときに原因が分かるよう残す
   const consoleErrors: string[] = [];
+  // 落ちたときに原因を追えるよう、画面のコンソールの直近を残す
+  const recent: string[] = [];
+  host.page.on("console", (m) => {
+    recent.push(`${m.type()}:${m.text().slice(0, 160)}`);
+    if (recent.length > 40) recent.shift();
+  });
+  (host.page as unknown as { __recent: string[] }).__recent = recent;
   host.page.on("console", (m) => {
     if (m.type() === "error") consoleErrors.push(m.text());
   });
@@ -157,7 +164,7 @@ for (const kind of ["roulette", "slot"] as const) {
     await nextButton(admin.page).click();
     // 止まる演出が終わる(回転が止まる)のを待ち、そのあと結果が出る。失敗したら、画面で起きたエラーを添える
     await expect(reel.and(host.page.locator(".spinning")), `止まる演出が終わらない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeHidden({ timeout: 30_000 });
-    await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeVisible({ timeout: 60_000 });
+    await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}、直近のコンソール: ${JSON.stringify((host.page as unknown as { __recent: string[] }).__recent.slice(-25))}`).toBeVisible({ timeout: 60_000 });
 
     // 順序: メンバー抽選(再生 → フェード)→ メンバー結果(再生)→ 景品抽選(再生)。ループ指定の曲は1つも無い。景品抽選BGMは、当選BGMが空なので止まってからフェードアウト
     expect(logs.map((l) => l.replace("[LotteryBgm] ", "").replace(/ \S+\.wav$/, ""))).toEqual(["memberLotteryBgms play", "memberLotteryBgms fadeOut", "memberResultBgms play", "prizeLotteryBgms play", "prizeLotteryBgms fadeOut"]);
@@ -316,7 +323,7 @@ test("@motion 音の play() が終わらない(自動再生が止められるな
   await stopAndMeasure(admin.page);
   await advanceUntilStop(admin.page, "景品");
   await stopAndMeasure(admin.page);
-  await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}`).toBeVisible({ timeout: 60_000 });
+  await expect(host.page.getByText("景品当選"), `結果が出ない。画面のエラー: ${JSON.stringify([...pageErrors, ...consoleErrors])}、直近のコンソール: ${JSON.stringify((host.page as unknown as { __recent: string[] }).__recent.slice(-25))}`).toBeVisible({ timeout: 60_000 });
   expect(logs.some((l) => l.includes("prizeLotteryBgms play"))).toBe(true);
   expect(pageErrors).toEqual([]);
   for (const d of [admin, host, guest]) await d.context.close();
