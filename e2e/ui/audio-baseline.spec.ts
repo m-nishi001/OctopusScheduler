@@ -75,7 +75,11 @@ async function importScreens(page: Page, bgms: { opening: string; description: s
     "pages.csv": strToU8([PAGES_HEADER, "オープニング,テキスト,ようこそ,,静止,0.6,,,", "説明,テキスト,説明です,,,,,,", "エンディング,テキスト,おわり,,静止,0.6,,,"].join("\r\n") + "\r\n"),
     ...Object.fromEntries(Object.entries(files).map(([name, body]) => [`media/${name}`, body])),
   });
+  // 直前の画面(セッション一覧)の遷移が落ち着く前にハッシュを変えると、遅れて届いた遷移がURLを元の画面へ戻し、
+  // 読み直した先がセッション一覧になる。一覧が描かれてから移り、移った先でURLが落ち着いたのを確かめてから読み直す
+  await expect(page.getByRole("heading", { name: "セッション" })).toBeVisible();
   await page.goto("/#/execute/jackpot-admin/screens/opening");
+  await expect.poll(() => route(page)).toBe("/execute/jackpot-admin/screens/opening");
   await page.reload();
   await expect(page.getByTestId("table-export")).toBeVisible();
   await page.getByTestId("table-import-open").click();
