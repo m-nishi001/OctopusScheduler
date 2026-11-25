@@ -202,21 +202,20 @@ test("(d) 管理画面の結果のリセットで、当選者・景品の記録�
   // この端末には景品が無い(取り置きの印は景品の行に付く)ので、先に入れて読み直す
   await seedJackpot(results.page, { prizes: PRIZES });
   // 次のサイクルは公開のあと裏で先に確定される(未公開)ので、確定済みの件数は1件とは限らない。
-  // 結果ページは開いた時点の件数を表示するので、「サーバーの件数 → ページを開き直して表示 → サーバーの件数」を読み、
-  // 前後が同じ(その間に先読みの確定が起きていない)で、表示もそれと一致したときを成功とする。先読みが落ち着けば必ず揃う
-  const openResults = async () => {
-    await results.page.reload();
-    await results.page.getByTestId("results-source").selectOption(sessionId);
-    await expect(results.page.getByTestId("total-draws")).toBeVisible();
-  };
+  // 結果ページは、保存先を選んだ時点の件数を(読み込みが終わってから)表示するだけで、あとから増えても追いかけない。
+  // そこで、サーバーの件数が、最後にページへ読み込ませたときの件数から変わったら、ページを開き直して選び直す。
+  // 件数が落ち着けば(先読みの確定が済めば)、表示もサーバーの件数と一致する。表示は読み込みの完了を待って読み直す
+  let loadedAt = -1;
   await expect
     .poll(
       async () => {
-        const before = (await serverState(request, sessionId)).draws.length;
-        await openResults();
-        const shown = await results.page.getByTestId("total-draws").innerText();
-        const after = (await serverState(request, sessionId)).draws.length;
-        return before === after && shown === String(after);
+        const count = (await serverState(request, sessionId)).draws.length;
+        if (count !== loadedAt) {
+          loadedAt = count;
+          await results.page.reload();
+          await results.page.getByTestId("results-source").selectOption(sessionId);
+        }
+        return (await results.page.getByTestId("total-draws").innerText()) === String(count);
       },
       { timeout: 60_000, message: "結果ページの件数が、サーバーの確定済みの件数と一致する" }
     )
