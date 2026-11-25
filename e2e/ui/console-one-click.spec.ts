@@ -155,6 +155,9 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
     await nextButton(admin.page).click();
     await expect(admin.page.getByTestId("now")).toContainText("受付終了");
+    // 管理端末の表示が「正解」の手順に進み、Enter が主ボタンの操作になってから押す(手順の途中の Enter は取りこぼされる)
+    await expect(admin.page.getByTestId("next-hint")).toContainText("正解");
+    await expect(nextButton(admin.page).getByTestId("next-key")).toHaveText("Enter");
 
     await admin.page.keyboard.press("Enter"); // → 正解
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/answer");
