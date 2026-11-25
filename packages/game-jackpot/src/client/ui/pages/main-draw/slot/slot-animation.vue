@@ -93,12 +93,22 @@ export default {
         const rebuildLoops = () => {
             loops.value = reels.value.map(() => buildReelLoop(source.value, props.rng));
         };
+        const refreshImages = (latest: ReadonlyArray<AnimationItem>) => {
+            const byId = new Map(latest.map((it) => [it.id, it]));
+            loops.value = loops.value.map((loop) => loop.map((it) => {
+                const next = byId.get(it.id);
+                return next && next.imageUrl !== it.imageUrl ? { ...it, imageUrl: next.imageUrl } : it;
+            }));
+        };
         // 同じ景品の並びが再び渡されただけ(確変の途中で親が同じ一覧を入れ直す)なら、回っている最中に並びを変えない。
         watch(
             source,
             (now, before) => {
                 const same = before && now.length === before.length && now.every((it, i) => it.id === before[i].id);
                 if (!same) rebuildLoops();
+                // 景品の並びが同じで、画像の URL だけ変わった(確変のあと、親が用意し直した一覧を入れ直した)ときは、
+                // 並びも止まる位置もそのままで、マスの画像だけ最新の URL にする(古い URL は破棄されていることがある)
+                else refreshImages(now);
             },
             { immediate: true }
         );

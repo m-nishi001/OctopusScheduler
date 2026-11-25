@@ -201,11 +201,25 @@ test("(d) 管理画面の結果のリセットで、当選者・景品の記録�
   await results.page.goto("/#/execute/jackpot-admin/results");
   // この端末には景品が無い(取り置きの印は景品の行に付く)ので、先に入れて読み直す
   await seedJackpot(results.page, { prizes: PRIZES });
-  await results.page.reload();
-  await results.page.getByTestId("results-source").selectOption(sessionId);
-  // 次のサイクルは公開のあと裏で先に確定される(未公開)ので、確定済みの件数は1件とは限らない。サーバーの件数と一致することを確かめる
+  // 次のサイクルは公開のあと裏で先に確定される(未公開)ので、確定済みの件数は1件とは限らない。
+  // 結果ページは開いた時点の件数を表示するので、「サーバーの件数 → ページを開き直して表示 → サーバーの件数」を読み、
+  // 前後が同じ(その間に先読みの確定が起きていない)で、表示もそれと一致したときを成功とする。先読みが落ち着けば必ず揃う
+  const openResults = async () => {
+    await results.page.reload();
+    await results.page.getByTestId("results-source").selectOption(sessionId);
+    await expect(results.page.getByTestId("total-draws")).toBeVisible();
+  };
   await expect
-    .poll(async () => (await results.page.getByTestId("total-draws").innerText()) === String((await serverState(request, sessionId)).draws.length))
+    .poll(
+      async () => {
+        const before = (await serverState(request, sessionId)).draws.length;
+        await openResults();
+        const shown = await results.page.getByTestId("total-draws").innerText();
+        const after = (await serverState(request, sessionId)).draws.length;
+        return before === after && shown === String(after);
+      },
+      { timeout: 60_000, message: "結果ページの件数が、サーバーの確定済みの件数と一致する" }
+    )
     .toBe(true);
   // 確変用に取り置いた景品の印(予定から)。確変の予定は乱数で決まり、取り置きが0件のこともあるので、あるときだけ確かめる
   if (plan!.reservedPrizeIds.length > 0) await expect(results.page.getByTestId("reserved-badge").first()).toBeVisible();

@@ -10,11 +10,26 @@ import { slotMetrics } from "./helpers/slot";
  */
 const SHOTS = process.env.E2E_SHOTS;
 
+/**
+ * 管理者として RPC を呼ぶ。このスペックが呼ぶのは名簿の更新(同じ内容を何度適用しても同じ)と読み取りだけなので、
+ * 通信そのものが切れた(wrangler の ProxyWorker が JSON でなくエラー文を返した)ときに限り、最大3回まで送り直す。
+ * RPC が失敗を返した場合(status が success でない)は再送せず、すぐ例外にする。3回とも通信が切れたら、本文つきの明確なエラーにする。
+ */
 const rpc = async (page: Page, name: string, args: unknown) => {
-  const res = await page.request.post("/rpc", { data: { name, args: { __octopusAuth: ADMIN_TOKEN, args } } });
-  const json = await res.json();
-  if (json.status !== "success") throw new Error(`${name}: ${json.message}`);
-  return json.data;
+  let lastBody = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await page.request.post("/rpc", { data: { name, args: { __octopusAuth: ADMIN_TOKEN, args } } });
+    lastBody = await res.text();
+    let json: { status?: string; message?: string; data?: unknown };
+    try {
+      json = JSON.parse(lastBody);
+    } catch {
+      continue; // 通信の切断(JSON ではない応答)。送り直す
+    }
+    if (json.status !== "success") throw new Error(`${name}: ${json.message}`);
+    return json.data;
+  }
+  throw new Error(`${name}: 3回送っても通信が切れた(HTTP応答が JSON でない): ${lastBody.slice(0, 200)}`);
 };
 
 async function resetMembers(page: Page, names: string[]): Promise<void> {
