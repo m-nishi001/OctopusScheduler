@@ -70,7 +70,7 @@ export async function sampleRepeatedRows(page: Page, frames: number): Promise<st
             const b = row.getBoundingClientRect();
             return b.bottom > box.top - 2 && b.top < box.bottom + 2;
           })
-          .map((row) => row.textContent?.trim() ?? "");
+          .map((row) => row.textContent?.trim() || row.querySelector("img")?.alt || "");
         for (let k = 1; k < names.length; k++) if (names[k] === names[k - 1]) out.push(`frame ${i} reel ${r}: "${names[k]}" が続けて見える`);
       });
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -94,7 +94,7 @@ export async function stoppedWinRows(page: Page): Promise<string[]> {
         const rows = Array.from(reel.querySelectorAll<HTMLElement>(".prize-item"));
         const rowH = rows[0].getBoundingClientRect().height;
         const win = rows.find((row) => Math.abs(row.getBoundingClientRect().top - (box.top + reel.clientTop + rowH)) < 3);
-        return win?.textContent?.trim() ?? "";
+        return win?.textContent?.trim() || win?.querySelector("img")?.alt || "";
       }),
     }));
   const first = await read();

@@ -495,3 +495,75 @@ describe("SlotAnimation", () => {
     expect(source).not.toMatch(/transition:\s*transform/);
   });
 });
+
+describe("SlotAnimation: 景品画像", () => {
+  const withImage = [
+    { id: "p1", name: "賞1", imageUrl: "blob:test/p1" },
+    { id: "p2", name: "賞2" },
+    { id: "p3", name: "賞3", imageUrl: "blob:test/p3" },
+  ];
+  const mountItems = () => mount(SlotAnimation, { props: { prizes, preparedPrizes: withImage, selectedPrize: prizes[0] } });
+
+  it("画像のある景品は img.prize-image(src 一致)、無い景品は名前で出る", () => {
+    const wrapper = mountItems();
+    const srcs = new Set(wrapper.findAll("img.prize-image").map((i) => i.attributes("src")));
+    expect(srcs).toEqual(new Set(["blob:test/p1", "blob:test/p3"]));
+    const names = wrapper.findAll(".prize-name").map((n) => n.text());
+    expect(new Set(names)).toEqual(new Set(["賞2"]));
+  });
+
+  it("画像が読めなかったら、その景品は名前に戻る", async () => {
+    const wrapper = mountItems();
+    await wrapper.find('img.prize-image[src="blob:test/p1"]').trigger("error");
+    expect(wrapper.find('img.prize-image[src="blob:test/p1"]').exists()).toBe(false);
+    expect(new Set(wrapper.findAll(".prize-name").map((n) => n.text()))).toEqual(new Set(["賞1", "賞2"]));
+    expect(wrapper.find('img.prize-image[src="blob:test/p3"]').exists()).toBe(true);
+  });
+
+  it("確変の updatePrizes で渡した imageUrl が出る", async () => {
+    const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+    expect(wrapper.findAll("img.prize-image")).toHaveLength(0);
+    const api = wrapper.vm as unknown as Required<AnimationRef>;
+    await api.updatePrizes([{ id: "p1", name: "賞1", imageUrl: "blob:test/new" }, { id: "p1", name: "賞1", imageUrl: "blob:test/new" }]);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findAll("img.prize-image").every((i) => i.attributes("src") === "blob:test/new")).toBe(true);
+    expect(wrapper.findAll("img.prize-image").length).toBeGreaterThan(0);
+  });
+});
+
+describe("SlotAnimation: 画像の URL だけが変わった一覧を入れ直したとき(確変の最後)", () => {
+  const cells = (wrapper: ReturnType<typeof mount>) =>
+    wrapper.findAll(".reel").map((reel) => reel.findAll(".prize-item").map((c) => (c.find("img").exists() ? c.find("img").attributes("alt") : c.text())));
+  const srcs = (wrapper: ReturnType<typeof mount>) => wrapper.findAll("img.prize-image").map((i) => i.attributes("src"));
+  const list = (tag: string) => [
+    { id: "p1", name: "賞1", imageUrl: `blob:${tag}/p1` },
+    { id: "p2", name: "賞2", imageUrl: `blob:${tag}/p2` },
+    { id: "p3", name: "賞3" },
+  ];
+
+  it("並び(各リールの景品の順)は変わらず、画像の URL だけ新しくなる", async () => {
+    const wrapper = mount(SlotAnimation, { props: { prizes, preparedPrizes: list("old"), selectedPrize: prizes[0], rng: () => 0.37 } });
+    const api = wrapper.vm as unknown as Required<AnimationRef>;
+    const before = cells(wrapper);
+    await api.updatePrizes(list("new"));
+    await wrapper.vm.$nextTick();
+    expect(cells(wrapper)).toEqual(before);
+    expect(srcs(wrapper).length).toBeGreaterThan(0);
+    expect(srcs(wrapper).every((s) => s?.startsWith("blob:new/"))).toBe(true);
+  });
+
+  it("画像の有無だけが変わっても、止まる景品と並びは変わらない(止める景品はどのリールにも在る)", async () => {
+    const wrapper = mount(SlotAnimation, { props: { prizes, preparedPrizes: list("old").map(({ id, name }) => ({ id, name })), selectedPrize: prizes[1], rng: () => 0.8 } });
+    const api = wrapper.vm as unknown as Required<AnimationRef>;
+    const before = cells(wrapper);
+    await api.updatePrizes(list("new"));
+    await wrapper.vm.$nextTick();
+    // 画像が付いた景品は、名前ではなく img の alt(= 名前)で同じ順に並ぶ
+    expect(cells(wrapper)).toEqual(before);
+    expect(api.getInternalItems().map((i) => i.id)).toEqual(["p1", "p2", "p3"]);
+    await api.startSpin();
+    const stopped = api.stopSpin(3, "p2");
+    await vi.advanceTimersByTimeAsync(6000);
+    await expect(stopped).resolves.toBe("p2");
+  });
+});
