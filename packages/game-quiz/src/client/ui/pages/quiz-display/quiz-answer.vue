@@ -100,9 +100,9 @@ const handleKeydown = (ev: KeyboardEvent) => {
 </script>
 
 <style scoped>
-/* 正解は遠くからでも読めるよう、画面サイズに合わせて大きく表示する。 */
+/* 正解は遠くからでも読めるよう、画面サイズに合わせて大きく表示する(長さ段階と枠に合わせた縮小は OptionCard が行う)。 */
 :deep(.option-text) {
-  font-size: clamp(2rem, 7vmin, 6rem);
+  --option-font-base: clamp(2rem, 7vmin, 6rem);
 }
 
 :deep(.text-ribbon) {
