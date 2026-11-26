@@ -305,9 +305,12 @@ test(`${baselineRow("E1").id} 動画を映して「消す」と、動画の音�
 const QUIZ_ID = `ab-quiz-${stamp}`;
 const PLAY_BGM = `ab-qplay-${stamp}.wav`;
 const CORRECT_BGM = `ab-qcorrect-${stamp}.wav`;
+const QUIZ_TEST_TIMEOUT_MS = 300_000;
+/** 出題中のBGM。1回再生なので、テストの制限時間より長くする(途中で自然に終わると「鳴っている」を確かめ損ね、「締め切ると止まる」は止めなくても通る)。 */
+const PLAY_TUNE = Array.from({ length: Math.ceil(QUIZ_TEST_TIMEOUT_MS / 1000 / durationOf(TUNES.quiz)) + 1 }, () => TUNES.quiz).flat() as Parameters<typeof makeWav>[0];
 
-test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画面へ進むと止める。${baselineRow("Q3").id} 正解表示の正解BGMは1回だけ流し(ループしない)、画面を離れたら止める`, async ({ browser }) => {
-  test.setTimeout(300_000);
+test(`${baselineRow("Q2").id} 出題中のBGMを1回だけ流し、回答画面へ進むと止める。${baselineRow("Q3").id} 正解表示の正解BGMは1回だけ流し(ループしない)、画面を離れたら止める`, async ({ browser }) => {
+  test.setTimeout(QUIZ_TEST_TIMEOUT_MS);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, "クイズ音の基準");
   sessionIds.push(sessionId);
@@ -322,7 +325,7 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
   const quizzes = {
     name: "quizzes.zip",
     mimeType: "application/zip",
-    buffer: Buffer.from(zipSync({ "quizzes.csv": strToU8(`${header}\r\n${row}\r\n`), [`media/${PLAY_BGM}`]: makeWav(TUNES.quiz), [`media/${CORRECT_BGM}`]: makeWav(TUNES.ending) })),
+    buffer: Buffer.from(zipSync({ "quizzes.csv": strToU8(`${header}\r\n${row}\r\n`), [`media/${PLAY_BGM}`]: makeWav(PLAY_TUNE), [`media/${CORRECT_BGM}`]: makeWav(TUNES.ending) })),
   };
   for (const page of [admin.page, host.page]) {
     await page.goto("/#/quiz-admin");
@@ -346,10 +349,10 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
   await admin.page.getByTestId("quiz-select").selectOption(QUIZ_ID);
   await openAdvanced(admin.page);
 
-  // Q2: 出題 → BGM がループで流れる
+  // Q2: 出題 → BGM が1回だけ流れる(意図した変更: ループしない)
   await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/play`);
-  const play = await expectSingle(host.page, { duration: durationOf(TUNES.quiz), loop: true }, "出題中のBGMがループで流れる");
+  const play = await expectSingle(host.page, { duration: durationOf(PLAY_TUNE), loop: false }, "出題中のBGMが1回再生で流れる");
 
   // 受付を締め切る(onFinish)と止まる
   const next = nextButton(admin.page);

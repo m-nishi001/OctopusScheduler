@@ -156,7 +156,7 @@ onMounted(async () => {
 
     if (disposed || !loaded.bgm) return;
     if (disposed) return; // 読み込みの間に離れたら、鳴らさない(離れたあとの取りやめは、router のガードが行う)
-    await quizSound.play(`quiz:${quizId}:play`, loaded.bgm, { loop: true });
+    await quizSound.play(`quiz:${quizId}:play`, loaded.bgm);
 });
 
 onUnmounted(() => {
