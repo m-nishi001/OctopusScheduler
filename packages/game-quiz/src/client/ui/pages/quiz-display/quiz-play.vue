@@ -416,10 +416,11 @@ body::-webkit-scrollbar {
 
 .emergency-stop-button {
     position: absolute;
-    bottom: 18px;
+    /* 下の余白に収め、選択肢の文字に重ねない */
+    bottom: 6px;
     right: 18px;
     z-index: 50;
-    padding: 10px 16px;
+    padding: 8px 16px;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.25);
     background: rgba(239, 68, 68, 0.85);

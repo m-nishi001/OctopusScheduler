@@ -1,10 +1,10 @@
 <template>
-    <div :class="['option-card', variantClass]" role="listitem">
+    <div :class="['option-card', variantClass, { 'option-card--with-image': imageUrl }]" role="listitem">
         <button class="option-button" :style="styleVars" @click="onSelect" :aria-label="ariaLabel">
-            <div class="image-wrapper">
+            <div ref="frameEl" class="image-wrapper">
                 <img v-if="imageUrl" :src="imageUrl" :alt="option.text" class="option-image" />
                 <div class="text-ribbon">
-                    <span class="option-text">{{ option.text }}</span>
+                    <span ref="textEl" class="option-text" :class="`size-${textSize}`">{{ option.text }}</span>
                 </div>
             </div>
         </button>
@@ -13,6 +13,8 @@
 
 <script setup lang="ts">
 import { computed, ref, onUnmounted } from 'vue';
+import { optionSizeOf } from '../../model/option-size';
+import { useFitText } from '../composables/use-fit-text';
 
 type OptionType = {
     no: number;
@@ -62,6 +64,13 @@ onUnmounted(() => {
         blobUrl.value = null;
     }
 });
+
+const textSize = computed(() => optionSizeOf(props.option.text ?? ''));
+
+// 選択肢は省略しない。段階の大きさで枠に入らないときは、入るまで文字を縮める。
+const frameEl = ref<HTMLElement | null>(null);
+const textEl = ref<HTMLElement | null>(null);
+useFitText(frameEl, textEl, () => [props.option.text, imageUrl.value, props.variant]);
 
 const styleVars = computed(() => ({ '--option-color': props.option.color || 'var(--option-color, #334155)' }));
 
@@ -118,61 +127,62 @@ const onSelect = () => {
     background-color: transparent;
 }
 
-.option-index {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    min-width: 44px;
-    height: 44px;
-    border-radius: 999px;
-    background: var(--option-color, rgba(255, 255, 255, 0.12));
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 0.85rem;
-    padding: 0 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
-    z-index: 3;
-}
-
+/* 下端に固定し、行が増えた分だけ上に伸びる。上限(max-height)を超える分は use-fit-text が文字を縮めて収める。 */
 .text-ribbon {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
+    box-sizing: border-box;
+    max-height: 100%;
     padding: 10px 12px;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
+    /* 縦並びにして、上限を超えたら中の文字の枠も一緒に縮むようにする(はみ出しを測れる) */
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
     z-index: 2;
 }
 
+/* 画像があるときは、画像を隠しすぎないように帯をカードの高さの 1/3 までにする。 */
+.option-card--with-image .text-ribbon {
+    max-height: 33.3%;
+    padding-block: clamp(2px, 0.6vmin, 10px);
+    /* 帯が高くなっても、画像の上で文字が読めるように下地を濃くする */
+    background: rgba(0, 0, 0, 0.62);
+}
+
 .option-text {
-    font-size: clamp(1rem, 3.6vmin, 3rem);
+    /* 段階(--option-scale)で小さくし、それでも入らなければ実寸に合わせて縮める(--option-fit)。 */
+    --option-scale: 1;
+    font-size: calc(var(--option-font-base, clamp(1rem, 4.6vmin, 3.8rem)) * var(--option-scale) * var(--option-fit, 1));
+    line-height: 1.25;
     color: #fff;
     font-weight: 800;
     text-align: center;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-    white-space: nowrap;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: calc(100% - 16px);
-    padding: 6px 8px;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+    padding: 0 8px;
+}
+
+.option-text.size-medium {
+    --option-scale: 0.85;
+}
+
+.option-text.size-long {
+    --option-scale: 0.7;
 }
 
 @media (max-width: 480px) {
-    .text-ribbon {
-        padding: 10px 12px;
-    }
-
     .option-text {
-        padding: 4px 6px;
+        padding: 0 6px;
     }
 }
 </style>
