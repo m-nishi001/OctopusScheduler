@@ -306,7 +306,7 @@ const QUIZ_ID = `ab-quiz-${stamp}`;
 const PLAY_BGM = `ab-qplay-${stamp}.wav`;
 const CORRECT_BGM = `ab-qcorrect-${stamp}.wav`;
 
-test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画面へ進むと止める。${baselineRow("Q3").id} 正解表示の正解BGMは1回だけ流し(ループしない)、画面を離れたら止める`, async ({ browser }) => {
+test(`${baselineRow("Q2").id} 出題中のBGMを1回だけ流し、回答画面へ進むと止める。${baselineRow("Q3").id} 正解表示の正解BGMは1回だけ流し(ループしない)、画面を離れたら止める`, async ({ browser }) => {
   test.setTimeout(300_000);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, "クイズ音の基準");
@@ -346,10 +346,10 @@ test(`${baselineRow("Q2").id} 出題中のBGMをループで流し、回答画�
   await admin.page.getByTestId("quiz-select").selectOption(QUIZ_ID);
   await openAdvanced(admin.page);
 
-  // Q2: 出題 → BGM がループで流れる
+  // Q2: 出題 → BGM が1回だけ流れる(意図した変更: ループしない)
   await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe(`/execute/quiz/${QUIZ_ID}/play`);
-  const play = await expectSingle(host.page, { duration: durationOf(TUNES.quiz), loop: true }, "出題中のBGMがループで流れる");
+  const play = await expectSingle(host.page, { duration: durationOf(TUNES.quiz), loop: false }, "出題中のBGMが1回再生で流れる");
 
   // 受付を締め切る(onFinish)と止まる
   const next = nextButton(admin.page);
